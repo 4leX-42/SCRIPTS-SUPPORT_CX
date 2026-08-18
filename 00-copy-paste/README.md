@@ -18,6 +18,54 @@
 `[ADMIN]` = hay que abrir la consola como administrador / open the console as administrator.
 Todo funciona en PowerShell 5.1 y 7 / everything works on PowerShell 5.1 and 7.
 
+## En qué ventana se pega cada informe / Which window to paste each report into
+
+| Informe / Report | Script | Ventana / Window | Por qué / Why |
+|---|---|---|---|
+| **Arreglo de rutas largas (MAX_PATH)** | `91-long-paths.txt` | **admin** | Escribe en `HKLM` |
+| **Ficha técnica del equipo** | `03-endpoint-report` | **admin** | `BitLocker`, TPM y Secure Boot no responden sin elevar |
+| **Estado del agente ESET** | `06-eset-status` | **admin** | El `trace.log` de ESET en `ProgramData` está protegido |
+| **Cuentas cacheadas e identidades** | `01-cached-accounts` | usuario / user | Lee `HKCU`, WAM y credenciales del usuario afectado: elevar leería otro perfil |
+| **Estado de OneDrive** | `02-onedrive-status` | usuario / user | Cuentas de OneDrive y ACL de la carpeta del usuario |
+| **Conectividad con M365** | `04-m365-connectivity` | usuario / user | Red y proxy del usuario |
+| **Estado de Office y Outlook** | `05-office-outlook-status` | usuario / user | Perfiles de Outlook e identidades de Office viven en `HKCU` |
+
+`usuario` = PowerShell normal, iniciado por el usuario que tiene el problema.
+`admin` = ese mismo usuario, pero *Ejecutar como administrador*. Iniciar sesión con otra
+cuenta de admin cambia el `HKCU` y el informe deja de describir al usuario afectado.
+
+Los `.ps1` no llevan ni un comentario, ni siquiera de cabecera: esta tabla es el único sitio
+donde vive el dato. Aun así el propio informe lo declara en su salida, para que quien lo lea
+detecte si se pegó donde no tocaba:
+
+```
+[VENTANA_REQUERIDA] admin      lo que el informe necesita
+[ELEVADO] False                lo que habia de verdad al ejecutarlo
+```
+
+## Cómo se pega / How to paste
+
+Cada informe es **una sola instrucción** (todo el cuerpo va dentro de `$INFORME = & { … }`).
+Consecuencias:
+
+1. La consola no ejecuta nada hasta la última línea: la salida sale **entera al final**, en
+   bloque, no intercalada entre las líneas de código.
+2. El informe queda además en el **portapapeles**: se pega en el chat con `Ctrl+V` sin tener que
+   seleccionar nada ni arrastrar de vuelta el código.
+3. La última línea, `--- fin del informe. copiado al portapapeles: si ---`, **no** forma parte
+   del informe.
+4. Ningún script deja variables sueltas en la sesión salvo `$INFORME` y `$copiado`.
+
+Si la consola trunca líneas largas al pegar (el informe sale sin `[FIN]`), usar el atajo de una
+sola línea, que no pega código ninguno:
+
+```powershell
+irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/00-copy-paste/02-onedrive-status.ps1 | iex
+```
+
+Cambiando el nombre del fichero se lanza cualquier otro informe. Requiere salida a Internet;
+si el equipo no la tiene, se pega el fichero entero.
+
 ## Formato de salida de los informes / Report output format
 
 ```

@@ -1,7 +1,10 @@
-﻿$ErrorActionPreference='SilentlyContinue'
+﻿$INFORME = & {
+$ErrorActionPreference='SilentlyContinue'
 '[INFORME] estado-eset v1'
 "[FECHA] $(Get-Date -Format s)"
 "[EQUIPO] $env:COMPUTERNAME"
+"[ELEVADO] $(([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))"
+'[VENTANA_REQUERIDA] admin'
 foreach($h in 'Registry::HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall','Registry::HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall'){
   foreach($k in (Get-ChildItem $h)){
     $g=Get-ItemProperty ('Registry::'+$k.Name)
@@ -49,3 +52,4 @@ foreach($a in (Get-CimInstance -Namespace root\SecurityCenter2 -ClassName AntiVi
   "[ANTIVIRUS_REGISTRADO] nombre=$($a.displayName) estado=$($a.productState) ruta=$($a.pathToSignedProductExe)"
 }
 '[FIN]'
+} | ForEach-Object { "$_" }; $INFORME = $INFORME -join [Environment]::NewLine; $copiado = 'no'; try{ Set-Clipboard -Value $INFORME -ErrorAction Stop; $copiado = 'si' }catch{}; $INFORME; ""; "--- fin del informe. copiado al portapapeles: $copiado. pegar en el chat con Ctrl+V ---"

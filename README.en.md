@@ -4,112 +4,108 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 
 🇪🇸 [Español](README.md)
 
-**Two usage modes**, and every script states its own in the last column:
-
-| Mode | What it is | What for |
-|---|---|---|
-| `paste` | Copy the whole `.ps1` and paste it into the console | Diagnostics. Flat `key=value` output, no comments and no colour: hand it to an AI to parse |
-| `download` | Download the `.ps1` and run it | Repair. These carry `-DryRun`, backups and confirmation, which pasting blind would not give you |
-
 ---
 
 <!-- INDICE-INICIO: generado por 99-repo-tools/03-generate-readme.ps1, no editar a mano -->
 
+## 0 - LAS MAINS
+
+| Operation | Script | How to run |
+|---|---|---|
+| **Identity Cache Purge** | [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1) | `.\01-clear-cached-accounts.ps1` |
+| **Stale Tenant Reset** | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) | `.\02-reset-stale-tenant-v2.1.ps1` |
+| **Long Path Remediation** | [`91-long-paths`](00-copy-paste/91-long-paths.txt) | `paste (admin)` |
+| **Endpoint Technical Audit** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `paste (admin)` |
+| **OneDrive Tiered Remediation** | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) | `.\01-remediate-onedrive-tiered.ps1` |
+| **Teams Authentication Reset** | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) | `.\01-repair-teams-signin.ps1` |
+
 ## 00 - Copy and paste (diagnostics)
 
-Paste them whole into the console. No comments, no colour: the output is flat `key=value` text meant to be handed to an AI. All read-only.
-
-| Function | Script | Mode |
-|---|---|---|
-| Cached account inventory: source of each one, GUID UPN detection and real tenantId per domain | [`01-cached-accounts`](00-copy-paste/01-cached-accounts.ps1) | `paste` |
-| OneDrive state: process, version, linked accounts, deny ACEs, write test and log freshness | [`02-onedrive-status`](00-copy-paste/02-onedrive-status.ps1) | `paste` |
-| Machine snapshot: hardware, real Windows generation, join, MDM, disk, BitLocker, network and Office | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `paste` |
-| M365 reachability: proxy, DNS, TCP 443, TLS version and latency across 7 endpoints | [`04-m365-connectivity`](00-copy-paste/04-m365-connectivity.ps1) | `paste` |
-| Office and Outlook state: version, licence, identities, profiles, .ost/.pst, add-ins and disabled items | [`05-office-outlook-status`](00-copy-paste/05-office-outlook-status.ps1) | `paste` |
-| ESET state: installation, services, binary signature, enrolment from the trace log and ESET PROTECT connectivity | [`06-eset-status`](00-copy-paste/06-eset-status.ps1) | `paste` |
-| Commands for handling paths beyond MAX_PATH in OneDrive and iManage | [`91-long-paths`](00-copy-paste/91-long-paths.txt) | `paste` |
+| Report | Script | Window | What it reports |
+|---|---|---|---|
+| **Long path fix (MAX_PATH)** | [`91-long-paths`](00-copy-paste/91-long-paths.txt) | `admin` | Enables LongPathsEnabled and 8.3 names, and finds the paths beyond 255 characters in OneDrive and iManage |
+| **Machine snapshot** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `admin` | Hardware, real Windows generation, Entra or domain join, MDM, disk, BitLocker, network and Office |
+| **ESET agent state** | [`06-eset-status`](00-copy-paste/06-eset-status.ps1) | `admin` | Installation, services, binary signature, enrolment read from the trace log and ESET PROTECT connectivity |
+| **Cached accounts and identities** | [`01-cached-accounts`](00-copy-paste/01-cached-accounts.ps1) | `user` | Cached account inventory: source of each one, GUID UPN detection and real tenantId per domain |
+| **OneDrive state** | [`02-onedrive-status`](00-copy-paste/02-onedrive-status.ps1) | `user` | Process, version, linked accounts, deny ACEs, write test and log freshness |
+| **M365 reachability** | [`04-m365-connectivity`](00-copy-paste/04-m365-connectivity.ps1) | `user` | Proxy, DNS, TCP 443, TLS version and latency across the 7 Microsoft 365 endpoints |
+| **Office and Outlook state** | [`05-office-outlook-status`](00-copy-paste/05-office-outlook-status.ps1) | `user` | Version, licence, identities, profiles, .ost and .pst, add-ins and disabled items |
 
 ## 01 - Identity cache
 
-User profile, not elevated. Scope: Office `Identity` registry, `IdentityCRL`, WAM/`TokenBroker`, `OneAuth`, `IdentityCache`, Credential Manager, `OneDrive\Accounts` and Office licensing.
-
-| Function | Script | Mode |
-|---|---|---|
-| Clears cached work accounts. Removes them all except the ones you choose to keep. | [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1) | `download` |
-| Removes the account left over from an old tenant. Auto-detects the UPN and the tenant. | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) | `download` |
-| Repairs the Microsoft 365 credential cache in tiers, and can roll the changes back. | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) | `download` |
+| Function | Script |
+|---|---|
+| Clears cached work accounts. Removes them all except the ones you choose to keep. | [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1) |
+| Removes the account left over from an old tenant. Auto-detects the UPN and the tenant. | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) |
+| Repairs the Microsoft 365 credential cache in tiers, and can roll the changes back. | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) |
 
 ## 02 - Outlook
 
-User profile, not elevated. Neither deletes `.pst`.
-
-| Function | Script | Mode |
-|---|---|---|
-| Rebuilds the classic Outlook profile while keeping .pst and .ost files. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) | `download` |
-| Aggressive Outlook reset: profile, OST files and autocomplete cache. | [`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1) | `download` |
+| Function | Script |
+|---|---|
+| Rebuilds the classic Outlook profile while keeping .pst and .ost files. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) |
+| Aggressive Outlook reset: profile, OST files and autocomplete cache. | [`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1) |
 
 ## 03 - OneDrive
 
-| Function | Script | Mode |
-|---|---|---|
-| Fixes OneDrive escalating through 5 tiers: restart, reset, cache, binary and reinstall. | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) | `download` |
-| Removes deny ACEs left behind by a domain GPO that make OneDrive prompt for admin. | [`02-fix-onedrive-permissions`](03-onedrive/02-fix-onedrive-permissions.ps1) | `download` |
+| Function | Script |
+|---|---|
+| Fixes OneDrive escalating through 5 tiers: restart, reset, cache, binary and reinstall. | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) |
+| Removes deny ACEs left behind by a domain GPO that make OneDrive prompt for admin. | [`02-fix-onedrive-permissions`](03-onedrive/02-fix-onedrive-permissions.ps1) |
 
 Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive-permissions.md)
 
 ## 04 - Teams
 
-| Function | Script | Mode |
-|---|---|---|
-| Fixes Teams sign-in when it loops or fails to authenticate. | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) | `download` |
-| Restores the Teams meeting button when it disappears from Outlook. | [`02-repair-teams-outlook-addin`](04-teams/02-repair-teams-outlook-addin.ps1) | `download` |
+| Function | Script |
+|---|---|
+| Fixes Teams sign-in when it loops or fails to authenticate. | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) |
+| Restores the Teams meeting button when it disappears from Outlook. | [`02-repair-teams-outlook-addin`](04-teams/02-repair-teams-outlook-addin.ps1) |
 
 ## 05 - Office apps
 
-| Function | Script | Mode |
-|---|---|---|
-| Repairs the Office installation: quick or online repair, plus reactivation. | [`01-repair-office-install`](05-office-apps/01-repair-office-install.ps1) | `download` |
-| Unattended engine that diagnoses and repairs OneDrive, Outlook, Office, identity and network. | [`02-m365-remediation-engine`](05-office-apps/02-m365-remediation-engine.ps1) | `download` |
+| Function | Script |
+|---|---|
+| Repairs the Office installation: quick or online repair, plus reactivation. | [`01-repair-office-install`](05-office-apps/01-repair-office-install.ps1) |
+| Unattended engine that diagnoses and repairs OneDrive, Outlook, Office, identity and network. | [`02-m365-remediation-engine`](05-office-apps/02-m365-remediation-engine.ps1) |
 
 ## 06 - Corporate applications
 
-Require admin. Package source: `$env:SOPORTE_ORIGEN_PAQUETES`.
-
-| Function | Script | Mode |
-|---|---|---|
-| Explains why ESET Endpoint is missing, not starting or not reaching the console. | [`01-diagnose-eset`](06-applications/01-diagnose-eset.ps1) | `download` |
-| Installs ESET Endpoint unattended, even when the installer has no silent mode. | [`02-install-eset`](06-applications/02-install-eset.ps1) | `download` |
-| Fully uninstalls iManage Work Desktop along with its Office add-ins. | [`03-uninstall-imanage`](06-applications/03-uninstall-imanage.ps1) | `download` |
-| Installs PDFelement and iManage by driving their wizard, which has no silent mode. | [`04-install-pdfelement-imanage`](06-applications/04-install-pdfelement-imanage.ps1) | `download` |
-| Inspects an installer package and reports its type and supported silent switches. | [`05-diagnose-installers`](06-applications/05-diagnose-installers.ps1) | `download` |
+| Function | Script |
+|---|---|
+| Explains why ESET Endpoint is missing, not starting or not reaching the console. | [`01-diagnose-eset`](06-applications/01-diagnose-eset.ps1) |
+| Installs ESET Endpoint unattended, even when the installer has no silent mode. | [`02-install-eset`](06-applications/02-install-eset.ps1) |
+| Fully uninstalls iManage Work Desktop along with its Office add-ins. | [`03-uninstall-imanage`](06-applications/03-uninstall-imanage.ps1) |
+| Installs PDFelement and iManage by driving their wizard, which has no silent mode. | [`04-install-pdfelement-imanage`](06-applications/04-install-pdfelement-imanage.ps1) |
+| Inspects an installer package and reports its type and supported silent switches. | [`05-diagnose-installers`](06-applications/05-diagnose-installers.ps1) |
 
 ## 07 - Endpoint
 
-| Function | Script | Mode |
-|---|---|---|
-| What is filling the disk: largest folders and reclaimable junk. | [`01-disk-usage`](07-endpoint/01-disk-usage.ps1) | `download` |
-| Retrieves the BitLocker recovery key by serial number, device name or Entra device id. | [`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1) | `download` |
-| Diagnoses and fixes unexpected shutdowns and restarts. | [`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1) | `download` |
+| Function | Script |
+|---|---|
+| What is filling the disk: largest folders and reclaimable junk. | [`01-disk-usage`](07-endpoint/01-disk-usage.ps1) |
+| Retrieves the BitLocker recovery key by serial number, device name or Entra device id. | [`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1) |
+| Diagnoses and fixes unexpected shutdowns and restarts. | [`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1) |
 
 ## 08 - Network
 
-| Function | Script | Mode |
-|---|---|---|
-| Disables Wi-Fi adapter power saving and switches to the high performance power plan. | [`01-optimize-wifi-adapter`](08-network/01-optimize-wifi-adapter.ps1) | `download` |
+| Function | Script |
+|---|---|
+| Disables Wi-Fi adapter power saving and switches to the high performance power plan. | [`01-optimize-wifi-adapter`](08-network/01-optimize-wifi-adapter.ps1) |
 
 ## 09 - Documents
 
-| Function | Script | Mode |
-|---|---|---|
-| Removes edit protection from a Word document when the password is lost. | [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1) | `download` |
+| Function | Script |
+|---|---|
+| Removes edit protection from a Word document when the password is lost. | [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1) |
 
 ## 99 - Repo tools
 
-| Function | Script | Mode |
-|---|---|---|
-| Validates every .ps1 in the repo: ASCII only, UTF-8 with BOM and syntax on 5.1 and 7. | [`01-validate-scripts`](99-repo-tools/01-validate-scripts.ps1) | `download` |
-| Sandbox-tests the deletion logic behind the Outlook scripts. Never touches Outlook. | [`02-test-outlook-reset`](99-repo-tools/02-test-outlook-reset.ps1) | `download` |
-| Rebuilds the index in README.md and README.en.md from each script's .SYNOPSIS. | [`03-generate-readme`](99-repo-tools/03-generate-readme.ps1) | `download` |
+| Function | Script |
+|---|---|
+| Validates every .ps1 in the repo: ASCII only, UTF-8 with BOM and syntax on 5.1 and 7. | [`01-validate-scripts`](99-repo-tools/01-validate-scripts.ps1) |
+| Sandbox-tests the deletion logic behind the Outlook scripts. Never touches Outlook. | [`02-test-outlook-reset`](99-repo-tools/02-test-outlook-reset.ps1) |
+| Rebuilds the index in README.md and README.en.md from each script's .SYNOPSIS. | [`03-generate-readme`](99-repo-tools/03-generate-readme.ps1) |
 
 <!-- INDICE-FIN -->
 

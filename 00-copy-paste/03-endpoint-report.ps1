@@ -1,8 +1,11 @@
-﻿$ErrorActionPreference='SilentlyContinue'
+﻿$INFORME = & {
+$ErrorActionPreference='SilentlyContinue'
 '[INFORME] equipo v1'
 "[FECHA] $(Get-Date -Format s)"
 "[EQUIPO] $env:COMPUTERNAME"
 "[SESION] $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+"[ELEVADO] $(([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))"
+'[VENTANA_REQUERIDA] admin'
 $cs=Get-CimInstance Win32_ComputerSystem
 $bi=Get-CimInstance Win32_BIOS
 $os=Get-CimInstance Win32_OperatingSystem
@@ -42,3 +45,4 @@ if($c2r){ "[OFFICE] version=$($c2r.VersionToReport) canal=$($c2r.CDNBaseUrl) pro
 "[DEFENDER] servicio=$((Get-Service WinDefend).Status) rtp=$((Get-MpPreference).DisableRealtimeMonitoring)"
 foreach($s in @('wuauserv','bits','Spooler','WSearch')){ "[SERVICIO] $s=$((Get-Service $s).Status)" }
 '[FIN]'
+} | ForEach-Object { "$_" }; $INFORME = $INFORME -join [Environment]::NewLine; $copiado = 'no'; try{ Set-Clipboard -Value $INFORME -ErrorAction Stop; $copiado = 'si' }catch{}; $INFORME; ""; "--- fin del informe. copiado al portapapeles: $copiado. pegar en el chat con Ctrl+V ---"

@@ -66,25 +66,18 @@ $secciones = @(
     @{ Carpeta = '99-repo-tools';   ES = '99 - Herramientas del repo';        EN = '99 - Repo tools' }
 )
 
-# Nota al pie de cada carpeta, cuando hay algo que el .SYNOPSIS no puede decir.
-$notas = @{
-    '00-copy-paste' = @{
-        ES = 'Se pegan enteros en la consola. Sin comentarios y sin color: la salida es texto plano `clave=valor` pensado para pasarsela a una IA. Todos son de solo lectura.'
-        EN = 'Paste them whole into the console. No comments, no colour: the output is flat `key=value` text meant to be handed to an AI. All read-only.'
-    }
-    '01-identity-cache' = @{
-        ES = 'Perfil del usuario, sin elevar. Alcance: registro de Office `Identity`, `IdentityCRL`, WAM/`TokenBroker`, `OneAuth`, `IdentityCache`, Administrador de credenciales, `OneDrive\Accounts` y licencias de Office.'
-        EN = 'User profile, not elevated. Scope: Office `Identity` registry, `IdentityCRL`, WAM/`TokenBroker`, `OneAuth`, `IdentityCache`, Credential Manager, `OneDrive\Accounts` and Office licensing.'
-    }
-    '02-outlook' = @{
-        ES = 'Perfil del usuario, sin elevar. Ninguno borra `.pst`.'
-        EN = 'User profile, not elevated. Neither deletes `.pst`.'
-    }
-    '06-applications' = @{
-        ES = 'Requieren admin. Origen de los paquetes: `$env:SOPORTE_ORIGEN_PAQUETES`.'
-        EN = 'Require admin. Package source: `$env:SOPORTE_ORIGEN_PAQUETES`.'
-    }
-}
+# Seccion 0: los que se usan a diario. No son copias, son los mismos ficheros que siguen
+# viviendo en su carpeta; aqui solo se listan otra vez para tenerlos a mano. El orden es el
+# de uso real en una incidencia de identidad, no el de las carpetas.
+# El nombre va en ingles en los dos README: identifica la operacion, no la describe.
+$destacados = @(
+    @{ Ruta = '01-identity-cache/01-clear-cached-accounts.ps1'; Nombre = 'Identity Cache Purge' }
+    @{ Ruta = '01-identity-cache/02-reset-stale-tenant-v2.1.ps1'; Nombre = 'Stale Tenant Reset' }
+    @{ Ruta = '00-copy-paste/91-long-paths.txt'; Nombre = 'Long Path Remediation' }
+    @{ Ruta = '00-copy-paste/03-endpoint-report.ps1'; Nombre = 'Endpoint Technical Audit' }
+    @{ Ruta = '03-onedrive/01-remediate-onedrive-tiered.ps1'; Nombre = 'OneDrive Tiered Remediation' }
+    @{ Ruta = '04-teams/01-repair-teams-signin.ps1'; Nombre = 'Teams Authentication Reset' }
+)
 
 function Get-Sinopsis([string]$ruta) {
     # Se lee el fichero en crudo en vez de usar Get-Help: Get-Help carga el script en una
@@ -102,7 +95,32 @@ if (Test-Path $rutaIndice) { $indicePaste = Import-PowerShellDataFile $rutaIndic
 function New-Indice([string]$idioma) {
     $sb = New-Object Text.StringBuilder
     $colFuncion = if ($idioma -eq 'ES') { 'Funcion' } else { 'Function' }
-    $colModo    = if ($idioma -eq 'ES') { 'Modo' }    else { 'Mode' }
+
+    # Los destacados salen antes que ninguna carpeta: es la lista que se abre a diario.
+    [void]$sb.AppendLine('## 0 - LAS MAINS')
+    [void]$sb.AppendLine()
+    [void]$sb.AppendLine('| Operation | Script | How to run |')
+    [void]$sb.AppendLine('|---|---|---|')
+    foreach ($d in $destacados) {
+        # Un destacado que apunta a un fichero renombrado seria un enlace roto en la
+        # primera tabla del README: mejor que falle la generacion.
+        if (-not (Test-Path (Join-Path $raiz ($d.Ruta -replace '/', '\')))) {
+            throw "Destacado inexistente: $($d.Ruta)"
+        }
+        $nombre = Split-Path $d.Ruta -Leaf
+        $base = [IO.Path]::GetFileNameWithoutExtension($nombre)
+        $esDe00 = $d.Ruta.StartsWith('00-copy-paste/')
+        # Tres formas de lanzarlo: pegar en consola de admin, pegar en la del usuario, o
+        # ejecutar el fichero. En ese ultimo caso la celda ya es la linea que se escribe.
+        $como = if ($esDe00) {
+            $v = if ($indicePaste -and $indicePaste.ContainsKey($nombre)) { $indicePaste[$nombre].Ventana } else { 'usuario' }
+            "paste ($(if ($v -eq 'admin') { 'admin' } else { 'user' }))"
+        } else {
+            ".\$nombre"
+        }
+        [void]$sb.AppendLine("| **$($d.Nombre)** | [``$base``]($($d.Ruta)) | ``$como`` |")
+    }
+    [void]$sb.AppendLine()
 
     foreach ($sec in $secciones) {
         $dir = Join-Path $raiz $sec.Carpeta
@@ -113,31 +131,47 @@ function New-Indice([string]$idioma) {
             Sort-Object Name
         if (-not $ficheros) { continue }
 
+        # En 00-copy-paste el orden lo fija index.psd1, no el nombre: primero los que
+        # piden consola de administrador, que hay que preparar antes de ir al usuario.
+        if ($sec.Carpeta -eq '00-copy-paste' -and $indicePaste) {
+            $ficheros = $ficheros | Sort-Object @{
+                Expression = {
+                    if ($indicePaste.ContainsKey($_.Name) -and $indicePaste[$_.Name].Orden) { [int]$indicePaste[$_.Name].Orden } else { 999 }
+                }
+            }, Name
+        }
+
         # El titulo va en ingles en los dos README: es el nombre de la carpeta y funciona
         # como identificador. Lo que cambia de idioma son las descripciones.
         [void]$sb.AppendLine("## $($sec.EN)")
         [void]$sb.AppendLine()
 
-        if ($notas.ContainsKey($sec.Carpeta)) {
-            [void]$sb.AppendLine($notas[$sec.Carpeta].$idioma)
-            [void]$sb.AppendLine()
-        }
-
-        # Sin tablas anidadas: el modo se deduce de la carpeta y se traduce aqui mismo.
+        # Bajo cada encabezado va la tabla y nada mas: sin notas ni parrafos de contexto.
         $esPaste = ($sec.Carpeta -eq '00-copy-paste')
-        $modo = if ($idioma -eq 'ES') {
-            if ($esPaste) { 'pegar' } else { 'descargar' }
-        } else {
-            if ($esPaste) { 'paste' } else { 'download' }
-        }
 
-        [void]$sb.AppendLine("| $colFuncion | Script | $colModo |")
-        [void]$sb.AppendLine('|---|---|---|')
+        # En 00-copy-paste la primera celda es un titulo corto y tecnico, para identificar
+        # el informe de un vistazo; lo que hace en detalle va en la ultima columna. Solo
+        # ahi se declara ventana: en el resto la abre el script al ejecutarse.
+        if ($esPaste) {
+            $colVentana = if ($idioma -eq 'ES') { 'Ventana' } else { 'Window' }
+            $colDetalle = if ($idioma -eq 'ES') { 'Que saca' } else { 'What it reports' }
+            $colInforme = if ($idioma -eq 'ES') { 'Informe' } else { 'Report' }
+            [void]$sb.AppendLine("| $colInforme | Script | $colVentana | $colDetalle |")
+            [void]$sb.AppendLine('|---|---|---|---|')
+        }
+        else {
+            [void]$sb.AppendLine("| $colFuncion | Script |")
+            [void]$sb.AppendLine('|---|---|')
+        }
 
         foreach ($f in $ficheros) {
             $desc = $null
+            $titulo = $null
+            $ventana = $null
             if ($sec.Carpeta -eq '00-copy-paste' -and $indicePaste -and $indicePaste.ContainsKey($f.Name)) {
                 $desc = $indicePaste[$f.Name].$idioma
+                $titulo = if ($idioma -eq 'ES') { $indicePaste[$f.Name].Titulo } else { $indicePaste[$f.Name].TitleEN }
+                $ventana = $indicePaste[$f.Name].Ventana
             }
             elseif ($f.Extension -eq '.ps1') {
                 $desc = (Get-Sinopsis $f.FullName).$idioma
@@ -145,7 +179,19 @@ function New-Indice([string]$idioma) {
             if (-not $desc) { $desc = '(sin descripcion)' }
 
             $ruta = "$($sec.Carpeta)/$($f.Name)"
-            [void]$sb.AppendLine("| $desc | [``$($f.BaseName)``]($ruta) | ``$modo`` |")
+            if ($esPaste) {
+                if (-not $titulo) { $titulo = $f.BaseName }
+                if (-not $ventana) { $ventana = 'usuario' }
+                $ventanaTxt = if ($idioma -eq 'ES') {
+                    if ($ventana -eq 'admin') { 'admin' } else { 'usuario' }
+                } else {
+                    if ($ventana -eq 'admin') { 'admin' } else { 'user' }
+                }
+                [void]$sb.AppendLine("| **$titulo** | [``$($f.BaseName)``]($ruta) | ``$ventanaTxt`` | $desc |")
+            }
+            else {
+                [void]$sb.AppendLine("| $desc | [``$($f.BaseName)``]($ruta) |")
+            }
         }
         [void]$sb.AppendLine()
 

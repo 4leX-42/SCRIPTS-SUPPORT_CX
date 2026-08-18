@@ -1,8 +1,11 @@
-﻿$ErrorActionPreference='SilentlyContinue'
+﻿$INFORME = & {
+$ErrorActionPreference='SilentlyContinue'
 '[INFORME] office-outlook v1'
 "[FECHA] $(Get-Date -Format s)"
 "[EQUIPO] $env:COMPUTERNAME"
 "[SESION] $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+"[ELEVADO] $(([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))"
+'[VENTANA_REQUERIDA] usuario'
 $c2r=Get-ItemProperty 'Registry::HKLM\SOFTWARE\Microsoft\Office\ClickToRun\Configuration'
 if($c2r){ "[OFFICE] version=$($c2r.VersionToReport) productos=$($c2r.ProductReleaseIds) plataforma=$($c2r.Platform) canal=$($c2r.UpdateChannel)" }
 foreach($p in 'OUTLOOK','olk','WINWORD','EXCEL','POWERPNT','ONENOTE','ms-teams','Teams','OneDrive'){
@@ -48,3 +51,4 @@ foreach($e in (Get-WinEvent -FilterHashtable @{LogName='Application';StartTime=(
   "[EVENTO] fecha=$($e.TimeCreated.ToString('s')) nivel=$($e.LevelDisplayName) id=$($e.Id) proveedor=$($e.ProviderName)"
 }
 '[FIN]'
+} | ForEach-Object { "$_" }; $INFORME = $INFORME -join [Environment]::NewLine; $copiado = 'no'; try{ Set-Clipboard -Value $INFORME -ErrorAction Stop; $copiado = 'si' }catch{}; $INFORME; ""; "--- fin del informe. copiado al portapapeles: $copiado. pegar en el chat con Ctrl+V ---"

@@ -1,8 +1,11 @@
-﻿$ErrorActionPreference='SilentlyContinue'
+﻿$INFORME = & {
+$ErrorActionPreference='SilentlyContinue'
 '[INFORME] estado-onedrive v1'
 "[FECHA] $(Get-Date -Format s)"
 "[EQUIPO] $env:COMPUTERNAME"
 "[SESION] $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+"[ELEVADO] $(([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))"
+'[VENTANA_REQUERIDA] usuario'
 $p=Get-Process OneDrive
 "[PROCESO] corriendo=$([bool]$p) responde=$(if($p){$p[0].Responding}else{'na'}) instancias=$(if($p){$p.Count}else{0})"
 foreach($c in @("$env:LOCALAPPDATA\Microsoft\OneDrive\OneDrive.exe","$env:ProgramFiles\Microsoft OneDrive\OneDrive.exe","${env:ProgramFiles(x86)}\Microsoft OneDrive\OneDrive.exe")){
@@ -40,3 +43,4 @@ foreach($e in (Get-WinEvent -FilterHashtable @{LogName='Application';StartTime=(
   "[EVENTO] fecha=$($e.TimeCreated.ToString('s')) nivel=$($e.LevelDisplayName) id=$($e.Id) proveedor=$($e.ProviderName)"
 }
 '[FIN]'
+} | ForEach-Object { "$_" }; $INFORME = $INFORME -join [Environment]::NewLine; $copiado = 'no'; try{ Set-Clipboard -Value $INFORME -ErrorAction Stop; $copiado = 'si' }catch{}; $INFORME; ""; "--- fin del informe. copiado al portapapeles: $copiado. pegar en el chat con Ctrl+V ---"

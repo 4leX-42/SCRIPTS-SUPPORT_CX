@@ -1,7 +1,10 @@
-﻿$ErrorActionPreference='SilentlyContinue'
+﻿$INFORME = & {
+$ErrorActionPreference='SilentlyContinue'
 '[INFORME] conectividad-m365 v1'
 "[FECHA] $(Get-Date -Format s)"
 "[EQUIPO] $env:COMPUTERNAME"
+"[ELEVADO] $(([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))"
+'[VENTANA_REQUERIDA] usuario'
 $px=Get-ItemProperty 'Registry::HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings'
 "[PROXY] activo=$($px.ProxyEnable) servidor=$($px.ProxyServer) pac=$($px.AutoConfigURL)"
 "[PROXY_WINHTTP] $((netsh winhttp show proxy) -join ' ' -replace '\s+',' ')"
@@ -42,3 +45,4 @@ foreach($h in 'login.microsoftonline.com','outlook.office365.com'){
 "[RUTA_DEFECTO] $((Get-NetRoute -DestinationPrefix '0.0.0.0/0' | Select-Object -First 1).NextHop)"
 "[MTU] $((Get-NetIPInterface -AddressFamily IPv4 | Where-Object{$_.ConnectionState -eq 'Connected'} | Select-Object -First 1).NlMtu)"
 '[FIN]'
+} | ForEach-Object { "$_" }; $INFORME = $INFORME -join [Environment]::NewLine; $copiado = 'no'; try{ Set-Clipboard -Value $INFORME -ErrorAction Stop; $copiado = 'si' }catch{}; $INFORME; ""; "--- fin del informe. copiado al portapapeles: $copiado. pegar en el chat con Ctrl+V ---"

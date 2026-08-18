@@ -1,4 +1,5 @@
-﻿$ErrorActionPreference='SilentlyContinue'
+﻿$INFORME = & {
+$ErrorActionPreference='SilentlyContinue'
 $RX='[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}'
 $H=@{}
 function A($u,$f){ if($u -and $u -match "^$RX$"){ $k=$u.ToLower(); if(-not $H[$k]){$H[$k]=New-Object System.Collections.ArrayList}; if($H[$k] -notcontains $f){[void]$H[$k].Add($f)} } }
@@ -6,6 +7,7 @@ function A($u,$f){ if($u -and $u -match "^$RX$"){ $k=$u.ToLower(); if(-not $H[$k
 "[FECHA] $(Get-Date -Format s)"
 "[EQUIPO] $env:COMPUTERNAME"
 "[SESION] $([Security.Principal.WindowsIdentity]::GetCurrent().Name)"
+'[VENTANA_REQUERIDA] usuario'
 "[PERFIL] $env:USERPROFILE"
 $el=([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 "[ELEVADO] $el"
@@ -52,3 +54,4 @@ foreach($d in $doms){
   "[DOMINIO] $d vivo=$vivo tenantid=$tid marca=$marca tipo=$tipo"
 }
 '[FIN]'
+} | ForEach-Object { "$_" }; $INFORME = $INFORME -join [Environment]::NewLine; $copiado = 'no'; try{ Set-Clipboard -Value $INFORME -ErrorAction Stop; $copiado = 'si' }catch{}; $INFORME; ""; "--- fin del informe. copiado al portapapeles: $copiado. pegar en el chat con Ctrl+V ---"
