@@ -1,0 +1,27 @@
+RUTAS LARGAS + NOMBRES 8.3
+Arregla los "ruta demasiado larga" de OneDrive, iManage y unidades de red.
+Requiere PowerShell COMO ADMINISTRADOR. Reinicia el equipo despues.
+
+Copiar la linea entera de abajo y pegarla en la consola:
+
+------------------------------------------------------------------------------
+
+Write-Host "== FileSystem Tweaks ==" -ForegroundColor Cyan; try{Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force; Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "NtfsDisable8dot3NameCreation" -Value 1 -Type DWord -Force; $lp=(Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem").LongPathsEnabled; $sn=(Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem").NtfsDisable8dot3NameCreation; $lpTag=if($lp -eq 1){"[OK]"}else{"[FAIL]"}; $snTag=if($sn -eq 1){"[OK]"}else{"[FAIL]"}; Write-Host ("LongPathsEnabled            -> {0} {1}" -f $lp,$lpTag); Write-Host ("NtfsDisable8dot3NameCreation -> {0} {1}" -f $sn,$snTag)}catch{Write-Host ("ERROR: {0}" -f $_.Exception.Message) -ForegroundColor Red}
+
+------------------------------------------------------------------------------
+
+Que hace cada cosa:
+
+  LongPathsEnabled = 1
+      Levanta el limite de 260 caracteres por ruta. Es lo que rompe las
+      sincronizaciones de OneDrive y las carpetas profundas de iManage.
+
+  NtfsDisable8dot3NameCreation = 1
+      Deja de crear el nombre corto tipo NOMBRE~1 en cada fichero nuevo.
+      Solo afecta a ficheros creados a partir de ahora, no a los que ya existen.
+
+Salida esperada:
+
+  == FileSystem Tweaks ==
+  LongPathsEnabled            -> 1 [OK]
+  NtfsDisable8dot3NameCreation -> 1 [OK]

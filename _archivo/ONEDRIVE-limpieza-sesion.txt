@@ -1,0 +1,64 @@
+ONEDRIVE
+Write-Host "--- INICIANDO LIMPIEZA DE SESIÓN Y CACHÉ DE ONEDRIVE ---" -ForegroundColor Cyan
+Write-Host "Tus archivos locales de OneDrive NO serán borrados." -ForegroundColor Gray
+
+$apps = @("OneDrive")
+ForEach ($app in $apps) {
+    Stop-Process -Name $app -Force -ErrorAction SilentlyContinue
+}
+
+Start-Sleep -Seconds 3
+
+Write-Host "Eliminando credenciales de OneDrive..." -ForegroundColor Yellow
+$targets = @("OneDrive", "MicrosoftAccount", "WindowsLive")
+$creds = cmdkey /list
+
+ForEach ($t in $targets) {
+    $matches = $creds | Select-String "Target:.*$t"
+    if ($matches) {
+        ForEach ($m in $matches) {
+            $targetStr = $m.ToString().Split("=")[1].Trim()
+            cmdkey /delete:$targetStr | Out-Null
+            Write-Host " - Credencial borrada: $targetStr" -ForegroundColor Gray
+        }
+    }
+}
+
+Write-Host "Limpiando caché y configuración local de OneDrive..." -ForegroundColor Yellow
+$paths = @(
+    "$env:LOCALAPPDATA\Microsoft\OneDrive",
+    "$env:LOCALAPPDATA\Microsoft\OneAuth",
+    "$env:LOCALAPPDATA\Microsoft\IdentityCache",
+    "$env:LOCALAPPDATA\Microsoft\TokenBroker"
+)
+
+ForEach ($p in $paths) {
+    if (Test-Path $p) {
+        try {
+            Remove-Item -Path $p -Recurse -Force -ErrorAction Stop
+            Write-Host " - Caché limpiada: $p" -ForegroundColor Gray
+        } catch {
+            Write-Warning "No se pudo borrar $p"
+        }
+    }
+}
+
+Write-Host "Limpiando claves de registro de OneDrive..." -ForegroundColor Yellow
+$regPaths = @(
+    "HKCU:\Software\Microsoft\OneDrive",
+    "HKCU:\Software\Microsoft\Office\16.0\Common\Internet\Server Cache"
+)
+
+ForEach ($r in $regPaths) {
+    if (Test-Path $r) {
+        try {
+            Remove-Item -Path $r -Recurse -Force -ErrorAction Stop
+            Write-Host " - Registro limpiado: $r" -ForegroundColor Gray
+        } catch {
+            Write-Warning "No se pudo limpiar $r"
+        }
+    }
+}
+
+Write-Host "--- LIMPIEZA DE ONEDRIVE COMPLETADA ---" -ForegroundColor Cyan
+Write-Host "Inicia OneDrive nuevamente y vuelve a iniciar sesión." -ForegroundColor Green

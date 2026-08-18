@@ -1,0 +1,21 @@
+# Salidas y logs
+*.log
+logs/
+LOGS_Script/
+exports/
+*.csv.bak
+
+# Respaldos que generan los propios scripts
+limpieza-cuenta-*/
+LimpiezaCuenta/
+
+# Nunca: credenciales ni datos de usuario
+*.pfx
+*.cer
+*.key
+config.yaml
+*credenciales*.txt
+
+# Windows
+Thumbs.db
+desktop.ini

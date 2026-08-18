@@ -1,0 +1,78 @@
+script 2.0
+
+# --- REPARACION DE CONFLICTO DE IDENTIDAD EN OFFICE ---
+# Repara error de GUID en Outlook y error 0x80192ee7 sin borrar datos de usuario.
+
+Write-Host "--- INICIANDO LIMPIEZA DE CONFLICTOS DE IDENTIDAD ---" -ForegroundColor Cyan
+Write-Host "Tus archivos y correos NO serán borrados." -ForegroundColor Gray
+Write-Host "Cerrando aplicaciones de Office para liberar archivos..." -ForegroundColor Yellow
+
+# 1. Cerrar aplicaciones de fuerza (Guarda cambios antes!)
+$apps = @("outlook","winword","excel","powerpnt","teams","ms-teams","onedrive")
+ForEach ($app in $apps) {
+    Stop-Process -Name $app -Force -ErrorAction SilentlyContinue
+}
+
+# 2. Limpiar Credenciales de Windows (Solo Office/Microsoft)
+Write-Host "Eliminando credenciales y tokens antiguos..." -ForegroundColor Yellow
+$targets = @("MicrosoftOffice", "Microsoft_On", "WindowsLive", "teams", "adal", "mso")
+$creds = cmdkey /list
+ForEach ($t in $targets) {
+    $matches = $creds | Select-String "Target:.*$t"
+    if ($matches) {
+        ForEach ($m in $matches) {
+            $targetStr = $m.ToString().Split("=")[1].Trim()
+            # Protección extra para no borrar credenciales de servidores locales o RDP
+            if ($targetStr -notlike "*192.168*" -and $targetStr -notlike "*SERVER*") {
+                cmdkey /delete:$targetStr | Out-Null
+                Write-Host " - Credencial borrada: $targetStr" -ForegroundColor Gray
+            }
+        }
+    }
+}
+
+# 3. Borrar Caché de Identidad (WAM y TokenBroker, Outlook)
+Write-Host "Limpiando caché de autenticación y archivos temporales..." -ForegroundColor Yellow
+$paths = @(
+    "$env:LOCALAPPDATA\Microsoft\IdentityCache",
+    "$env:LOCALAPPDATA\Microsoft\OneAuth",
+    "$env:LOCALAPPDATA\Microsoft\Outlook",
+    "$env:LOCALAPPDATA\Microsoft\Teams",
+    "$env:LOCALAPPDATA\Microsoft\TokenBroker",
+    "$env:LOCALAPPDATA\Microsoft\Office\16.0\WAM"
+)
+
+ForEach ($p in $paths) {
+    if (Test-Path $p) {
+        try {
+            Remove-Item -Path $p -Recurse -Force -ErrorAction Stop
+            Write-Host " - Caché limpiada: $p" -ForegroundColor Gray
+        } catch {
+            Write-Warning "No se pudo borrar $p. Comprueba que no esté en uso o bloqueada."
+        }
+    } else {
+        Write-Host " - No existe: $p" -ForegroundColor DarkGray
+    }
+}
+
+# 4. Limpiar Entradas de Registro de Identidad
+Write-Host "Limpiando registros de identidad corruptos..." -ForegroundColor Yellow
+$regPath = "HKCU:\Software\Microsoft\Office\16.0\Common\Identity"
+If (Test-Path $regPath) {
+    Remove-ItemProperty -Path $regPath -Name * -ErrorAction SilentlyContinue
+    Remove-Item -Path "$regPath\Identities" -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# 5. Desvincular del Tenant Antiguo (Workplace Leave)
+Write-Host "Desvinculando cuenta de trabajo corrupta..." -ForegroundColor Magenta
+try {
+    dsregcmd /leave
+} catch {
+    Write-Warning "No se pudo desvincular del tenant. Ejecuta este script como administrador."
+}
+
+# 6. Refrescar políticas de grupo (opcional pero recomendado)
+Write-Host "Actualizando políticas de grupo..." -ForegroundColor Yellow
+gpupdate /force
+
+Write-Host "--- LIMPIEZA COMPLETADA ---" -ForegroundColor Cyan
