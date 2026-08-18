@@ -1,8 +1,34 @@
-# 00 — Comandos sueltos para copiar y pegar
+# 00 — Copy and paste
 
-Un comando por problema. No hay que descargar nada: se copia la linea y se pega
-en la consola de PowerShell. `[ADMIN]` = hay que abrirla como administrador.
-Todos funcionan en PowerShell 5.1 y en 7.
+**ES —** Dos cosas distintas en esta carpeta:
+
+- Los **`.ps1` numerados** (`01-cached-accounts`, `02-onedrive-status`, …) son informes de
+  diagnóstico. Se copia el fichero **entero** y se pega en la consola. No llevan comentarios ni
+  color a propósito: la salida es texto plano `clave=valor` con secciones `[ETIQUETA]`, pensada
+  para pegársela a una IA y que la analice sin ruido. Todos son de **solo lectura**.
+- Este README: **comandos sueltos**, uno por problema. Se copia la línea y se pega.
+
+**EN —** Two different things in this folder:
+
+- The **numbered `.ps1` files** are diagnostic reports. Copy the **whole** file and paste it into
+  the console. No comments and no colour on purpose: output is flat `key=value` text with
+  `[LABEL]` sections, meant to be handed to an AI to parse without noise. All **read-only**.
+- This README: **loose commands**, one per problem. Copy the line and paste it.
+
+`[ADMIN]` = hay que abrir la consola como administrador / open the console as administrator.
+Todo funciona en PowerShell 5.1 y 7 / everything works on PowerShell 5.1 and 7.
+
+## Formato de salida de los informes / Report output format
+
+```
+[INFORME] <nombre> <version>      identifica el informe
+[FECHA] <ISO 8601>                cuando se ejecuto
+[EQUIPO] / [SESION] / [ELEVADO]   contexto: sin esto la IA no puede juzgar el resto
+[<ETIQUETA>] clave=valor ...      una linea por hallazgo
+[FIN]                             marca de fin, para saber que no se corto
+```
+
+Si falta `[FIN]`, la salida está truncada: se ha perdido parte del informe al copiarla.
 
 ---
 
@@ -10,7 +36,7 @@ Todos funcionan en PowerShell 5.1 y en 7.
 
 ### 1.1 Rutas largas + nombres 8.3 `[ADMIN]`
 El clasico "ruta demasiado larga" de OneDrive, iManage y unidades de red.
-Tambien en fichero aparte: [`01-long-paths.txt`](01-long-paths.txt)
+Tambien en fichero aparte: [`91-long-paths.txt`](91-long-paths.txt)
 
 ```powershell
 Write-Host "== FileSystem Tweaks ==" -ForegroundColor Cyan; try{Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force; Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "NtfsDisable8dot3NameCreation" -Value 1 -Type DWord -Force; $lp=(Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem").LongPathsEnabled; $sn=(Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem").NtfsDisable8dot3NameCreation; $lpTag=if($lp -eq 1){"[OK]"}else{"[FAIL]"}; $snTag=if($sn -eq 1){"[OK]"}else{"[FAIL]"}; Write-Host ("LongPathsEnabled            -> {0} {1}" -f $lp,$lpTag); Write-Host ("NtfsDisable8dot3NameCreation -> {0} {1}" -f $sn,$snTag)}catch{Write-Host ("ERROR: {0}" -f $_.Exception.Message) -ForegroundColor Red}
