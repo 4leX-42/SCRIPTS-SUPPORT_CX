@@ -59,6 +59,7 @@ Runbook detallado: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedriv
 |---|---|
 | Arregla el inicio de sesion de Teams cuando se queda en bucle o no autentica. | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) |
 | Recupera el boton de reunion de Teams cuando desaparece de Outlook. | [`02-repair-teams-outlook-addin`](04-teams/02-repair-teams-outlook-addin.ps1) |
+| Re-registra el complemento de reunion de Teams en Outlook clasico y lo blinda. | [`03-repair-teams-addin-com`](04-teams/03-repair-teams-addin-com.ps1) |
 
 ## 05 - Office apps
 

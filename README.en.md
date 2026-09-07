@@ -61,6 +61,7 @@ Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive
 |---|---|
 | Fixes Teams sign-in when it loops or fails to authenticate. | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) |
 | Restores the Teams meeting button when it disappears from Outlook. | [`02-repair-teams-outlook-addin`](04-teams/02-repair-teams-outlook-addin.ps1) |
+| Re-registers the Teams meeting add-in in classic Outlook and hardens it. | [`03-repair-teams-addin-com`](04-teams/03-repair-teams-addin-com.ps1) |
 
 ## 05 - Office apps
 
