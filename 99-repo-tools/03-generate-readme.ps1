@@ -73,6 +73,7 @@ $secciones = @(
 $destacados = @(
     @{ Ruta = '01-identity-cache/01-clear-cached-accounts.ps1'; Nombre = 'Identity Cache Purge' }
     @{ Ruta = '01-identity-cache/02-reset-stale-tenant-v2.1.ps1'; Nombre = 'Stale Tenant Reset' }
+    @{ Ruta = '01-identity-cache/03-repair-credential-cache-with-restore.ps1'; Nombre = 'Credential Cache Repair' }
     @{ Ruta = '00-copy-paste/91-long-paths.txt'; Nombre = 'Long Path Remediation' }
     @{ Ruta = '00-copy-paste/03-endpoint-report.ps1'; Nombre = 'Endpoint Technical Audit' }
     @{ Ruta = '03-onedrive/01-remediate-onedrive-tiered.ps1'; Nombre = 'OneDrive Tiered Remediation' }

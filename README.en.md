@@ -14,6 +14,7 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 |---|---|---|
 | **Identity Cache Purge** | [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1) | `.\01-clear-cached-accounts.ps1` |
 | **Stale Tenant Reset** | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) | `.\02-reset-stale-tenant-v2.1.ps1` |
+| **Credential Cache Repair** | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) | `.\03-repair-credential-cache-with-restore.ps1` |
 | **Long Path Remediation** | [`91-long-paths`](00-copy-paste/91-long-paths.txt) | `paste (admin)` |
 | **Endpoint Technical Audit** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `paste (admin)` |
 | **OneDrive Tiered Remediation** | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) | `.\01-remediate-onedrive-tiered.ps1` |
