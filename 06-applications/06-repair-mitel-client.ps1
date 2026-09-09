@@ -11,8 +11,9 @@
 
       Cliente : procesos y servicios Mitel, cache y perfil (%APPDATA% y %LOCALAPPDATA%,
                 incluida la herencia de ShoreTel), %PROGRAMDATA%, HKCU\Software\Mitel,
-                complemento de Outlook y lista de resiliencia de Outlook
-                (DisabledItems / CrashingAddinList), y credenciales guardadas.
+                complemento de Outlook (se retira por defecto: no hace falta para
+                telefonear) y lista de resiliencia de Outlook (DisabledItems /
+                CrashingAddinList), y credenciales guardadas.
       Red     : servidores DNS del adaptador fisico, sufijo DNS de busqueda, archivo hosts,
                 reglas de firewall del ejecutable del cliente y caches de resolucion
                 (DNS, ARP, NetBIOS).
@@ -64,9 +65,15 @@
     Limpia el perfil de todos los usuarios del equipo, montando su NTUSER.DAT cuando no
     tienen sesion abierta. Requiere administrador.
 
-.PARAMETER RemoveOutlookAddin
-    Elimina el complemento Mitel de Outlook. Por defecto no se elimina: solo se reactiva si
-    Outlook lo dejo desactivado.
+.PARAMETER KeepOutlookAddin
+    Conserva el complemento Mitel de Outlook y lo reactiva si Outlook lo dejo desactivado.
+    Por defecto el complemento se ELIMINA: no es necesario para telefonear y es una causa
+    habitual de arranques lentos y cuelgues de Outlook. La clave se exporta a .reg en la
+    carpeta de log, asi que se puede restaurar con un doble clic.
+
+.PARAMETER DisableOutlookAddin
+    En vez de eliminarlo, lo deja instalado pero desactivado (LoadBehavior=0). Util cuando
+    el complemento lo despliega una GPO y volveria a aparecer al siguiente ciclo.
 
 .PARAMETER KeepCredentials
     No borra las credenciales guardadas de Mitel.
@@ -117,6 +124,10 @@
     .\06-repair-mitel-client.ps1 -DnsServers 10.10.0.10,10.10.0.11 -DnsSuffix midominio.local -Force
     Fija los DNS del dominio y el sufijo de busqueda cuando el equipo de red los facilita.
 
+.EXAMPLE
+    .\06-repair-mitel-client.ps1 -KeepOutlookAddin
+    Limpieza conservando el complemento de Outlook (lo reactiva si estaba desactivado).
+
 .NOTES
     PowerShell 5.1 y 7.
     Dos pasadas: primero sin admin en la sesion del usuario afectado (perfil, HKCU, Outlook,
@@ -131,7 +142,8 @@ param(
     [switch]$DryRun,
     [switch]$Force,
     [switch]$AllUsers,
-    [switch]$RemoveOutlookAddin,
+    [switch]$KeepOutlookAddin,
+    [switch]$DisableOutlookAddin,
     [switch]$KeepCredentials,
     [string]$ServerHost,
     [switch]$FixDns,
@@ -1060,6 +1072,10 @@ if (-not $script:DryRun -and -not $Force) {
     Write-Section 'CONFIRMACION'
     Write-Log 'Se cerrara el cliente Mitel y se borrara su cache, registro de usuario y credenciales.' 'WARN'
     Write-Log 'Habra que volver a iniciar sesion en el cliente. No se reinicia el equipo ni se toca la pila de red.' 'WARN'
+    if ($addinsFound.Count -gt 0 -and -not $KeepOutlookAddin) {
+        if ($DisableOutlookAddin) { Write-Log "El complemento Mitel de Outlook quedara desactivado ($($addinsFound.Count) entradas)." 'WARN' }
+        else { Write-Log "Se retirara el complemento Mitel de Outlook ($($addinsFound.Count) entradas, restaurable desde el .reg)." 'WARN' }
+    }
     if ($FixDns) { Write-Log "Ademas se ajustara el DNS de: $((($relevant | Select-Object -ExpandProperty Name) -join ', ')) (copia en dns_backup.txt)." 'WARN' }
     $resp = ''
     try { $resp = Read-Host 'Escribe SI para continuar' } catch { $resp = '' }
@@ -1114,11 +1130,11 @@ foreach ($pf in $profiles) { Clear-UserRegistryHive -UserProfile $pf }
 
 # ----------------------------------------------------------------- FASE 5 Outlook
 Write-Section 'FASE 5 - Outlook: complemento y resiliencia'
-if ($RemoveOutlookAddin) {
-    foreach ($ai in $addinsFound) { Remove-RegistryKeySafe -KeyPath $ai.KeyPath -Label "Complemento: $($ai.Name)" }
-} else {
+if ($addinsFound.Count -eq 0) {
+    Write-Log 'Sin complemento Mitel en Outlook.' 'INFO'
+} elseif ($KeepOutlookAddin) {
     foreach ($ai in $addinsFound) {
-        if ($ai.Load -ne 2 -and $ai.Load -ne 0) { continue }
+        if ($ai.Load -ne 2 -and $ai.Load -ne 0) { Write-Log "Complemento conservado: $($ai.Name)" 'INFO'; continue }
         $prov = ConvertTo-ProviderPath $ai.KeyPath
         if ($script:DryRun) { Write-Log "[SIMULACION] LoadBehavior=3 en $($ai.Name)" 'DRYRUN'; continue }
         try {
@@ -1126,6 +1142,22 @@ if ($RemoveOutlookAddin) {
             Write-Log "Complemento reactivado: $($ai.Name)" 'OK'
         } catch { Write-Log "No se pudo reactivar $($ai.Name): $($_.Exception.Message)" 'WARN' }
     }
+} elseif ($DisableOutlookAddin) {
+    foreach ($ai in $addinsFound) {
+        $prov = ConvertTo-ProviderPath $ai.KeyPath
+        if ($script:DryRun) { Write-Log "[SIMULACION] LoadBehavior=0 en $($ai.Name)" 'DRYRUN'; continue }
+        Backup-RegistryKey -KeyPath $ai.KeyPath | Out-Null
+        try {
+            Set-ItemProperty -LiteralPath $prov -Name 'LoadBehavior' -Value 0 -Type DWord -ErrorAction Stop
+            Write-Log "Complemento desactivado (LoadBehavior=0): $($ai.Name)" 'OK'
+            $script:Stats.Removed++
+        } catch { Write-Log "No se pudo desactivar $($ai.Name): $($_.Exception.Message)" 'WARN' }
+    }
+} else {
+    foreach ($ai in $addinsFound) {
+        Remove-RegistryKeySafe -KeyPath $ai.KeyPath -Label "Complemento Outlook: $($ai.Name)"
+    }
+    Write-Log 'Complemento Mitel retirado de Outlook. Restaurable desde el .reg de la carpeta de log.' 'INFO'
 }
 foreach ($ov in @('16.0','15.0','14.0')) {
     foreach ($rk in @('DisabledItems','CrashingAddinList')) {
