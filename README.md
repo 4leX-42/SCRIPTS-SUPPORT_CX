@@ -78,6 +78,7 @@ Runbook detallado: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedriv
 | Desinstala iManage Work Desktop por completo, con sus complementos de Office. | [`03-uninstall-imanage`](06-applications/03-uninstall-imanage.ps1) |
 | Instala PDFelement e iManage automatizando su asistente, que no admite modo silencioso. | [`04-install-pdfelement-imanage`](06-applications/04-install-pdfelement-imanage.ps1) |
 | Analiza un paquete de instalacion y dice que tipo es y que parametros silenciosos admite. | [`05-diagnose-installers`](06-applications/05-diagnose-installers.ps1) |
+| Repara el cliente Mitel Connect / MiCollab: cache, registro, Outlook, credenciales y DNS. | [`06-repair-mitel-client`](06-applications/06-repair-mitel-client.ps1) |
 
 ## 07 - Endpoint
 
