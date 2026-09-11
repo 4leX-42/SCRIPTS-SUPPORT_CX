@@ -89,6 +89,7 @@ Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive
 | What is filling the disk: largest folders and reclaimable junk. | [`01-disk-usage`](07-endpoint/01-disk-usage.ps1) |
 | Retrieves the BitLocker recovery key by serial number, device name or Entra device id. | [`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1) |
 | Diagnoses and fixes unexpected shutdowns and restarts. | [`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1) |
+| Gets the clock back in sync so e-government signing works: detects location, matches time zone and country NTP servers, and repairs W32Time. | [`04-repair-time-sync`](07-endpoint/04-repair-time-sync.ps1) |
 
 ## 08 - Network
 

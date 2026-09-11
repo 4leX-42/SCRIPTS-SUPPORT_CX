@@ -87,6 +87,7 @@ Runbook detallado: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedriv
 | Que esta ocupando el disco: carpetas mas grandes y basura que se puede recuperar. | [`01-disk-usage`](07-endpoint/01-disk-usage.ps1) |
 | Saca la clave de recuperacion de BitLocker por numero de serie, nombre o id de dispositivo. | [`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1) |
 | Diagnostica y corrige apagados y reinicios inesperados del equipo. | [`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1) |
+| Deja el reloj en hora para poder firmar en sedes electronicas: detecta la ubicacion, empareja zona horaria y NTP del pais, y repara W32Time. | [`04-repair-time-sync`](07-endpoint/04-repair-time-sync.ps1) |
 
 ## 08 - Network
 
