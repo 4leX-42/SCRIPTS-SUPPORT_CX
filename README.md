@@ -99,7 +99,7 @@ Runbook detallado: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedriv
 
 | Funcion | Script |
 |---|---|
-| Quita la proteccion de edicion de un documento de Word cuando se perdio la contrasena. | [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1) |
+| Quita la proteccion de edicion de un documento de Word | [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1) |
 
 ## 99 - Repo tools
 
