@@ -1,0 +1,14 @@
+# artefactos de compilacion
+build/
+*.spec.bak
+__pycache__/
+*.pyc
+
+# ficheros LEDES generados: contienen datos reales de cliente
+salida/
+dist/salida/
+*.led
+
+# configuracion local (CIF del despacho, rutas del equipo)
+config.json
+error.log
