@@ -113,6 +113,14 @@ Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive
 
 <!-- INDICE-FIN -->
 
+## 10 - Tools
+
+<!-- Manual section: the index generator only reads the .SYNOPSIS of .ps1 files -->
+
+| Function | Tool |
+|---|---|
+| Converts PDF invoices to the LEDES 98BI format used by legal e-billing platforms | [`conversor-ledes-98bi`](10-herramientas/conversor-ledes-98bi/) |
+
 ---
 
 ## Parameters and execution

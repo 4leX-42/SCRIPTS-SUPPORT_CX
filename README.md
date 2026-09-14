@@ -111,6 +111,14 @@ Runbook detallado: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedriv
 
 <!-- INDICE-FIN -->
 
+## 10 - Herramientas
+
+<!-- Seccion manual: el generador de indices solo lee el .SYNOPSIS de los .ps1 -->
+
+| Funcion | Herramienta |
+|---|---|
+| Convierte facturas en PDF al formato LEDES 98BI de las plataformas de facturacion legal | [`conversor-ledes-98bi`](10-herramientas/conversor-ledes-98bi/) |
+
 ---
 
 ## Parámetros y ejecución
