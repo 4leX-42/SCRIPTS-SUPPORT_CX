@@ -99,7 +99,16 @@ Runbook detallado: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedriv
 
 | Funcion | Script |
 |---|---|
-| Quita la proteccion de edicion de un documento de Word | [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1) |
+| Quita la proteccion de edicion de un documento de Word cuando se perdio la contrasena. | [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1) |
+
+## 10 - File picker
+
+| Funcion | Script |
+|---|---|
+| Solo lectura. Inventario de todo lo que puede colgar el selector de archivos de Windows. | [`01-diagnose-file-picker`](10-file-picker/01-diagnose-file-picker.ps1) |
+| Solo lectura. Reproduce el cuelgue del selector y captura el DLL que lo provoca. | [`02-test-file-picker-hang`](10-file-picker/02-test-file-picker-hang.ps1) |
+| Limpia la memoria de carpetas del selector de archivos (ComDlg32 MRU). DryRun por defecto. | [`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1) |
+| Desactiva extensiones de shell por CLSID de forma reversible. DryRun por defecto. | [`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1) |
 
 ## 99 - Repo tools
 

@@ -103,6 +103,15 @@ Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive
 |---|---|
 | Removes edit protection from a Word document when the password is lost. | [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1) |
 
+## 10 - File picker
+
+| Function | Script |
+|---|---|
+| Read-only. Inventory of everything that can hang the Windows file picker. | [`01-diagnose-file-picker`](10-file-picker/01-diagnose-file-picker.ps1) |
+| Read-only. Reproduces the file picker hang and captures the DLL behind it. | [`02-test-file-picker-hang`](10-file-picker/02-test-file-picker-hang.ps1) |
+| Clears the file picker's remembered folders (ComDlg32 MRU). DryRun by default. | [`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1) |
+| Disables shell extensions by CLSID, reversibly. DryRun by default. | [`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1) |
+
 ## 99 - Repo tools
 
 | Function | Script |
