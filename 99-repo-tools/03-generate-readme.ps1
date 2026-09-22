@@ -64,6 +64,7 @@ $secciones = @(
     @{ Carpeta = '08-network';      ES = '08 - Red';                          EN = '08 - Network' }
     @{ Carpeta = '09-documents';    ES = '09 - Documentos';                   EN = '09 - Documents' }
     @{ Carpeta = '10-file-picker'; ES = '10 - Selector de archivos';         EN = '10 - File picker' }
+    @{ Carpeta = '11-certificates'; ES = '11 - Certificados';                EN = '11 - Certificates' }
     @{ Carpeta = '99-repo-tools';   ES = '99 - Herramientas del repo';        EN = '99 - Repo tools' }
 )
 

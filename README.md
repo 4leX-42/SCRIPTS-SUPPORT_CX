@@ -110,6 +110,12 @@ Runbook detallado: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedriv
 | Limpia la memoria de carpetas del selector de archivos (ComDlg32 MRU). DryRun por defecto. | [`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1) |
 | Desactiva extensiones de shell por CLSID de forma reversible. DryRun por defecto. | [`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1) |
 
+## 11 - Certificates
+
+| Funcion | Script |
+|---|---|
+| Repara un certificado concreto que AutoFirma no lista, sin tocar el resto del almacen. | [`01-repair-autofirma-certificate`](11-certificates/01-repair-autofirma-certificate.ps1) |
+
 ## 99 - Repo tools
 
 | Funcion | Script |
@@ -138,6 +144,7 @@ Get-Help .\script.ps1 -Full                               # parámetros y ejempl
 | `-Upn`, `-TenantOrigen` | `01/02` | si se omiten, se autodetectan y se ofrecen en menú |
 | `-Excluir`, `-Quitar` | `01/01` | cuentas que se conservan o que se purgan |
 | `-Mode`, `-RestoreFrom` | `01/03` | `Diagnose` \| `Repair` \| `Restore` |
+| `-Mode`, `-P12`, `-Thumbprint` | `11/01` | `Diag` \| `Fix` \| `ResetPrefs`, fichero PKCS#12 y huella del certificado a reparar |
 | `-Fase` | `03/02` | `Reparar` \| `Comprobar` \| `Verificar` |
 | `-TargetService`, `-MaxLevel`, `-DiagnosticOnly` | `05/02` | servicio, nivel máximo de escalado, solo diagnóstico |
 | `-RutaRespaldo` | `01/02` | destino del respaldo si el Escritorio no admite escritura |

@@ -112,6 +112,12 @@ Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive
 | Clears the file picker's remembered folders (ComDlg32 MRU). DryRun by default. | [`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1) |
 | Disables shell extensions by CLSID, reversibly. DryRun by default. | [`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1) |
 
+## 11 - Certificates
+
+| Function | Script |
+|---|---|
+| Repairs one specific certificate AutoFirma cannot list, leaving the rest of the store untouched. | [`01-repair-autofirma-certificate`](11-certificates/01-repair-autofirma-certificate.ps1) |
+
 ## 99 - Repo tools
 
 | Function | Script |
@@ -140,6 +146,7 @@ Get-Help .\script.ps1 -Full                               # parameters and examp
 | `-Upn`, `-TenantOrigen` | `01/02` | omitted: auto-detected and offered in a menu |
 | `-Excluir`, `-Quitar` | `01/01` | accounts to keep, or accounts to purge |
 | `-Mode`, `-RestoreFrom` | `01/03` | `Diagnose` \| `Repair` \| `Restore` |
+| `-Mode`, `-P12`, `-Thumbprint` | `11/01` | `Diag` \| `Fix` \| `ResetPrefs`, PKCS#12 file and thumbprint of the certificate to repair |
 | `-Fase` | `03/02` | `Reparar` \| `Comprobar` \| `Verificar` |
 | `-TargetService`, `-MaxLevel`, `-DiagnosticOnly` | `05/02` | service, max escalation tier, diagnose only |
 | `-RutaRespaldo` | `01/02` | backup target when the Desktop is not writable |
