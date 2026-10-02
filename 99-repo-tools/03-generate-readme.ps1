@@ -87,8 +87,9 @@ $destacados = @(
 function Get-Icono([string]$n) { "<img src=`".github/icons/$n.svg`" width=`"20`" height=`"20`" align=`"top`" alt=`"`">" }
 
 # Mismo slug que GitHub: minusculas, fuera todo lo que no sea letra, digito, espacio,
-# guion o guion bajo, espacios a guiones. Recibe el texto sin el <img>.
-function Get-Ancla([string]$titulo) { '#' + (($titulo.Trim().ToLower() -replace '[^\p{L}\p{Nd} _-]', '') -replace ' ', '-') }
+# guion o guion bajo, espacios a guiones. El <img> desaparece pero el espacio que lo
+# sigue no, por eso el ancla de un encabezado con icono empieza por guion.
+function Get-Ancla([string]$titulo) { '#-' + (($titulo.Trim().ToLower() -replace '[^\p{L}\p{Nd} _-]', '') -replace ' ', '-') }
 
 function Get-Sinopsis([string]$ruta) {
     # Se lee el fichero en crudo en vez de usar Get-Help: Get-Help carga el script en una
