@@ -8,19 +8,21 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 
 <!-- INDICE-INICIO: generado por 99-repo-tools/03-generate-readme.ps1, no editar a mano -->
 
-## 0 - LAS MAINS
+**Jump to:** <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> [Copy and paste (diagnostics)](#00---copy-and-paste-diagnostics) | <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> [Identity cache](#01---identity-cache) | <img src=".github/icons/mail.svg" width="20" height="20" align="top" alt=""> [Outlook](#02---outlook) | <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> [OneDrive](#03---onedrive) | <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> [Teams](#04---teams) | <img src=".github/icons/apps.svg" width="20" height="20" align="top" alt=""> [Office apps](#05---office-apps) | <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> [Corporate applications](#06---corporate-applications) | <img src=".github/icons/laptop.svg" width="20" height="20" align="top" alt=""> [Endpoint](#07---endpoint) | <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> [Network](#08---network) | <img src=".github/icons/document.svg" width="20" height="20" align="top" alt=""> [Documents](#09---documents) | <img src=".github/icons/folder_open.svg" width="20" height="20" align="top" alt=""> [File picker](#10---file-picker) | <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> [Certificates](#11---certificates) | <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> [Repo tools](#99---repo-tools)
+
+## <img src=".github/icons/pin.svg" width="20" height="20" align="top" alt=""> 0 - LAS MAINS
 
 | Operation | Script | How to run |
 |---|---|---|
-| **Identity Cache Purge** | [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1) | `.\01-clear-cached-accounts.ps1` |
-| **Stale Tenant Reset** | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) | `.\02-reset-stale-tenant-v2.1.ps1` |
-| **Credential Cache Repair** | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) | `.\03-repair-credential-cache-with-restore.ps1` |
-| **Long Path Remediation** | [`91-long-paths`](00-copy-paste/91-long-paths.txt) | `paste (admin)` |
-| **Endpoint Technical Audit** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `paste (admin)` |
-| **OneDrive Tiered Remediation** | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) | `.\01-remediate-onedrive-tiered.ps1` |
-| **Teams Authentication Reset** | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) | `.\01-repair-teams-signin.ps1` |
+| <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Identity Cache Purge** | [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1) | `.\01-clear-cached-accounts.ps1` |
+| <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Stale Tenant Reset** | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) | `.\02-reset-stale-tenant-v2.1.ps1` |
+| <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Credential Cache Repair** | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) | `.\03-repair-credential-cache-with-restore.ps1` |
+| <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> **Long Path Remediation** | [`91-long-paths`](00-copy-paste/91-long-paths.txt) | `paste (admin)` |
+| <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> **Endpoint Technical Audit** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `paste (admin)` |
+| <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> **OneDrive Tiered Remediation** | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) | `.\01-remediate-onedrive-tiered.ps1` |
+| <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> **Teams Authentication Reset** | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) | `.\01-repair-teams-signin.ps1` |
 
-## 00 - Copy and paste (diagnostics)
+## <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> 00 - Copy and paste (diagnostics)
 
 | Report | Script | Window | What it reports |
 |---|---|---|---|
@@ -32,7 +34,7 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 | **M365 reachability** | [`04-m365-connectivity`](00-copy-paste/04-m365-connectivity.ps1) | `user` | Proxy, DNS, TCP 443, TLS version and latency across the 7 Microsoft 365 endpoints |
 | **Office and Outlook state** | [`05-office-outlook-status`](00-copy-paste/05-office-outlook-status.ps1) | `user` | Version, licence, identities, profiles, .ost and .pst, add-ins and disabled items |
 
-## 01 - Identity cache
+## <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> 01 - Identity cache
 
 | Function | Script |
 |---|---|
@@ -40,14 +42,14 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 | Removes the account left over from an old tenant. Auto-detects the UPN and the tenant. | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) |
 | Repairs the Microsoft 365 credential cache in tiers, and can roll the changes back. | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) |
 
-## 02 - Outlook
+## <img src=".github/icons/mail.svg" width="20" height="20" align="top" alt=""> 02 - Outlook
 
 | Function | Script |
 |---|---|
 | Rebuilds the classic Outlook profile keeping .pst and .ost files and recreates it with the same account. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) |
 | Aggressive Outlook reset: profile, OST files and autocomplete cache. | [`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1) |
 
-## 03 - OneDrive
+## <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> 03 - OneDrive
 
 | Function | Script |
 |---|---|
@@ -56,7 +58,7 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 
 Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive-permissions.md)
 
-## 04 - Teams
+## <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> 04 - Teams
 
 | Function | Script |
 |---|---|
@@ -64,14 +66,14 @@ Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive
 | Restores the Teams meeting button when it disappears from classic Outlook. | [`02-repair-teams-outlook-addin`](04-teams/02-repair-teams-outlook-addin.ps1) |
 | Re-registers the Teams meeting add-in in classic Outlook and hardens it. | [`03-repair-teams-addin-com`](04-teams/03-repair-teams-addin-com.ps1) |
 
-## 05 - Office apps
+## <img src=".github/icons/apps.svg" width="20" height="20" align="top" alt=""> 05 - Office apps
 
 | Function | Script |
 |---|---|
 | Repairs the Office installation: quick or online repair, plus reactivation. | [`01-repair-office-install`](05-office-apps/01-repair-office-install.ps1) |
 | Unattended engine that diagnoses and repairs OneDrive, Outlook, Office, identity and network. | [`02-m365-remediation-engine`](05-office-apps/02-m365-remediation-engine.ps1) |
 
-## 06 - Corporate applications
+## <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> 06 - Corporate applications
 
 | Function | Script |
 |---|---|
@@ -82,7 +84,7 @@ Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive
 | Inspects an installer package and reports its type and supported silent switches. | [`05-diagnose-installers`](06-applications/05-diagnose-installers.ps1) |
 | Repairs the Mitel Connect / MiCollab client: cache, registry, Outlook, credentials and DNS. | [`06-repair-mitel-client`](06-applications/06-repair-mitel-client.ps1) |
 
-## 07 - Endpoint
+## <img src=".github/icons/laptop.svg" width="20" height="20" align="top" alt=""> 07 - Endpoint
 
 | Function | Script |
 |---|---|
@@ -91,19 +93,19 @@ Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive
 | Diagnoses and fixes unexpected shutdowns and restarts. | [`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1) |
 | Gets the clock back in sync so e-government signing works: detects location, matches time zone and country NTP servers, and repairs W32Time. | [`04-repair-time-sync`](07-endpoint/04-repair-time-sync.ps1) |
 
-## 08 - Network
+## <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> 08 - Network
 
 | Function | Script |
 |---|---|
 | Disables Wi-Fi adapter power saving and switches to the high performance power plan. | [`01-optimize-wifi-adapter`](08-network/01-optimize-wifi-adapter.ps1) |
 
-## 09 - Documents
+## <img src=".github/icons/document.svg" width="20" height="20" align="top" alt=""> 09 - Documents
 
 | Function | Script |
 |---|---|
 | Removes edit protection from a Word document when the password is lost. | [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1) |
 
-## 10 - File picker
+## <img src=".github/icons/folder_open.svg" width="20" height="20" align="top" alt=""> 10 - File picker
 
 | Function | Script |
 |---|---|
@@ -112,13 +114,13 @@ Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive
 | Clears the file picker's remembered folders (ComDlg32 MRU). DryRun by default. | [`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1) |
 | Disables shell extensions by CLSID, reversibly. DryRun by default. | [`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1) |
 
-## 11 - Certificates
+## <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> 11 - Certificates
 
 | Function | Script |
 |---|---|
 | Repairs one specific certificate AutoFirma cannot list, leaving the rest of the store untouched. | [`01-repair-autofirma-certificate`](11-certificates/01-repair-autofirma-certificate.ps1) |
 
-## 99 - Repo tools
+## <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> 99 - Repo tools
 
 | Function | Script |
 |---|---|

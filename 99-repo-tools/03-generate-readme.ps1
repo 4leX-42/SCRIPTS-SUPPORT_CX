@@ -52,20 +52,21 @@ $ErrorActionPreference = 'Stop'
 $raiz = Split-Path $PSScriptRoot -Parent
 
 # Titulo de cada carpeta en los dos idiomas. El orden de esta lista es el orden del indice.
+# Icono: SVG de Fluent UI System Icons (MIT) en .github/icons, mismo color en tema claro y oscuro.
 $secciones = @(
-    @{ Carpeta = '00-copy-paste';   ES = '00 - Copiar y pegar (diagnostico)'; EN = '00 - Copy and paste (diagnostics)' }
-    @{ Carpeta = '01-identity-cache'; ES = '01 - Cache de identidad';         EN = '01 - Identity cache' }
-    @{ Carpeta = '02-outlook';      ES = '02 - Outlook';                      EN = '02 - Outlook' }
-    @{ Carpeta = '03-onedrive';     ES = '03 - OneDrive';                     EN = '03 - OneDrive' }
-    @{ Carpeta = '04-teams';        ES = '04 - Teams';                        EN = '04 - Teams' }
-    @{ Carpeta = '05-office-apps';  ES = '05 - Aplicaciones de Office';       EN = '05 - Office apps' }
-    @{ Carpeta = '06-applications'; ES = '06 - Aplicaciones corporativas';    EN = '06 - Corporate applications' }
-    @{ Carpeta = '07-endpoint';     ES = '07 - Equipo';                       EN = '07 - Endpoint' }
-    @{ Carpeta = '08-network';      ES = '08 - Red';                          EN = '08 - Network' }
-    @{ Carpeta = '09-documents';    ES = '09 - Documentos';                   EN = '09 - Documents' }
-    @{ Carpeta = '10-file-picker'; ES = '10 - Selector de archivos';         EN = '10 - File picker' }
-    @{ Carpeta = '11-certificates'; ES = '11 - Certificados';                EN = '11 - Certificates' }
-    @{ Carpeta = '99-repo-tools';   ES = '99 - Herramientas del repo';        EN = '99 - Repo tools' }
+    @{ Carpeta = '00-copy-paste';   ES = '00 - Copiar y pegar (diagnostico)'; EN = '00 - Copy and paste (diagnostics)'; Icono = 'clipboard_code' }
+    @{ Carpeta = '01-identity-cache'; ES = '01 - Cache de identidad';         EN = '01 - Identity cache'; Icono = 'key' }
+    @{ Carpeta = '02-outlook';      ES = '02 - Outlook';                      EN = '02 - Outlook'; Icono = 'mail' }
+    @{ Carpeta = '03-onedrive';     ES = '03 - OneDrive';                     EN = '03 - OneDrive'; Icono = 'cloud' }
+    @{ Carpeta = '04-teams';        ES = '04 - Teams';                        EN = '04 - Teams'; Icono = 'people_team' }
+    @{ Carpeta = '05-office-apps';  ES = '05 - Aplicaciones de Office';       EN = '05 - Office apps'; Icono = 'apps' }
+    @{ Carpeta = '06-applications'; ES = '06 - Aplicaciones corporativas';    EN = '06 - Corporate applications'; Icono = 'puzzle_piece' }
+    @{ Carpeta = '07-endpoint';     ES = '07 - Equipo';                       EN = '07 - Endpoint'; Icono = 'laptop' }
+    @{ Carpeta = '08-network';      ES = '08 - Red';                          EN = '08 - Network'; Icono = 'router' }
+    @{ Carpeta = '09-documents';    ES = '09 - Documentos';                   EN = '09 - Documents'; Icono = 'document' }
+    @{ Carpeta = '10-file-picker'; ES = '10 - Selector de archivos';         EN = '10 - File picker'; Icono = 'folder_open' }
+    @{ Carpeta = '11-certificates'; ES = '11 - Certificados';                EN = '11 - Certificates'; Icono = 'certificate' }
+    @{ Carpeta = '99-repo-tools';   ES = '99 - Herramientas del repo';        EN = '99 - Repo tools'; Icono = 'wrench' }
 )
 
 # Seccion 0: los que se usan a diario. No son copias, son los mismos ficheros que siguen
@@ -81,6 +82,13 @@ $destacados = @(
     @{ Ruta = '03-onedrive/01-remediate-onedrive-tiered.ps1'; Nombre = 'OneDrive Tiered Remediation' }
     @{ Ruta = '04-teams/01-repair-teams-signin.ps1'; Nombre = 'Teams Authentication Reset' }
 )
+
+# alt vacio: asi la imagen no entra en el ancla que GitHub genera para el encabezado.
+function Get-Icono([string]$n) { "<img src=`".github/icons/$n.svg`" width=`"20`" height=`"20`" align=`"top`" alt=`"`">" }
+
+# Mismo slug que GitHub: minusculas, fuera todo lo que no sea letra, digito, espacio,
+# guion o guion bajo, espacios a guiones. Recibe el texto sin el <img>.
+function Get-Ancla([string]$titulo) { '#' + (($titulo.Trim().ToLower() -replace '[^\p{L}\p{Nd} _-]', '') -replace ' ', '-') }
 
 function Get-Sinopsis([string]$ruta) {
     # Se lee el fichero en crudo en vez de usar Get-Help: Get-Help carga el script en una
@@ -99,8 +107,17 @@ function New-Indice([string]$idioma) {
     $sb = New-Object Text.StringBuilder
     $colFuncion = if ($idioma -eq 'ES') { 'Funcion' } else { 'Function' }
 
+    # Barra de saltos por area: el icono es lo que se busca con la vista, no el numero.
+    $saltos = foreach ($sec in $secciones) {
+        if (-not (Test-Path (Join-Path $raiz $sec.Carpeta))) { continue }
+        # Icono fuera del enlace: GitHub envuelve cada <img> en su propio enlace y se anidarian.
+        "$(Get-Icono $sec.Icono) [$($sec.EN -replace '^\d+ - ', '')]($(Get-Ancla $sec.EN))"
+    }
+    [void]$sb.AppendLine("$(if ($idioma -eq 'ES') { '**Ir a:**' } else { '**Jump to:**' }) $($saltos -join ' | ')")
+    [void]$sb.AppendLine()
+
     # Los destacados salen antes que ninguna carpeta: es la lista que se abre a diario.
-    [void]$sb.AppendLine('## 0 - LAS MAINS')
+    [void]$sb.AppendLine("## $(Get-Icono 'pin') 0 - LAS MAINS")
     [void]$sb.AppendLine()
     [void]$sb.AppendLine('| Operation | Script | How to run |')
     [void]$sb.AppendLine('|---|---|---|')
@@ -121,7 +138,8 @@ function New-Indice([string]$idioma) {
         } else {
             ".\$nombre"
         }
-        [void]$sb.AppendLine("| **$($d.Nombre)** | [``$base``]($($d.Ruta)) | ``$como`` |")
+        $icoD = Get-Icono ($secciones | Where-Object { $d.Ruta.StartsWith($_.Carpeta + '/') } | Select-Object -First 1).Icono
+        [void]$sb.AppendLine("| $icoD **$($d.Nombre)** | [``$base``]($($d.Ruta)) | ``$como`` |")
     }
     [void]$sb.AppendLine()
 
@@ -146,7 +164,7 @@ function New-Indice([string]$idioma) {
 
         # El titulo va en ingles en los dos README: es el nombre de la carpeta y funciona
         # como identificador. Lo que cambia de idioma son las descripciones.
-        [void]$sb.AppendLine("## $($sec.EN)")
+        [void]$sb.AppendLine("## $(Get-Icono $sec.Icono) $($sec.EN)")
         [void]$sb.AppendLine()
 
         # Bajo cada encabezado va la tabla y nada mas: sin notas ni parrafos de contexto.

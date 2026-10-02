@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     [ES] Recupera el boton de reunion de Teams cuando desaparece de Outlook (clasico).
     [EN] Restores the Teams meeting button when it disappears from classic Outlook.
