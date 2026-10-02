@@ -16,6 +16,7 @@
       - Se borran los XML de Autodiscover.
       - Se CONSERVAN los .pst y .ost (y otros datos).
       - Se crean copias .reg de backup antes de borrar.
+      - Las cuentas se leen bien de los perfiles (funciones reales del script).
     Al terminar elimina TODO el sandbox (registro + carpeta).
 
     Simula Windows 11 + Outlook Classic (Office 16.0).
@@ -105,6 +106,28 @@ try {
             if (Test-Path $ok) { $officeRoots += $ok }
         }
     Assert 'Deteccion: encuentra 16.0 y 8.0' ($officeRoots.Count -eq 2)
+
+    # --- 2b. Lectura de cuentas: funciones REALES extraidas del script ------
+    $real = Join-Path (Split-Path $PSScriptRoot -Parent) '02-outlook\01-reset-outlook-profile.ps1'
+    $ast  = [Management.Automation.Language.Parser]::ParseFile($real, [ref]$null, [ref]$null)
+    $ast.FindAll({ param($n) $n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -in 'ConvertFrom-RegText', 'Get-OutlookAccounts' }, $true) |
+        ForEach-Object { . ([scriptblock]::Create($_.Extent.Text)) }
+    $mailRx = '^[^@\s]+@[^@\s]+\.[^@\s]+$'
+
+    $exAcc = "$o16\Profiles\Outlook\9375CFF0413111d3B88A00104B2A6676\00000002"
+    $imAcc = "$o16\Profiles\Viejo\9375CFF0413111d3B88A00104B2A6676\00000001"
+    New-Item -Path $exAcc -Force | Out-Null
+    New-Item -Path $imAcc -Force | Out-Null
+    $bin = { param($s) [Text.Encoding]::Unicode.GetBytes($s + [char]0) }
+    New-ItemProperty -Path $exAcc -Name 'Account Name' -Value (& $bin 'User@es.andersen.com') -PropertyType Binary | Out-Null
+    New-ItemProperty -Path $exAcc -Name 'clsid' -Value '{ED475418-B0D6-11D2-8C3B-00104B2A6676}' -PropertyType String | Out-Null
+    New-ItemProperty -Path $imAcc -Name 'Account Name' -Value (& $bin 'Correo personal') -PropertyType Binary | Out-Null
+    New-ItemProperty -Path $imAcc -Name 'Email' -Value (& $bin 'otro@gmail.com') -PropertyType Binary | Out-Null
+
+    $acc = @(Get-OutlookAccounts -Roots $officeRoots)
+    Assert 'Cuentas: detecta 2 cuentas'                ($acc.Count -eq 2)
+    Assert 'Cuentas: principal = Exchange por defecto' ($acc[0].Email -eq 'user@es.andersen.com' -and $acc[0].Default)
+    Assert 'Cuentas: IMAP leida de Email, no del nombre' ($acc[1].Email -eq 'otro@gmail.com')
 
     # --- 3. Ejecutar la logica de borrado ----------------------------------
     $r8profiles = 'skip'

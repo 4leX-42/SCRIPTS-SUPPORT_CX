@@ -42,7 +42,7 @@
 
 | Funcion | Script |
 |---|---|
-| Rehace el perfil de Outlook clasico conservando los .pst y .ost. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) |
+| Rehace el perfil de Outlook clasico conservando los .pst y .ost y lo recrea con la misma cuenta. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) |
 | Reset agresivo de Outlook: perfil, OST y cache de autocompletado. | [`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1) |
 
 ## 03 - OneDrive

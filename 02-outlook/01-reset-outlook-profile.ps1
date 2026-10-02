@@ -2,8 +2,8 @@
 
 <#
 .SYNOPSIS
-    [ES] Rehace el perfil de Outlook clasico conservando los .pst y .ost.
-    [EN] Rebuilds the classic Outlook profile while keeping .pst and .ost files.
+    [ES] Rehace el perfil de Outlook clasico conservando los .pst y .ost y lo recrea con la misma cuenta.
+    [EN] Rebuilds the classic Outlook profile keeping .pst and .ost files and recreates it with the same account.
 .DESCRIPTION
     Pensado para reconstruir desde cero los perfiles de Outlook cuando el
     cliente deja de recibir correo en la bandeja de entrada y no se localiza
@@ -11,15 +11,23 @@
 
     Acciones que realiza:
       1. Cierra Outlook Classic (outlook.exe) si esta en ejecucion.
-      2. Hace copia de seguridad (.reg) de cada clave ANTES de borrarla.
-      3. Elimina perfiles y cuentas (ubicacion moderna y heredada del registro).
-      4. Borra el valor DefaultProfile.
-      5. Limpia la cache de Autodiscover (registro + archivos XML en disco).
-      6. Limpia credenciales de Office/Outlook/Exchange del Administrador de
+      2. Lee las cuentas de correo de los perfiles ANTES de borrarlos
+         (accounts.txt en la carpeta de log).
+      3. Hace copia de seguridad (.reg) de cada clave ANTES de borrarla.
+      4. Elimina perfiles y cuentas (ubicacion moderna y heredada del registro).
+      5. Borra el valor DefaultProfile.
+      6. Limpia la cache de Autodiscover (registro + archivos XML en disco).
+      7. Limpia credenciales de Office/Outlook/Exchange del Administrador de
          credenciales de Windows (causa habitual de fallos de autenticacion).
-      7. NO toca *.pst / *.ost ni ningun archivo de datos: los inventaria y
+      8. NO toca *.pst / *.ost ni ningun archivo de datos: los inventaria y
          los deja intactos.
-      8. Registra todas las acciones en un log.
+      9. Recrea un perfil vacio, lo deja por defecto y abre Outlook con el:
+           - Si la cuenta coincide con el UPN de Windows activa ZeroConfigExchange
+             SOLO mientras se crea la cuenta: Outlook la configura sola y como
+             mucho pide la contrasena. Despues se retira el valor.
+           - Si no coincide, Outlook abre el asistente y el correo queda en el
+             portapapeles (Ctrl+V + contrasena).
+     10. Registra todas las acciones en un log.
 
 .PARAMETER FullReset
     Ademas de lo anterior, elimina la clave COMPLETA de Outlook
@@ -31,36 +39,59 @@
     Vacia tambien la cache de autocompletado / destinatarios sugeridos
     (carpeta RoamCache). Por defecto se conserva.
 
+.PARAMETER Email
+    Cuenta con la que recrear el perfil. Si se omite se usa la cuenta del
+    perfil por defecto que se borra; si no hay, la identidad de Office y por
+    ultimo el UPN de Windows.
+
+.PARAMETER ProfileName
+    Nombre del perfil nuevo. Por defecto 'Outlook'.
+
+.PARAMETER NoRecreate
+    Solo limpia, sin crear el perfil nuevo ni abrir Outlook (comportamiento antiguo).
+
+.PARAMETER WaitSeconds
+    Tiempo maximo esperando a que Outlook cree la cuenta antes de retirar
+    ZeroConfigExchange. Por defecto 600.
+
 .PARAMETER Force
     No pide confirmacion interactiva. Util para despliegue desatendido.
 
 .PARAMETER WhatIf
-    Simulacion: registra lo que haria pero NO borra nada.
+    Simulacion: registra lo que haria pero NO borra ni crea nada.
 
 .NOTES
     - EJECUTAR EN LA SESION DEL USUARIO AFECTADO. Las claves estan en HKCU
       (por usuario); si se ejecuta como otro usuario/admin se limpiaria el
-      perfil equivocado.
+      perfil equivocado. No ejecutar elevado: Outlook se abriria como admin.
     - NO requiere permisos de administrador.
-    - El script muestra el usuario actual al inicio: verificar que es correcto.
+    - El script muestra el usuario actual y la cuenta detectada al inicio.
 
 .EXAMPLE
     # Simulacion (no borra nada, solo registra):
-    powershell -ExecutionPolicy Bypass -File .\Reset-OutlookClassic.ps1 -WhatIf
+    powershell -ExecutionPolicy Bypass -File .\01-reset-outlook-profile.ps1 -WhatIf
 
 .EXAMPLE
-    # Limpieza estandar (conserva .pst/.ost):
-    powershell -ExecutionPolicy Bypass -File .\Reset-OutlookClassic.ps1
+    # Limpieza estandar + perfil nuevo con la misma cuenta:
+    powershell -ExecutionPolicy Bypass -File .\01-reset-outlook-profile.ps1
+
+.EXAMPLE
+    # Forzar la cuenta del perfil nuevo:
+    powershell -ExecutionPolicy Bypass -File .\01-reset-outlook-profile.ps1 -Email nombre.apellido@dominio.com
 
 .EXAMPLE
     # Reinicio total del cliente, sin preguntar:
-    powershell -ExecutionPolicy Bypass -File .\Reset-OutlookClassic.ps1 -FullReset -Force
+    powershell -ExecutionPolicy Bypass -File .\01-reset-outlook-profile.ps1 -FullReset -Force
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
     [switch]$FullReset,
     [switch]$ClearAutoComplete,
+    [string]$Email,
+    [string]$ProfileName = 'Outlook',
+    [switch]$NoRecreate,
+    [int]$WaitSeconds = 600,
     [switch]$Force
 )
 
@@ -72,6 +103,7 @@ $logDir    = Join-Path $env:TEMP "Outlook-Cleanup_$stamp"
 $backupDir = Join-Path $logDir 'registry-backup'
 New-Item -ItemType Directory -Path $backupDir -Force -WhatIf:$false | Out-Null
 $logFile   = Join-Path $logDir 'cleanup.log'
+$mailRx    = '^[^@\s]+@[^@\s]+\.[^@\s]+$'
 
 function Write-Log {
     param(
@@ -130,6 +162,77 @@ function Remove-RegValue {
 }
 
 # ---------------------------------------------------------------------------
+# Helpers de cuentas
+# ---------------------------------------------------------------------------
+function ConvertFrom-RegText {
+    param($Value)
+    # MAPI guarda 'Account Name' / 'Email' como REG_BINARY UTF-16LE terminado en nulo
+    if ($Value -is [byte[]]) { return [Text.Encoding]::Unicode.GetString($Value).Trim([char]0).Trim() }
+    if ($null -ne $Value)    { return ([string]$Value).Trim() }
+    return ''
+}
+
+function Get-OutlookAccounts {
+    param([string[]]$Roots)
+    $list = @(); $i = 0
+    foreach ($root in $Roots) {
+        $def = (Get-ItemProperty -Path $root -Name 'DefaultProfile' -ErrorAction SilentlyContinue).DefaultProfile
+        foreach ($p in (Get-ChildItem -Path "$root\Profiles" -ErrorAction SilentlyContinue)) {
+            $accRoot = Join-Path $p.PSPath '9375CFF0413111d3B88A00104B2A6676'
+            foreach ($a in (Get-ChildItem -Path $accRoot -ErrorAction SilentlyContinue)) {
+                $props = Get-ItemProperty -Path $a.PSPath -ErrorAction SilentlyContinue
+                if (-not $props) { continue }
+                foreach ($n in @('Account Name', 'Email')) {
+                    $mail = ConvertFrom-RegText $props.$n
+                    if ($mail -notmatch $mailRx) { continue }
+                    $i++
+                    $list += New-Object psobject -Property @{
+                        Email    = $mail.ToLower()
+                        Profile  = $p.PSChildName
+                        Default  = ($p.PSChildName -eq $def)
+                        Exchange = ((ConvertFrom-RegText $props.clsid) -eq '{ED475418-B0D6-11D2-8C3B-00104B2A6676}')
+                        Order    = $i
+                    }
+                    break
+                }
+            }
+        }
+    }
+    $seen = @{}
+    $list | Sort-Object @{ Expression = { -not $_.Default } }, @{ Expression = { -not $_.Exchange } }, Order |
+        Where-Object { if ($seen.ContainsKey($_.Email)) { $false } else { $seen[$_.Email] = 1; $true } }
+}
+
+# ---------------------------------------------------------------------------
+# Deteccion previa: versiones de Office y cuentas (solo lectura)
+# ---------------------------------------------------------------------------
+$officeRoots = @()
+$officeBase  = 'HKCU:\Software\Microsoft\Office'
+if (Test-Path $officeBase) {
+    $officeRoots = @(Get-ChildItem $officeBase -ErrorAction SilentlyContinue |
+        Where-Object { $_.PSChildName -match '^\d+\.\d+$' -and (Test-Path "$officeBase\$($_.PSChildName)\Outlook") } |
+        Sort-Object { [version]$_.PSChildName } -Descending |
+        ForEach-Object { "$officeBase\$($_.PSChildName)\Outlook" })
+}
+$mainVer  = if ($officeRoots) { Split-Path (Split-Path $officeRoots[0] -Parent) -Leaf } else { '16.0' }
+$accounts = @(Get-OutlookAccounts -Roots $officeRoots)
+
+$upn = ''
+try { $upn = ([string](& whoami.exe /upn 2>$null)).Trim().ToLower() } catch { }
+if ($upn -notmatch $mailRx) { $upn = '' }
+
+$emailSource = 'parametro -Email'
+if (-not $Email -and $accounts) { $Email = $accounts[0].Email; $emailSource = "perfil '$($accounts[0].Profile)'" }
+if (-not $Email) {
+    $Email = Get-ChildItem "$officeBase\$mainVer\Common\Identity\Identities" -ErrorAction SilentlyContinue |
+        ForEach-Object { (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).EmailAddress } |
+        Where-Object { $_ -match $mailRx } | Select-Object -First 1
+    $emailSource = 'identidad de Office'
+}
+if (-not $Email -and $upn) { $Email = $upn; $emailSource = 'UPN de Windows' }
+if ($Email) { $Email = $Email.Trim().ToLower() }
+
+# ---------------------------------------------------------------------------
 # Cabecera y confirmacion
 # ---------------------------------------------------------------------------
 Write-Host ''
@@ -141,6 +244,12 @@ Write-Log "Usuario actual : $env:USERDOMAIN\$env:USERNAME" 'INFO'
 Write-Log "Equipo         : $env:COMPUTERNAME" 'INFO'
 Write-Log "Carpeta de log : $logDir" 'INFO'
 Write-Log "Modo FullReset : $($FullReset.IsPresent)  |  AutoComplete: $($ClearAutoComplete.IsPresent)  |  WhatIf: $($WhatIfPreference)" 'INFO'
+foreach ($a in $accounts) {
+    Write-Log ("Cuenta detectada: {0}  (perfil '{1}'{2})" -f $a.Email, $a.Profile, $(if ($a.Default) { ', por defecto' } else { '' })) 'INFO'
+}
+if ($NoRecreate)  { Write-Log 'Perfil nuevo   : NO (-NoRecreate)' 'INFO' }
+elseif ($Email)   { Write-Log "Perfil nuevo   : '$ProfileName' con $Email  [origen: $emailSource]" 'INFO' }
+else              { Write-Log "Perfil nuevo   : '$ProfileName' vacio (no se detecto ninguna cuenta)" 'WARN' }
 Write-Host ''
 Write-Host 'Se CONSERVAN los archivos de datos (.pst / .ost).' -ForegroundColor Green
 Write-Host 'Se ELIMINAN perfiles, cuentas, Autodiscover y credenciales cacheadas.' -ForegroundColor Yellow
@@ -182,27 +291,25 @@ if (-not $procs) {
 }
 
 # ---------------------------------------------------------------------------
-# 2. Detectar versiones de Office instaladas (16.0 = 2016/2019/2021/365)
+# 2. Versiones y cuentas (guardadas antes de borrar nada)
 # ---------------------------------------------------------------------------
-Write-Log '--- 2. Detectando versiones de Outlook en el registro ---' 'INFO'
-$officeRoots = @()
-$officeBase  = 'HKCU:\Software\Microsoft\Office'
-if (Test-Path $officeBase) {
-    Get-ChildItem $officeBase -ErrorAction SilentlyContinue |
-        Where-Object { $_.PSChildName -match '^\d+\.\d+$' } |
-        ForEach-Object {
-            $ver = $_.PSChildName
-            $ok  = "HKCU:\Software\Microsoft\Office\$ver\Outlook"
-            if (Test-Path $ok) {
-                $officeRoots += $ok
-                Write-Log "Detectado: Office $ver" 'INFO'
-            }
-        }
-}
+Write-Log '--- 2. Versiones de Outlook y cuentas de los perfiles ---' 'INFO'
+foreach ($root in $officeRoots) { Write-Log "Detectado: $root" 'INFO' }
 if (-not $officeRoots) { Write-Log 'No se detectaron claves de Outlook bajo Office.' 'WARN' }
+$accFile = Join-Path $logDir 'accounts.txt'
+if ($accounts) {
+    $accounts | ForEach-Object { "{0}`t{1}`t{2}" -f $_.Email, $_.Profile, $(if ($_.Default) { 'default' } else { '' }) } |
+        Set-Content -Path $accFile -Encoding UTF8 -WhatIf:$false
+    Write-Log "Cuentas guardadas en $accFile" 'OK'
+    if ($accounts.Count -gt 1) {
+        Write-Log "Solo se recrea la principal. Anadir a mano: $(($accounts | Select-Object -Skip 1 | ForEach-Object { $_.Email }) -join ', ')" 'WARN'
+    }
+} else {
+    Write-Log 'No se encontraron cuentas en los perfiles actuales.' 'SKIP'
+}
 
 # ---------------------------------------------------------------------------
-# 3-4. Eliminar perfiles, cuentas, DefaultProfile y Autodiscover por version
+# 3. Eliminar perfiles, cuentas, DefaultProfile y Autodiscover por version
 # ---------------------------------------------------------------------------
 Write-Log '--- 3. Eliminando perfiles, cuentas y Autodiscover (registro) ---' 'INFO'
 foreach ($root in $officeRoots) {
@@ -220,7 +327,7 @@ $legacy = 'HKCU:\Software\Microsoft\Windows NT\CurrentVersion\Windows Messaging 
 Remove-RegKey -Path $legacy -Desc 'Perfiles heredados (Windows Messaging Subsystem)'
 
 # ---------------------------------------------------------------------------
-# 5. Borrar archivos XML de cache de Autodiscover en disco
+# 4. Borrar archivos XML de cache de Autodiscover en disco
 #    (solo *.xml de autodiscover; NUNCA .pst/.ost)
 # ---------------------------------------------------------------------------
 Write-Log '--- 4. Limpiando cache de Autodiscover en disco ---' 'INFO'
@@ -244,7 +351,7 @@ if (Test-Path $outlookData) {
 }
 
 # ---------------------------------------------------------------------------
-# 6. Limpiar credenciales cacheadas (Administrador de credenciales Windows)
+# 5. Limpiar credenciales cacheadas (Administrador de credenciales Windows)
 #    Causa muy habitual de fallos de autenticacion / no recibir correo.
 # ---------------------------------------------------------------------------
 Write-Log '--- 5. Limpiando credenciales de Office/Outlook/Exchange ---' 'INFO'
@@ -271,7 +378,7 @@ try {
 }
 
 # ---------------------------------------------------------------------------
-# 7. (Opcional) Vaciar cache de autocompletado / destinatarios (RoamCache)
+# 6. (Opcional) Vaciar cache de autocompletado / destinatarios (RoamCache)
 # ---------------------------------------------------------------------------
 if ($ClearAutoComplete) {
     Write-Log '--- 6. Vaciando cache de autocompletado (RoamCache) ---' 'INFO'
@@ -293,7 +400,7 @@ if ($ClearAutoComplete) {
 }
 
 # ---------------------------------------------------------------------------
-# 8. Inventario de archivos de datos (SE CONSERVAN, no se tocan)
+# 7. Inventario de archivos de datos (SE CONSERVAN, no se tocan)
 # ---------------------------------------------------------------------------
 Write-Log '--- 7. Inventario de archivos de datos (SE CONSERVAN) ---' 'INFO'
 $dataDirs = @(
@@ -318,6 +425,73 @@ if ($dataFiles) {
 }
 
 # ---------------------------------------------------------------------------
+# 8. Recrear perfil y abrir Outlook con la cuenta detectada
+# ---------------------------------------------------------------------------
+$recreated = $false
+if (-not $NoRecreate) {
+    Write-Log '--- 8. Recreando perfil de Outlook ---' 'INFO'
+    $olRoot   = "$officeBase\$mainVer\Outlook"
+    $newProf  = "$olRoot\Profiles\$ProfileName"
+    $adKey    = "$olRoot\AutoDiscover"
+    $polZero  = (Get-ItemProperty "HKCU:\Software\Policies\Microsoft\Office\$mainVer\Outlook\AutoDiscover" -ErrorAction SilentlyContinue).ZeroConfigExchange -eq 1
+    $useZero  = (-not $polZero) -and $Email -and $upn -and ($Email -eq $upn)
+    $olExe    = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\OUTLOOK.EXE' -ErrorAction SilentlyContinue).'(default)'
+    if (-not $olExe -or -not (Test-Path $olExe)) { $olExe = 'outlook.exe' }
+
+    if     ($polZero) { Write-Log 'ZeroConfigExchange ya llega por directiva: Outlook configurara la cuenta solo.' 'INFO' }
+    elseif ($useZero) { Write-Log "La cuenta coincide con el UPN de Windows: configuracion automatica (ZeroConfigExchange temporal)." 'INFO' }
+    elseif ($Email -and -not $upn) { Write-Log 'Equipo sin UPN de dominio: se abrira el asistente con el correo en el portapapeles.' 'INFO' }
+    elseif ($Email)   { Write-Log "La cuenta no coincide con el UPN ($upn): se abrira el asistente con el correo en el portapapeles." 'INFO' }
+
+    if ($WhatIfPreference) {
+        Write-Log "[SIMULACION] Crearia $newProf y DefaultProfile='$ProfileName'" 'INFO'
+        if ($useZero) { Write-Log "[SIMULACION] Pondria ZeroConfigExchange=1 en $adKey hasta que se cree la cuenta" 'INFO' }
+        Write-Log "[SIMULACION] Abriria: $olExe /profile `"$ProfileName`"" 'INFO'
+    } else {
+        try {
+            New-Item -Path $newProf -Force -ErrorAction Stop | Out-Null
+            Set-ItemProperty -Path $olRoot -Name 'DefaultProfile' -Value $ProfileName -Type String -ErrorAction Stop
+            Write-Log "Perfil vacio creado y por defecto: $ProfileName" 'OK'
+            $recreated = $true
+        } catch {
+            Write-Log "Error creando el perfil: $($_.Exception.Message)" 'ERROR'
+        }
+    }
+
+    if ($recreated) {
+        if ($useZero) {
+            New-Item -Path $adKey -Force | Out-Null
+            New-ItemProperty -Path $adKey -Name 'ZeroConfigExchange' -Value 1 -PropertyType DWord -Force | Out-Null
+        }
+        if ($Email) {
+            try { Set-Clipboard -Value $Email; Write-Log "Correo copiado al portapapeles: $Email" 'OK' } catch { }
+        }
+        try {
+            Start-Process -FilePath $olExe -ArgumentList '/profile', "`"$ProfileName`"" -ErrorAction Stop
+            Write-Log 'Outlook abierto con el perfil nuevo.' 'OK'
+        } catch {
+            Write-Log "No se pudo abrir Outlook: $($_.Exception.Message)" 'ERROR'
+        }
+
+        if ($useZero) {
+            Write-Log "Esperando a que Outlook cree la cuenta (max $WaitSeconds s). Introduce la contrasena si la pide." 'INFO'
+            $deadline = (Get-Date).AddSeconds($WaitSeconds)
+            $created  = $false
+            Start-Sleep -Seconds 10
+            while ((Get-Date) -lt $deadline) {
+                if (Get-ChildItem "$newProf\9375CFF0413111d3B88A00104B2A6676" -ErrorAction SilentlyContinue) { $created = $true; break }
+                if (-not (Get-Process -Name 'outlook' -ErrorAction SilentlyContinue)) { break }
+                Start-Sleep -Seconds 5
+            }
+            # Con ZeroConfigExchange activo no se pueden crear perfiles a mano: se retira siempre
+            Remove-ItemProperty -Path $adKey -Name 'ZeroConfigExchange' -Force -ErrorAction SilentlyContinue
+            if ($created) { Write-Log "Cuenta creada en el perfil '$ProfileName'. ZeroConfigExchange retirado." 'OK' }
+            else          { Write-Log 'Outlook no creo la cuenta a tiempo. ZeroConfigExchange retirado: al reabrir Outlook saldra el asistente (Ctrl+V + contrasena).' 'WARN' }
+        }
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Resumen final
 # ---------------------------------------------------------------------------
 Write-Host ''
@@ -327,6 +501,13 @@ Write-Host "  Log           : $logFile" -ForegroundColor Cyan
 Write-Host "  Backups (.reg): $backupDir" -ForegroundColor Cyan
 Write-Host '===========================================================' -ForegroundColor Cyan
 Write-Host ''
-Write-Host 'SIGUIENTE PASO: abrir Outlook -> asistente de nuevo perfil,' -ForegroundColor Green
-Write-Host 'o crear el perfil desde Panel de control > Mail (Correo).' -ForegroundColor Green
+if ($recreated -and $Email) {
+    Write-Host "SIGUIENTE PASO: en Outlook, si pide la cuenta pega $Email (Ctrl+V)" -ForegroundColor Green
+    Write-Host 'y escribe la contrasena. Si solo pide la contrasena, introducirla.' -ForegroundColor Green
+} elseif ($recreated) {
+    Write-Host 'SIGUIENTE PASO: en Outlook, escribe el correo del usuario y la contrasena.' -ForegroundColor Green
+} else {
+    Write-Host 'SIGUIENTE PASO: abrir Outlook -> asistente de nuevo perfil,' -ForegroundColor Green
+    Write-Host 'o crear el perfil desde Panel de control > Mail (Correo).' -ForegroundColor Green
+}
 Write-Host 'Para revertir el registro: doble clic en los .reg de backup.' -ForegroundColor Green

@@ -44,7 +44,7 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 
 | Function | Script |
 |---|---|
-| Rebuilds the classic Outlook profile while keeping .pst and .ost files. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) |
+| Rebuilds the classic Outlook profile keeping .pst and .ost files and recreates it with the same account. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) |
 | Aggressive Outlook reset: profile, OST files and autocomplete cache. | [`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1) |
 
 ## 03 - OneDrive
