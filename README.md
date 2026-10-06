@@ -111,6 +111,7 @@ Runbook detallado: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedriv
 | Solo lectura. Reproduce el cuelgue del selector y captura el DLL que lo provoca. | [`02-test-file-picker-hang`](10-file-picker/02-test-file-picker-hang.ps1) |
 | Limpia la memoria de carpetas del selector de archivos (ComDlg32 MRU). DryRun por defecto. | [`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1) |
 | Desactiva extensiones de shell por CLSID de forma reversible. DryRun por defecto. | [`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1) |
+| Solo lectura. Diagnostico del crash de una aplicacion al abrir el dialogo Abrir/Guardar como. | [`05-diagnose-file-picker-crash`](10-file-picker/05-diagnose-file-picker-crash.ps1) |
 
 ## <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> 11 - Certificates
 
@@ -150,6 +151,7 @@ Get-Help .\script.ps1 -Full                               # parámetros y ejempl
 | `-Fase` | `03/02` | `Reparar` \| `Comprobar` \| `Verificar` |
 | `-TargetService`, `-MaxLevel`, `-DiagnosticOnly` | `05/02` | servicio, nivel máximo de escalado, solo diagnóstico |
 | `-RutaRespaldo` | `01/02` | destino del respaldo si el Escritorio no admite escritura |
+| `-ProcessName`, `-EnableDumps`, `-Interactive` | `10/05` | procesos a inspeccionar, volcado WER del próximo crash, prueba real del diálogo en 64 y 32 bits |
 | `$env:SOPORTE_ORIGEN_PAQUETES` | `05/01`, `06/*` | ruta del share de instaladores |
 
 Los de modo `pegar` no llevan parámetros: se pegan y ya.

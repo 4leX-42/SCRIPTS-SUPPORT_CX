@@ -10,6 +10,7 @@ Suele afectar a varias aplicaciones a la vez (Outlook, clientes de IA, navegador
 | `02-test-file-picker-hang.ps1` | Solo lectura. Reproduce el cuelgue en un proceso aislado y captura el **delta de módulos** que carga el selector: los DLL de terceros de esa lista son los sospechosos. |
 | `03-reset-file-picker-mru.ps1` | Escritura (DryRun por defecto). Borra la memoria de carpetas del selector en HKCU, con copia `.reg` previa y `-Restore`. |
 | `04-block-shell-extension.ps1` | Escritura (DryRun por defecto). Bloquea o desbloquea extensiones de shell por CLSID. Reversible, no desinstala nada. Requiere administrador. |
+| `05-diagnose-file-picker-crash.ps1` | Solo lectura. Para cuando la aplicación **se cierra** al abrir el selector en vez de congelarse: módulo culpable del último crash (eventos 1000/1001, `Report.wer`), extensiones de shell con su arquitectura, inyección de DLL, AV/EDR, módulos de terceros en los procesos afectados y prueba real del diálogo en 64 y 32 bits. `-EnableDumps` deja WER preparado para el próximo crash. |
 
 Todo se ejecuta en la sesión **del usuario afectado**: el MRU y los recientes viven en `HKCU`.
 Una sesión elevada con otra cuenta lee otro registro y el diagnóstico sale limpio aunque el
@@ -126,6 +127,24 @@ hay que cerrarlas del todo entre prueba y prueba.
 sfc /scannow
 DISM /Online /Cleanup-Image /RestoreHealth
 ```
+
+
+### Si la aplicación se cierra en vez de congelarse
+
+Un crash sí deja rastro: evento **1000** (`Application Error`) con el módulo culpable y la
+excepción, y un `Report.wer`. `05-diagnose-file-picker-crash.ps1` los cruza con las extensiones
+de shell, la inyección de DLL y los módulos cargados en la aplicación.
+
+```powershell
+# sesión del usuario, con la aplicación afectada abierta
+.\05-diagnose-file-picker-crash.ps1 -Interactive
+# elevado: además deja WER guardando un volcado completo del próximo crash
+.\05-diagnose-file-picker-crash.ps1 -EnableDumps
+```
+
+`-ProcessName` añade procesos a inspeccionar; los que aparecen en los últimos crashes se suman
+solos. Si el proceso de 32 bits muere en la prueba interactiva y el de 64 no, el culpable es una
+extensión x86 (sección 5, columna `Arch`). El informe queda en `%TEMP%\FilePickerDiag`.
 
 ---
 

@@ -113,6 +113,7 @@ Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive
 | Read-only. Reproduces the file picker hang and captures the DLL behind it. | [`02-test-file-picker-hang`](10-file-picker/02-test-file-picker-hang.ps1) |
 | Clears the file picker's remembered folders (ComDlg32 MRU). DryRun by default. | [`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1) |
 | Disables shell extensions by CLSID, reversibly. DryRun by default. | [`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1) |
+| Read-only. Diagnoses an application crashing when it opens the Open/Save As dialog. | [`05-diagnose-file-picker-crash`](10-file-picker/05-diagnose-file-picker-crash.ps1) |
 
 ## <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> 11 - Certificates
 
@@ -152,6 +153,7 @@ Get-Help .\script.ps1 -Full                               # parameters and examp
 | `-Fase` | `03/02` | `Reparar` \| `Comprobar` \| `Verificar` |
 | `-TargetService`, `-MaxLevel`, `-DiagnosticOnly` | `05/02` | service, max escalation tier, diagnose only |
 | `-RutaRespaldo` | `01/02` | backup target when the Desktop is not writable |
+| `-ProcessName`, `-EnableDumps`, `-Interactive` | `10/05` | processes to inspect, WER dump of the next crash, real dialog test in 64 and 32 bits |
 | `$env:SOPORTE_ORIGEN_PAQUETES` | `05/01`, `06/*` | installer share path |
 
 `paste` mode scripts take no parameters: paste and go.
