@@ -100,6 +100,29 @@ function Get-Sinopsis([string]$ruta) {
     return @{ ES = $es; EN = $en }
 }
 
+# Los .ps1 son ASCII, asi que las tildes del README en espanol salen de es-accents.ini.
+$tildes = New-Object System.Collections.ArrayList
+$rutaTildes = Join-Path $PSScriptRoot 'es-accents.ini'
+if (Test-Path $rutaTildes) {
+    foreach ($l in [IO.File]::ReadAllLines($rutaTildes, [Text.Encoding]::UTF8)) {
+        if ($l -match '^\s*(#|$)' -or $l -notmatch '^([^=]+)=(.+)$') { continue }
+        [void]$tildes.Add(@{ Patron = '(?i)\b' + [regex]::Escape($Matches[1].Trim()) + '\b'; Valor = $Matches[2].Trim() })
+    }
+}
+
+function Add-Tildes([string]$texto) {
+    if (-not $texto) { return $texto }
+    foreach ($t in $tildes) {
+        $valor = $t.Valor
+        $texto = [regex]::Replace($texto, $t.Patron, {
+            param($m)
+            $inicio = if ([char]::IsUpper($m.Value[0])) { $valor.Substring(0, 1).ToUpper() } else { $valor.Substring(0, 1).ToLower() }
+            $inicio + $valor.Substring(1)
+        }.GetNewClosure())
+    }
+    return $texto
+}
+
 $indicePaste = $null
 $rutaIndice = Join-Path $raiz '00-copy-paste\index.psd1'
 if (Test-Path $rutaIndice) { $indicePaste = Import-PowerShellDataFile $rutaIndice }
@@ -107,6 +130,7 @@ if (Test-Path $rutaIndice) { $indicePaste = Import-PowerShellDataFile $rutaIndic
 function New-Indice([string]$idioma) {
     $sb = New-Object Text.StringBuilder
     $colFuncion = if ($idioma -eq 'ES') { 'Funcion' } else { 'Function' }
+    if ($idioma -eq 'ES') { $colFuncion = Add-Tildes $colFuncion }
 
     # Barra de saltos por area: el icono es lo que se busca con la vista, no el numero.
     $saltos = foreach ($sec in $secciones) {
@@ -177,6 +201,7 @@ function New-Indice([string]$idioma) {
         if ($esPaste) {
             $colVentana = if ($idioma -eq 'ES') { 'Ventana' } else { 'Window' }
             $colDetalle = if ($idioma -eq 'ES') { 'Que saca' } else { 'What it reports' }
+            if ($idioma -eq 'ES') { $colDetalle = Add-Tildes $colDetalle }
             $colInforme = if ($idioma -eq 'ES') { 'Informe' } else { 'Report' }
             [void]$sb.AppendLine("| $colInforme | Script | $colVentana | $colDetalle |")
             [void]$sb.AppendLine('|---|---|---|---|')
@@ -199,6 +224,7 @@ function New-Indice([string]$idioma) {
                 $desc = (Get-Sinopsis $f.FullName).$idioma
             }
             if (-not $desc) { $desc = '(sin descripcion)' }
+            if ($idioma -eq 'ES') { $desc = Add-Tildes $desc; $titulo = Add-Tildes $titulo }
 
             $ruta = "$($sec.Carpeta)/$($f.Name)"
             if ($esPaste) {

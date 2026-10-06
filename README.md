@@ -22,110 +22,110 @@
 
 ## <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> 00 - Copy and paste (diagnostics)
 
-| Informe | Script | Ventana | Que saca |
+| Informe | Script | Ventana | Qué saca |
 |---|---|---|---|
 | **Arreglo de rutas largas (MAX_PATH)** | [`91-long-paths`](00-copy-paste/91-long-paths.txt) | `admin` | Habilita LongPathsEnabled y nombres 8.3, y localiza las rutas que pasan de 255 caracteres en OneDrive e iManage |
-| **Ficha tecnica del equipo** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `admin` | Hardware, generacion real de Windows, join a Entra o dominio, MDM, disco, BitLocker, red y Office |
-| **Estado del agente ESET** | [`06-eset-status`](00-copy-paste/06-eset-status.ps1) | `admin` | Instalacion, servicios, firma del binario, enrolamiento leido del trace y conectividad con ESET PROTECT |
-| **Cuentas cacheadas e identidades** | [`01-cached-accounts`](00-copy-paste/01-cached-accounts.ps1) | `usuario` | Inventario de cuentas cacheadas: origen de cada una, deteccion de UPN GUID y tenantId real de cada dominio |
-| **Estado de OneDrive** | [`02-onedrive-status`](00-copy-paste/02-onedrive-status.ps1) | `usuario` | Proceso, version, cuentas vinculadas, ACE de denegacion, prueba de escritura y frescura de los logs |
-| **Conectividad con M365** | [`04-m365-connectivity`](00-copy-paste/04-m365-connectivity.ps1) | `usuario` | Proxy, DNS, TCP 443, version de TLS y latencia contra los 7 endpoints de Microsoft 365 |
-| **Estado de Office y Outlook** | [`05-office-outlook-status`](00-copy-paste/05-office-outlook-status.ps1) | `usuario` | Version, licencia, identidades, perfiles, .ost y .pst, complementos y elementos deshabilitados |
+| **Ficha técnica del equipo** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `admin` | Hardware, generación real de Windows, join a Entra o dominio, MDM, disco, BitLocker, red y Office |
+| **Estado del agente ESET** | [`06-eset-status`](00-copy-paste/06-eset-status.ps1) | `admin` | Instalación, servicios, firma del binario, enrolamiento leído del trace y conectividad con ESET PROTECT |
+| **Cuentas cacheadas e identidades** | [`01-cached-accounts`](00-copy-paste/01-cached-accounts.ps1) | `usuario` | Inventario de cuentas cacheadas: origen de cada una, detección de UPN GUID y tenantId real de cada dominio |
+| **Estado de OneDrive** | [`02-onedrive-status`](00-copy-paste/02-onedrive-status.ps1) | `usuario` | Proceso, versión, cuentas vinculadas, ACE de denegación, prueba de escritura y frescura de los logs |
+| **Conectividad con M365** | [`04-m365-connectivity`](00-copy-paste/04-m365-connectivity.ps1) | `usuario` | Proxy, DNS, TCP 443, versión de TLS y latencia contra los 7 endpoints de Microsoft 365 |
+| **Estado de Office y Outlook** | [`05-office-outlook-status`](00-copy-paste/05-office-outlook-status.ps1) | `usuario` | Versión, licencia, identidades, perfiles, .ost y .pst, complementos y elementos deshabilitados |
 
 ## <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> 01 - Identity cache
 
-| Funcion | Script |
+| Función | Script |
 |---|---|
 | Borra las cuentas de trabajo cacheadas. Las quita todas salvo las que decidas conservar. | [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1) |
 | Quita la cuenta que sobrevive de un tenant antiguo. Detecta sola el UPN y el tenant. | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) |
-| Repara la cache de credenciales de Microsoft 365 por niveles, y sabe deshacer los cambios. | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) |
+| Repara la caché de credenciales de Microsoft 365 por niveles, y sabe deshacer los cambios. | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) |
 
 ## <img src=".github/icons/mail.svg" width="20" height="20" align="top" alt=""> 02 - Outlook
 
-| Funcion | Script |
+| Función | Script |
 |---|---|
-| Rehace el perfil de Outlook clasico conservando los .pst y .ost y lo recrea con la misma cuenta. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) |
-| Reset agresivo de Outlook: perfil, OST y cache de autocompletado. | [`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1) |
+| Rehace el perfil de Outlook clásico conservando los .pst y .ost y lo recrea con la misma cuenta. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) |
+| Reset agresivo de Outlook: perfil, OST y caché de autocompletado. | [`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1) |
 
 ## <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> 03 - OneDrive
 
-| Funcion | Script |
+| Función | Script |
 |---|---|
-| Arregla OneDrive subiendo por 5 niveles: reinicio, reset, cache, binario y reinstalacion. | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) |
-| Quita las ACE de denegacion que dejo una GPO de dominio y hacen que OneDrive pida admin. | [`02-fix-onedrive-permissions`](03-onedrive/02-fix-onedrive-permissions.ps1) |
+| Arregla OneDrive subiendo por 5 niveles: reinicio, reset, caché, binario y reinstalación. | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) |
+| Quita las ACE de denegación que dejó una GPO de dominio y hacen que OneDrive pida admin. | [`02-fix-onedrive-permissions`](03-onedrive/02-fix-onedrive-permissions.ps1) |
 
 Runbook detallado: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive-permissions.md)
 
 ## <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> 04 - Teams
 
-| Funcion | Script |
+| Función | Script |
 |---|---|
-| Arregla el inicio de sesion de Teams cuando se queda en bucle o no autentica. | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) |
-| Recupera el boton de reunion de Teams cuando desaparece de Outlook (clasico). | [`02-repair-teams-outlook-addin`](04-teams/02-repair-teams-outlook-addin.ps1) |
-| Re-registra el complemento de reunion de Teams en Outlook clasico y lo blinda. | [`03-repair-teams-addin-com`](04-teams/03-repair-teams-addin-com.ps1) |
+| Arregla el inicio de sesión de Teams cuando se queda en bucle o no autentica. | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) |
+| Recupera el botón de reunión de Teams cuando desaparece de Outlook (clásico). | [`02-repair-teams-outlook-addin`](04-teams/02-repair-teams-outlook-addin.ps1) |
+| Re-registra el complemento de reunión de Teams en Outlook clásico y lo blinda. | [`03-repair-teams-addin-com`](04-teams/03-repair-teams-addin-com.ps1) |
 
 ## <img src=".github/icons/apps.svg" width="20" height="20" align="top" alt=""> 05 - Office apps
 
-| Funcion | Script |
+| Función | Script |
 |---|---|
-| Repara la instalacion de Office: reparacion rapida u online, y reactivacion. | [`01-repair-office-install`](05-office-apps/01-repair-office-install.ps1) |
+| Repara la instalación de Office: reparación rápida u online, y reactivación. | [`01-repair-office-install`](05-office-apps/01-repair-office-install.ps1) |
 | Motor desatendido que diagnostica y repara OneDrive, Outlook, Office, identidad y red. | [`02-m365-remediation-engine`](05-office-apps/02-m365-remediation-engine.ps1) |
 
 ## <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> 06 - Corporate applications
 
-| Funcion | Script |
+| Función | Script |
 |---|---|
-| Dice por que ESET Endpoint no esta instalado, no arranca o no se conecta a la consola. | [`01-diagnose-eset`](06-applications/01-diagnose-eset.ps1) |
+| Dice por qué ESET Endpoint no está instalado, no arranca o no se conecta a la consola. | [`01-diagnose-eset`](06-applications/01-diagnose-eset.ps1) |
 | Instala ESET Endpoint sin asistencia, incluso cuando el instalador no admite modo silencioso. | [`02-install-eset`](06-applications/02-install-eset.ps1) |
 | Desinstala iManage Work Desktop por completo, con sus complementos de Office. | [`03-uninstall-imanage`](06-applications/03-uninstall-imanage.ps1) |
 | Instala PDFelement e iManage automatizando su asistente, que no admite modo silencioso. | [`04-install-pdfelement-imanage`](06-applications/04-install-pdfelement-imanage.ps1) |
-| Analiza un paquete de instalacion y dice que tipo es y que parametros silenciosos admite. | [`05-diagnose-installers`](06-applications/05-diagnose-installers.ps1) |
-| Repara el cliente Mitel Connect / MiCollab: cache, registro, Outlook, credenciales y DNS. | [`06-repair-mitel-client`](06-applications/06-repair-mitel-client.ps1) |
+| Analiza un paquete de instalación y dice qué tipo es y qué parámetros silenciosos admite. | [`05-diagnose-installers`](06-applications/05-diagnose-installers.ps1) |
+| Repara el cliente Mitel Connect / MiCollab: caché, registro, Outlook, credenciales y DNS. | [`06-repair-mitel-client`](06-applications/06-repair-mitel-client.ps1) |
 
 ## <img src=".github/icons/laptop.svg" width="20" height="20" align="top" alt=""> 07 - Endpoint
 
-| Funcion | Script |
+| Función | Script |
 |---|---|
-| Que esta ocupando el disco: carpetas mas grandes y basura que se puede recuperar. | [`01-disk-usage`](07-endpoint/01-disk-usage.ps1) |
-| Saca la clave de recuperacion de BitLocker por numero de serie, nombre o id de dispositivo. | [`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1) |
+| Qué está ocupando el disco: carpetas más grandes y basura que se puede recuperar. | [`01-disk-usage`](07-endpoint/01-disk-usage.ps1) |
+| Saca la clave de recuperación de BitLocker por número de serie, nombre o id de dispositivo. | [`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1) |
 | Diagnostica y corrige apagados y reinicios inesperados del equipo. | [`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1) |
-| Deja el reloj en hora para poder firmar en sedes electronicas: detecta la ubicacion, empareja zona horaria y NTP del pais, y repara W32Time. | [`04-repair-time-sync`](07-endpoint/04-repair-time-sync.ps1) |
+| Deja el reloj en hora para poder firmar en sedes electrónicas: detecta la ubicación, empareja zona horaria y NTP del país, y repara W32Time. | [`04-repair-time-sync`](07-endpoint/04-repair-time-sync.ps1) |
 
 ## <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> 08 - Network
 
-| Funcion | Script |
+| Función | Script |
 |---|---|
-| Quita el ahorro de energia de la tarjeta Wi-Fi y pone el plan de alto rendimiento. | [`01-optimize-wifi-adapter`](08-network/01-optimize-wifi-adapter.ps1) |
+| Quita el ahorro de energía de la tarjeta Wi-Fi y pone el plan de alto rendimiento. | [`01-optimize-wifi-adapter`](08-network/01-optimize-wifi-adapter.ps1) |
 
 ## <img src=".github/icons/document.svg" width="20" height="20" align="top" alt=""> 09 - Documents
 
-| Funcion | Script |
+| Función | Script |
 |---|---|
-| Quita la proteccion de edicion de un documento de Word cuando se perdio la contrasena. | [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1) |
+| Quita la protección de edición de un documento de Word cuando se perdió la contraseña. | [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1) |
 
 ## <img src=".github/icons/folder_open.svg" width="20" height="20" align="top" alt=""> 10 - File picker
 
-| Funcion | Script |
+| Función | Script |
 |---|---|
 | Solo lectura. Inventario de todo lo que puede colgar el selector de archivos de Windows. | [`01-diagnose-file-picker`](10-file-picker/01-diagnose-file-picker.ps1) |
 | Solo lectura. Reproduce el cuelgue del selector y captura el DLL que lo provoca. | [`02-test-file-picker-hang`](10-file-picker/02-test-file-picker-hang.ps1) |
 | Limpia la memoria de carpetas del selector de archivos (ComDlg32 MRU). DryRun por defecto. | [`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1) |
 | Desactiva extensiones de shell por CLSID de forma reversible. DryRun por defecto. | [`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1) |
-| Solo lectura. Diagnostico del crash de una aplicacion al abrir el dialogo Abrir/Guardar como. | [`05-diagnose-file-picker-crash`](10-file-picker/05-diagnose-file-picker-crash.ps1) |
+| Solo lectura. Diagnóstico del crash de una aplicación al abrir el diálogo Abrir/Guardar como. | [`05-diagnose-file-picker-crash`](10-file-picker/05-diagnose-file-picker-crash.ps1) |
 
 ## <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> 11 - Certificates
 
-| Funcion | Script |
+| Función | Script |
 |---|---|
-| Repara un certificado concreto que AutoFirma no lista, sin tocar el resto del almacen. | [`01-repair-autofirma-certificate`](11-certificates/01-repair-autofirma-certificate.ps1) |
+| Repara un certificado concreto que AutoFirma no lista, sin tocar el resto del almacén. | [`01-repair-autofirma-certificate`](11-certificates/01-repair-autofirma-certificate.ps1) |
 
 ## <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> 99 - Repo tools
 
-| Funcion | Script |
+| Función | Script |
 |---|---|
 | Valida todos los .ps1 del repo: solo ASCII, UTF-8 con BOM y sintaxis en 5.1 y 7. | [`01-validate-scripts`](99-repo-tools/01-validate-scripts.ps1) |
-| Prueba en sandbox la logica de borrado de los scripts de Outlook. No toca Outlook. | [`02-test-outlook-reset`](99-repo-tools/02-test-outlook-reset.ps1) |
-| Regenera el indice de README.md y README.en.md leyendo el .SYNOPSIS de cada script. | [`03-generate-readme`](99-repo-tools/03-generate-readme.ps1) |
+| Prueba en sandbox la lógica de borrado de los scripts de Outlook. No toca Outlook. | [`02-test-outlook-reset`](99-repo-tools/02-test-outlook-reset.ps1) |
+| Regenera el índice de README.md y README.en.md leyendo el .SYNOPSIS de cada script. | [`03-generate-readme`](99-repo-tools/03-generate-readme.ps1) |
 
 <!-- INDICE-FIN -->
 
