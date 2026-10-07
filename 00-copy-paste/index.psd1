@@ -19,14 +19,6 @@
 # them from here. Admin ones are listed first.
 
 @{
-    '91-long-paths.txt' = @{
-        Titulo = 'Arreglo de rutas largas (MAX_PATH)'
-        TitleEN = 'Long path fix (MAX_PATH)'
-        ES = 'Habilita LongPathsEnabled y desactiva nombres 8.3: limite local de 260 en Explorador e iManage. El aviso de ruta larga de OneDrive es otro limite (400): 03-onedrive/03-shorten-long-paths'
-        EN = 'Enables LongPathsEnabled and disables 8.3 names: local 260 limit in Explorer and iManage. The OneDrive path too long warning is a different limit (400): 03-onedrive/03-shorten-long-paths'
-        Ventana = 'admin'
-        Orden = 1
-    }
     '03-endpoint-report.ps1' = @{
         Titulo = 'Ficha tecnica del equipo'
         TitleEN = 'Machine snapshot'

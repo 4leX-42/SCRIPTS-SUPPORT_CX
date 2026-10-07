@@ -26,7 +26,6 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 
 | Report | Script | Window | What it reports |
 |---|---|---|---|
-| **Long path fix (MAX_PATH)** | [`91-long-paths`](00-copy-paste/91-long-paths.txt) | `admin` | Enables LongPathsEnabled and disables 8.3 names: local 260 limit in Explorer and iManage. The OneDrive path too long warning is a different limit (400): 03-onedrive/03-shorten-long-paths |
 | **Machine snapshot** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `admin` | Hardware, real Windows generation, Entra or domain join, MDM, disk, BitLocker, network and Office |
 | **ESET agent state** | [`06-eset-status`](00-copy-paste/06-eset-status.ps1) | `admin` | Installation, services, binary signature, enrolment read from the trace log and ESET PROTECT connectivity |
 | **Cached accounts and identities** | [`01-cached-accounts`](00-copy-paste/01-cached-accounts.ps1) | `user` | Cached account inventory: source of each one, GUID UPN detection and real tenantId per domain |
@@ -93,6 +92,7 @@ Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive
 | Retrieves the BitLocker recovery key by serial number, device name or Entra device id. | [`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1) |
 | Diagnoses and fixes unexpected shutdowns and restarts. | [`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1) |
 | Gets the clock back in sync so e-government signing works: detects location, matches time zone and country NTP servers, and repairs W32Time. | [`04-repair-time-sync`](07-endpoint/04-repair-time-sync.ps1) |
+| Enables Windows long paths (over 260 characters) and disables 8.3 short names. | [`05-enable-long-paths`](07-endpoint/05-enable-long-paths.ps1) |
 
 ## <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> 08 - Network
 

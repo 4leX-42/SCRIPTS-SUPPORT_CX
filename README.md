@@ -24,7 +24,6 @@
 
 | Informe | Script | Ventana | Qué saca |
 |---|---|---|---|
-| **Arreglo de rutas largas (MAX_PATH)** | [`91-long-paths`](00-copy-paste/91-long-paths.txt) | `admin` | Habilita LongPathsEnabled y desactiva nombres 8.3: limite local de 260 en Explorador e iManage. El aviso de ruta larga de OneDrive es otro limite (400): 03-onedrive/03-shorten-long-paths |
 | **Ficha técnica del equipo** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `admin` | Hardware, generación real de Windows, join a Entra o dominio, MDM, disco, BitLocker, red y Office |
 | **Estado del agente ESET** | [`06-eset-status`](00-copy-paste/06-eset-status.ps1) | `admin` | Instalación, servicios, firma del binario, enrolamiento leído del trace y conectividad con ESET PROTECT |
 | **Cuentas cacheadas e identidades** | [`01-cached-accounts`](00-copy-paste/01-cached-accounts.ps1) | `usuario` | Inventario de cuentas cacheadas: origen de cada una, detección de UPN GUID y tenantId real de cada dominio |
@@ -91,6 +90,7 @@ Runbook detallado: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedriv
 | Saca la clave de recuperación de BitLocker por número de serie, nombre o id de dispositivo. | [`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1) |
 | Diagnostica y corrige apagados y reinicios inesperados del equipo. | [`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1) |
 | Deja el reloj en hora para poder firmar en sedes electrónicas: detecta la ubicación, empareja zona horaria y NTP del país, y repara W32Time. | [`04-repair-time-sync`](07-endpoint/04-repair-time-sync.ps1) |
+| Activa las rutas largas de Windows (mas de 260 caracteres) y desactiva los nombres cortos 8.3. | [`05-enable-long-paths`](07-endpoint/05-enable-long-paths.ps1) |
 
 ## <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> 08 - Network
 

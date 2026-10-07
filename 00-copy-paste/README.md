@@ -22,7 +22,6 @@ Todo funciona en PowerShell 5.1 y 7 / everything works on PowerShell 5.1 and 7.
 
 | Informe / Report | Script | Ventana / Window | Por qué / Why |
 |---|---|---|---|
-| **Arreglo de rutas largas (MAX_PATH)** | `91-long-paths.txt` | **admin** | Escribe en `HKLM` |
 | **Ficha técnica del equipo** | `03-endpoint-report` | **admin** | `BitLocker`, TPM y Secure Boot no responden sin elevar |
 | **Estado del agente ESET** | `06-eset-status` | **admin** | El `trace.log` de ESET en `ProgramData` está protegido |
 | **Cuentas cacheadas e identidades** | `01-cached-accounts` | usuario / user | Lee `HKCU`, WAM y credenciales del usuario afectado: elevar leería otro perfil |
@@ -82,22 +81,9 @@ Si falta `[FIN]`, la salida está truncada: se ha perdido parte del informe al c
 
 ## 1. Rutas y ficheros
 
-### 1.1 Rutas largas + nombres 8.3 `[ADMIN]`
-El clasico "ruta demasiado larga" de OneDrive, iManage y unidades de red.
-Tambien en fichero aparte: [`91-long-paths.txt`](91-long-paths.txt)
+Rutas largas: no son de pegar, son scripts. "La ruta es demasiado larga" de OneDrive -> [`03-onedrive/03-shorten-long-paths.ps1`](../03-onedrive/03-shorten-long-paths.ps1). Limite local de 260 (iManage, Explorador) -> [`07-endpoint/05-enable-long-paths.ps1`](../07-endpoint/05-enable-long-paths.ps1) `[ADMIN]`.
 
-```powershell
-Write-Host "== FileSystem Tweaks ==" -ForegroundColor Cyan; try{Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Type DWord -Force; Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "NtfsDisable8dot3NameCreation" -Value 1 -Type DWord -Force; $lp=(Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem").LongPathsEnabled; $sn=(Get-ItemProperty "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem").NtfsDisable8dot3NameCreation; $lpTag=if($lp -eq 1){"[OK]"}else{"[FAIL]"}; $snTag=if($sn -eq 1){"[OK]"}else{"[FAIL]"}; Write-Host ("LongPathsEnabled            -> {0} {1}" -f $lp,$lpTag); Write-Host ("NtfsDisable8dot3NameCreation -> {0} {1}" -f $sn,$snTag)}catch{Write-Host ("ERROR: {0}" -f $_.Exception.Message) -ForegroundColor Red}
-```
-
-Hay que reiniciar el equipo. `NtfsDisable8dot3NameCreation` solo afecta a ficheros nuevos.
-
-### 1.2 Encontrar las rutas que pasan de 255 caracteres
-```powershell
-$r="$env:USERPROFILE\OneDrive"; [IO.Directory]::EnumerateFiles($r,'*',[IO.SearchOption]::AllDirectories) | Where-Object { $_.Length -gt 255 } | Sort-Object Length -Descending | Select-Object -First 20 | ForEach-Object { "{0,4}  {1}" -f $_.Length,$_ }
-```
-
-### 1.3 Desbloquear ficheros descargados de Internet
+### 1.1 Desbloquear ficheros descargados de Internet
 ```powershell
 Get-ChildItem "$env:USERPROFILE\Downloads" -Recurse | Unblock-File
 ```
