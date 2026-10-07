@@ -15,7 +15,7 @@
 | <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Identity Cache Purge** | [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1) | `.\01-clear-cached-accounts.ps1` |
 | <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Stale Tenant Reset** | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) | `.\02-reset-stale-tenant-v2.1.ps1` |
 | <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Credential Cache Repair** | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) | `.\03-repair-credential-cache-with-restore.ps1` |
-| <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> **Long Path Remediation** | [`91-long-paths`](00-copy-paste/91-long-paths.txt) | `paste (admin)` |
+| <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> **OneDrive Long Path Fix** | [`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1) | `.\03-shorten-long-paths.ps1` |
 | <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> **Endpoint Technical Audit** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `paste (admin)` |
 | <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> **OneDrive Tiered Remediation** | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) | `.\01-remediate-onedrive-tiered.ps1` |
 | <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> **Teams Authentication Reset** | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) | `.\01-repair-teams-signin.ps1` |
@@ -24,7 +24,7 @@
 
 | Informe | Script | Ventana | Qué saca |
 |---|---|---|---|
-| **Arreglo de rutas largas (MAX_PATH)** | [`91-long-paths`](00-copy-paste/91-long-paths.txt) | `admin` | Habilita LongPathsEnabled y nombres 8.3, y localiza las rutas que pasan de 255 caracteres en OneDrive e iManage |
+| **Arreglo de rutas largas (MAX_PATH)** | [`91-long-paths`](00-copy-paste/91-long-paths.txt) | `admin` | Habilita LongPathsEnabled y desactiva nombres 8.3: limite local de 260 en Explorador e iManage. El aviso de ruta larga de OneDrive es otro limite (400): 03-onedrive/03-shorten-long-paths |
 | **Ficha técnica del equipo** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `admin` | Hardware, generación real de Windows, join a Entra o dominio, MDM, disco, BitLocker, red y Office |
 | **Estado del agente ESET** | [`06-eset-status`](00-copy-paste/06-eset-status.ps1) | `admin` | Instalación, servicios, firma del binario, enrolamiento leído del trace y conectividad con ESET PROTECT |
 | **Cuentas cacheadas e identidades** | [`01-cached-accounts`](00-copy-paste/01-cached-accounts.ps1) | `usuario` | Inventario de cuentas cacheadas: origen de cada una, detección de UPN GUID y tenantId real de cada dominio |
@@ -53,6 +53,7 @@
 |---|---|
 | Arregla OneDrive subiendo por 5 niveles: reinicio, reset, caché, binario y reinstalación. | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) |
 | Quita las ACE de denegación que dejó una GPO de dominio y hacen que OneDrive pida admin. | [`02-fix-onedrive-permissions`](03-onedrive/02-fix-onedrive-permissions.ps1) |
+| Acorta las rutas de OneDrive de mas de 380 caracteres ("la ruta es demasiado larga") sin tocar el nombre de los documentos. | [`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1) |
 
 Runbook detallado: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive-permissions.md)
 

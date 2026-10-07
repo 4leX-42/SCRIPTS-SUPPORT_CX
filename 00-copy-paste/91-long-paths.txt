@@ -1,5 +1,8 @@
 RUTAS LARGAS + NOMBRES 8.3
-Arregla los "ruta demasiado larga" de OneDrive, iManage y unidades de red.
+Arregla las rutas de mas de 260 caracteres EN EL EQUIPO (Explorador, iManage,
+unidades de red). NO arregla el aviso de OneDrive "la ruta es demasiado larga":
+ese es un limite del servidor (400) y se arregla con
+03-onedrive/03-shorten-long-paths.ps1.
 Requiere PowerShell COMO ADMINISTRADOR. Reinicia el equipo despues.
 
 Copiar la linea entera de abajo y pegarla en la consola:
@@ -13,8 +16,9 @@ Write-Host "== FileSystem Tweaks ==" -ForegroundColor Cyan; try{Set-ItemProperty
 Que hace cada cosa:
 
   LongPathsEnabled = 1
-      Levanta el limite de 260 caracteres por ruta. Es lo que rompe las
-      sincronizaciones de OneDrive y las carpetas profundas de iManage.
+      Levanta el limite local de 260 caracteres por ruta: carpetas profundas
+      de iManage y programas que no abren rutas largas. No cambia el limite
+      de 400 de OneDrive/SharePoint.
 
   NtfsDisable8dot3NameCreation = 1
       Deja de crear el nombre corto tipo NOMBRE~1 en cada fichero nuevo.
