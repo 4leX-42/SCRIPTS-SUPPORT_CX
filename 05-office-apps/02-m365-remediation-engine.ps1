@@ -273,7 +273,7 @@ function Get-ProcessHealth {
     $hung = @($procs | Where-Object { -not $_.Responding })
     return @{
         Running    = $true
-        Count      = $procs.Count
+        Count      = @($procs).Count
         Responding = ($hung.Count -eq 0)
         Hung       = ($hung.Count -gt 0)
         Ids        = @($procs.Id)
@@ -554,10 +554,10 @@ function Invoke-SmartDiagnosis {
     }
 
     # Collect all health signals
-    $odIssues   = Test-OneDriveHealth
-    $olIssues   = Test-OutlookHealth
-    $offIssues  = Test-OfficeHealth
-    $authIssues = Test-AuthHealth
+    $odIssues   = @(Test-OneDriveHealth)
+    $olIssues   = @(Test-OutlookHealth)
+    $offIssues  = @(Test-OfficeHealth)
+    $authIssues = @(Test-AuthHealth)
 
     # Classification logic - prioritize by severity
     if ($authIssues -contains 'AUTH_NO_PRT') {
@@ -920,7 +920,7 @@ function Invoke-OutlookRemediation {
 
             $profileRoot = 'HKCU:\Software\Microsoft\Office\16.0\Outlook\Profiles'
             if (Test-Path $profileRoot) {
-                $profiles = Get-ChildItem $profileRoot -ErrorAction SilentlyContinue
+                $profiles = @(Get-ChildItem $profileRoot -ErrorAction SilentlyContinue)
                 $defaultProfile = $null; try { $defaultProfile = (Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Office\16.0\Outlook' -Name 'DefaultProfile' -ErrorAction SilentlyContinue).DefaultProfile } catch {}
 
                 if ($profiles.Count -gt 0 -and $defaultProfile) {
@@ -1403,11 +1403,11 @@ function Invoke-M365Remediation {
     }
 
     # Determine services to remediate
-    $servicesToFix = if ($TargetService -ne 'Auto') {
+    $servicesToFix = @(if ($TargetService -ne 'Auto') {
         @($TargetService)
     } else {
         $script:DiagResult.AffectedService
-    }
+    })
 
     if ($servicesToFix.Count -eq 0 -and $script:DiagResult.Category -eq 'UNKNOWN') {
         Write-Log -Level INFO -Module CORE -Action 'NoAction' -Result 'No actionable issues detected - exiting'
