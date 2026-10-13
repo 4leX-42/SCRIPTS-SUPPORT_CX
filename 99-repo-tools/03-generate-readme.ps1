@@ -105,13 +105,25 @@ $urlRaw = 'https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main'
 #   funcionan param(), #Requires, $PSCommandPath (03-shorten-long-paths se relanza a si
 #   mismo) y la copia que hace 03-repair-signin-window para la sesion del usuario. La
 #   politica se abre solo para este proceso (-Scope Process): no queda cambiada.
-# El | de la forma iex va escapado: dentro de una tabla partiria la celda.
 function Get-UnaLinea([string]$ruta, [string]$argumentos) {
     $tls = '[Net.ServicePointManager]::SecurityProtocol=3072'
-    if ($ruta.StartsWith('00-copy-paste/')) { return "$tls; irm $urlRaw/$ruta \| iex" }
+    if ($ruta.StartsWith('00-copy-paste/')) { return "$tls; irm $urlRaw/$ruta | iex" }
     $linea = "Set-ExecutionPolicy -Scope Process Bypass -Force; $tls; `$f=`"`$env:TEMP\$(Split-Path $ruta -Leaf)`"; irm $urlRaw/$ruta -OutFile `$f; & `$f"
     if ($argumentos) { $linea += " $argumentos" }
     return $linea
+}
+
+# Una ficha por script en vez de fila de tabla: GitHub solo pone boton de copiar en los
+# bloques de codigo, nunca en una celda. Arriba la consola (color) y el problema que
+# arregla, que es lo que se busca; debajo la linea para pegar y los parametros.
+function Add-Ficha($sb, [string]$cabecera, [string]$linea, [string]$pie) {
+    [void]$sb.AppendLine($cabecera)
+    [void]$sb.AppendLine()
+    [void]$sb.AppendLine('```powershell')
+    [void]$sb.AppendLine($linea)
+    [void]$sb.AppendLine('```')
+    if ($pie) { [void]$sb.AppendLine($pie) }
+    [void]$sb.AppendLine()
 }
 
 # alt vacio: asi la imagen no entra en el ancla que GitHub genera para el encabezado.
@@ -204,8 +216,6 @@ if (Test-Path $rutaIndice) {
 
 function New-Indice([string]$idioma) {
     $sb = New-Object Text.StringBuilder
-    $colFuncion = if ($idioma -eq 'ES') { 'Funcion' } else { 'Function' }
-    if ($idioma -eq 'ES') { $colFuncion = Add-Tildes $colFuncion }
 
     # Barra de saltos por area: el icono es lo que se busca con la vista, no el numero.
     $saltos = foreach ($sec in $secciones) {
@@ -219,9 +229,6 @@ function New-Indice([string]$idioma) {
     # Los destacados salen antes que ninguna carpeta: es la lista que se abre a diario.
     [void]$sb.AppendLine("## $(Get-Icono 'pin') 0 - LAS MAINS")
     [void]$sb.AppendLine()
-    # Run as antes que How to run: primero se abre la consola correcta, luego se pega.
-    [void]$sb.AppendLine('| Operation | Script | Run as | How to run |')
-    [void]$sb.AppendLine('|---|---|---|---|')
     foreach ($d in $destacados) {
         # Un destacado que apunta a un fichero renombrado seria un enlace roto en la
         # primera tabla del README: mejor que falle la generacion.
@@ -231,19 +238,15 @@ function New-Indice([string]$idioma) {
         $nombre = Split-Path $d.Ruta -Leaf
         $base = [IO.Path]::GetFileNameWithoutExtension($nombre)
         $esDe00 = $d.Ruta.StartsWith('00-copy-paste/')
-        # La celda es la linea que se pega tal cual. La cuenta va aparte: es lo primero que
-        # hay que preparar (consola normal o elevada).
-        $como = Get-UnaLinea $d.Ruta $d.Args
         if ($esDe00) {
             $v = if ($indicePaste -and $indicePaste.ContainsKey($nombre)) { $indicePaste[$nombre].Ventana } else { 'usuario' }
-            $cuenta = Get-Etiqueta $v 'EN'
+            $cuenta = Get-Etiqueta $v $idioma
         } else {
-            $cuenta = Get-Contexto (Join-Path $raiz ($d.Ruta -replace '/', '\')) 'EN'
+            $cuenta = Get-Contexto (Join-Path $raiz ($d.Ruta -replace '/', '\')) $idioma
         }
         $icoD = Get-Icono ($secciones | Where-Object { $d.Ruta.StartsWith($_.Carpeta + '/') } | Select-Object -First 1).Icono
-        [void]$sb.AppendLine("| $icoD **$($d.Nombre)** | [``$base``]($($d.Ruta)) | $cuenta | ``$como`` |")
+        Add-Ficha $sb "$icoD **$($d.Nombre)** $cuenta [``$base``]($($d.Ruta))" (Get-UnaLinea $d.Ruta $d.Args) $null
     }
-    [void]$sb.AppendLine()
 
     foreach ($sec in $secciones) {
         $dir = Join-Path $raiz $sec.Carpeta
@@ -269,26 +272,12 @@ function New-Indice([string]$idioma) {
         [void]$sb.AppendLine("## $(Get-Icono $sec.Icono) $($sec.EN)")
         [void]$sb.AppendLine()
 
-        # Bajo cada encabezado va la tabla y nada mas: sin notas ni parrafos de contexto.
+        # Bajo cada encabezado van las fichas y nada mas: sin notas ni parrafos de contexto.
         $esPaste = ($sec.Carpeta -eq '00-copy-paste')
-
-        # En 00-copy-paste la primera celda es un titulo corto y tecnico, para identificar
-        # el informe de un vistazo; lo que hace en detalle va en la ultima columna. En el
-        # resto, la cuenta con la que se lanza y los parametros que acepta.
-        if ($esPaste) {
-            $colVentana = if ($idioma -eq 'ES') { 'Ventana' } else { 'Window' }
-            $colDetalle = if ($idioma -eq 'ES') { 'Que saca' } else { 'What it reports' }
-            if ($idioma -eq 'ES') { $colDetalle = Add-Tildes $colDetalle }
-            $colInforme = if ($idioma -eq 'ES') { 'Informe' } else { 'Report' }
-            [void]$sb.AppendLine("| $colInforme | Script | $colVentana | $colDetalle |")
-            [void]$sb.AppendLine('|---|---|---|---|')
-        }
-        else {
-            $colCuenta = if ($idioma -eq 'ES') { Add-Tildes 'Ejecucion' } else { 'Run as' }
-            $colParams = if ($idioma -eq 'ES') { Add-Tildes 'Parametros' } else { 'Parameters' }
-            [void]$sb.AppendLine("| $colFuncion | Script | $colCuenta | $colParams |")
-            [void]$sb.AppendLine('|---|---|---|---|')
-        }
+        # Las herramientas del repo trabajan sobre el checkout: bajadas a %TEMP% no tienen
+        # README que regenerar ni scripts que validar. Su linea es la ruta local.
+        $esLocal = ($sec.Carpeta -eq '99-repo-tools')
+        $txtParams = if ($idioma -eq 'ES') { Add-Tildes 'Parametros' } else { 'Parameters' }
 
         foreach ($f in $ficheros) {
             $desc = $null
@@ -307,19 +296,22 @@ function New-Indice([string]$idioma) {
 
             $ruta = "$($sec.Carpeta)/$($f.Name)"
             if ($esPaste) {
+                # Titulo corto y tecnico para identificar el informe; el detalle, debajo.
                 if (-not $titulo) { $titulo = $f.BaseName }
                 if (-not $ventana) { $ventana = 'usuario' }
-                $ventanaTxt = Get-Etiqueta $ventana $idioma
-                [void]$sb.AppendLine("| **$titulo** | [``$($f.BaseName)``]($ruta) | $ventanaTxt | $desc |")
+                Add-Ficha $sb "$(Get-Etiqueta $ventana $idioma) **$titulo** [``$($f.BaseName)``]($ruta)<br>$desc" (Get-UnaLinea $ruta $null) $null
             }
             else {
-                $cuenta = Get-Contexto $f.FullName $idioma
                 $params = @(Get-Parametros $f.FullName)
-                $paramsTxt = if ($params.Count) { ($params | ForEach-Object { "``$_``" }) -join ' ' } elseif ($idioma -eq 'ES') { 'ninguno' } else { 'none' }
-                [void]$sb.AppendLine("| $desc | [``$($f.BaseName)``]($ruta) | $cuenta | $paramsTxt |")
+                $pie = $null
+                if ($params.Count) {
+                    $lista = ($params | ForEach-Object { '`' + $_ + '`' }) -join ' '
+                    $pie = "<sub>$txtParams`: $lista</sub>"
+                }
+                $linea = if ($esLocal) { ".\$($sec.Carpeta)\$($f.Name)" } else { Get-UnaLinea $ruta $null }
+                Add-Ficha $sb "$(Get-Contexto $f.FullName $idioma) **$desc** [``$($f.BaseName)``]($ruta)" $linea $pie
             }
         }
-        [void]$sb.AppendLine()
 
         # Runbooks: un .md con el mismo nombre base que un .ps1 documenta ese script.
         foreach ($md in (Get-ChildItem $dir -Filter *.md -File)) {
