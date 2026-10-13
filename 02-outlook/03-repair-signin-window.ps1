@@ -2,8 +2,8 @@
 
 <#
 .SYNOPSIS
-    [ES] Repara la ventana de inicio de sesion de Microsoft 365 que se queda en blanco o en "Un momento..." al agregar la cuenta en Outlook.
-    [EN] Repairs the Microsoft 365 sign-in window that stays blank or stuck on "One moment..." when adding the account in Outlook.
+    [ES] Repara la ventana de inicio de sesion de Microsoft 365 que se queda en blanco o en "Un momento..." al agregar la cuenta en Outlook; con -BorrarCuentasWam quita las cuentas de trabajo guardadas en Windows que ofrecen Teams y Office.
+    [EN] Repairs the Microsoft 365 sign-in window that stays blank or stuck on "One moment..." when adding the account in Outlook; with -BorrarCuentasWam removes the work accounts stored in Windows that Teams and Office offer.
 .DESCRIPTION
     La ventana de login de la organizacion no la dibuja Outlook: la abre el broker de
     cuentas de Windows (WAM, paquete Microsoft.AAD.BrokerPlugin). Si ese paquete esta
@@ -17,34 +17,52 @@
       - Servicios TokenBroker, wlidsvc y cloudidsvc.
       - Valores heredados en HKCU\...\Office\16.0\Common\Identity que desactivan WAM.
       - Proxy y acceso HTTPS a login.microsoftonline.com y a los CDN que pintan la pagina.
+      - Cuentas de trabajo: union del equipo (dsregcmd /status), cuentas WAM del usuario
+        (dsregcmd /ListAccounts), cuentas que conoce Office y cuentas registradas de OTRA
+        organizacion ("Acceso a trabajo o escuela"), que ningun borrado de cache quita.
       - Con la ventana en blanco abierta: DLL de terceros cargadas en el broker y en sus
         procesos WebView2, con su firmante (mismo patron que 10-file-picker).
 
     Fase 2 - Reparacion (salvo -SoloDiagnostico):
-      1. Cierra Outlook y el broker.
+      1. Cierra, solo en la sesion del usuario, Outlook y el broker. Con -BorrarCuentasWam
+         cierra tambien todo lo que usa esas cuentas: Outlook nuevo, Teams, OneDrive y las
+         apps de Office (sin guardar: la confirmacion dice cuales estan abiertas).
       2. Quita DisableAADWAM, DisableADALatopWAMOverride y DisableMSAWAM (backup .reg).
       3. Renombra la cache web del broker (INetCache, INetCookies) a .bak: no cierra sesion.
-      4. Con -BorrarCuentasWam, renombra tambien las cuentas de WAM, OneAuth e IdentityCache.
+      4. Con -BorrarCuentasWam: renombra a .bak las cuentas de WAM, la cache de TokenBroker,
+         OneAuth e IdentityCache, y despues lanza dsregcmd /CleanupAccounts, que borra las
+         cuentas WAM que quedan fuera de esas carpetas.
       5. Re-registra los tres paquetes (procedimiento oficial de Microsoft).
-      6. Reinicia TokenBroker, wlidsvc y cloudidsvc (requiere administrador).
+      6. Verifica: paquetes en Ok y, con -BorrarCuentasWam, que cuentas siguen en Windows.
+         Si queda una cuenta registrada de otra organizacion, abre "Acceso a trabajo o
+         escuela" para desconectarla a mano (no hay via soportada por linea de comandos).
+      7. Reinicia TokenBroker, wlidsvc y cloudidsvc (requiere administrador).
+
+    La cuenta con la que el equipo esta unido a Entra (la de la empresa) no se pierde: vuelve
+    sola al reiniciar, porque sale del inicio de sesion de Windows y no de estas caches.
 
     Desde la consola de una herramienta remota (SYSTEM) el script se reparte solo: la parte
     de equipo (servicios, WebView2, red, modulos) la hace como SYSTEM, y la parte de perfil
-    (pasos 1-5) la lanza como tarea programada dentro de la sesion del usuario conectado y
+    (pasos 1-6) la lanza como tarea programada dentro de la sesion del usuario conectado y
     muestra su log al terminar.
 
 .PARAMETER SoloDiagnostico
     Solo la fase 1. No cambia nada.
 
 .PARAMETER BorrarCuentasWam
-    Ademas renombra las cuentas cacheadas de WAM, OneAuth e IdentityCache. Cierra la sesion
-    de Office, Teams y OneDrive: habra que volver a iniciar sesion en todo.
+    Quita las cuentas de trabajo guardadas en Windows: las que salen en "Elija una cuenta
+    para continuar" de Teams y en el selector de Office. Cierra antes Outlook (clasico y
+    nuevo), Teams, OneDrive y las apps de Office del usuario, renombra a .bak las caches de
+    cuentas (WAM, TokenBroker, OneAuth, IdentityCache) y lanza dsregcmd /CleanupAccounts.
+    Cierra la sesion de Office, Teams y OneDrive: habra que volver a iniciar sesion en todo.
+    No quita las cuentas registradas de otra organizacion: las detecta y abre la pagina
+    de Configuracion donde se desconectan.
 
 .PARAMETER DryRun
-    Muestra lo que haria sin tocar nada.
+    Muestra lo que haria sin tocar nada, incluidas las apps que cerraria.
 
 .PARAMETER Force
-    No pide confirmacion.
+    No pide confirmacion. Las apps abiertas se cierran sin guardar.
 
 .PARAMETER FaseUsuario
     Uso interno: la parte de perfil, lanzada por el propio script desde SYSTEM.
@@ -60,13 +78,16 @@
     .\03-repair-signin-window.ps1 -Force
 
 .EXAMPLE
-    .\03-repair-signin-window.ps1 -BorrarCuentasWam -Force
+    # Quitar las cuentas que Teams sigue ofreciendo. Primero ver que haria:
+    .\03-repair-signin-window.ps1 -BorrarCuentasWam -DryRun
+    .\03-repair-signin-window.ps1 -BorrarCuentasWam
 
 .NOTES
     Contexto: admin
-    Vale PowerShell como administrador desde la sesion del usuario afectado, o la consola
-    SYSTEM de la herramienta remota con el usuario conectado. Elevar con OTRA cuenta de
-    usuario repararia el perfil equivocado: el script lo detecta contra explorer.exe y aborta.
+    Vale PowerShell como administrador desde la sesion del usuario afectado, o una consola
+    de otra cuenta con privilegios (SYSTEM de la herramienta remota, admin local) con el
+    usuario conectado: la parte de perfil se lanza entonces como tarea en la sesion del
+    usuario, detectada por el SID del propietario de explorer.exe.
     PowerShell 5.1 y 7. Windows 10 y 11.
     Referencia: learn.microsoft.com/troubleshoot/microsoft-365/admin/authentication/automatic-authentication-fails
 #>
@@ -121,6 +142,58 @@ $identity   = 'HKCU:\Software\Microsoft\Office\16.0\Common\Identity'
 $valoresWam = @('DisableAADWAM', 'DisableADALatopWAMOverride', 'DisableMSAWAM')
 $endpoints  = @('login.microsoftonline.com', 'aadcdn.msftauth.net', 'aadcdn.msauth.net', 'logincdn.msftauth.net', 'login.live.com')
 
+# Que se cierra antes de reparar. La reparacion base solo toca el broker y Outlook; borrar
+# las cuentas afecta a todo lo que inicia sesion con ellas, y con la app abierta los
+# ficheros estan en uso y la app vuelve a escribir la cuenta al cerrarse.
+$appsBase    = @('OUTLOOK', 'Microsoft.AAD.BrokerPlugin')
+$appsCuentas = @('olk', 'ms-teams', 'Teams', 'OneDrive', 'WINWORD', 'EXCEL', 'POWERPNT', 'ONENOTE', 'MSACCESS', 'MSPUB', 'VISIO', 'WINPROJ', 'lync')
+$cierre      = if ($BorrarCuentasWam) { $appsBase + $appsCuentas } else { $appsBase }
+$script:wpjAjena = $null
+
+function Get-AppsAbiertas([int]$SesionId) {
+    # Solo la sesion del usuario: en un servidor de terminales no se cierra lo de los demas.
+    @(Get-Process -Name $cierre -ErrorAction SilentlyContinue | Where-Object { $_.SessionId -eq $SesionId })
+}
+
+function Get-EstadoDsreg {
+    # dsregcmd no se traduce: las claves salen siempre en ingles. Vale la primera aparicion.
+    $h = @{}
+    foreach ($l in @(& dsregcmd.exe /status 2>$null)) {
+        if ($l -match '^\s*([A-Za-z]+)\s*:\s*(.*?)\s*$' -and -not $h.ContainsKey($Matches[1])) { $h[$Matches[1]] = $Matches[2] }
+    }
+    $h
+}
+
+function Show-CuentasWindows {
+    # Devuelve la organizacion ajena registrada en el perfil, o $null.
+    $ds = Get-EstadoDsreg
+    if (-not $ds.Count) { Write-Log 'dsregcmd /status no devolvio datos' 'WARN'; return $null }
+    $orgEquipo = $ds['TenantName']
+    if ($ds['AzureAdJoined'] -eq 'YES') { Write-Log "Equipo unido a Entra: $orgEquipo. Su cuenta no se quita: vuelve sola al reiniciar." 'INFO' }
+    elseif ($ds['DomainJoined'] -eq 'YES') { Write-Log "Equipo en dominio $($ds['DomainName']), sin union a Entra" 'INFO' }
+    else { Write-Log 'Equipo sin union a Entra ni a dominio' 'INFO' }
+
+    $ajena = $null
+    if ($ds['WorkplaceJoined'] -eq 'YES') {
+        $orgWpj = $ds['WorkplaceTenantName']
+        if (-not $orgWpj) { $orgWpj = $ds['WorkplaceTenantId'] }
+        if ($orgEquipo -and $orgWpj -and $orgWpj -ne $orgEquipo) {
+            $ajena = $orgWpj
+            Write-Log "Cuenta registrada de otra organizacion: $orgWpj. Ningun borrado de cache la quita: Configuracion > Cuentas > Acceso a trabajo o escuela > Desconectar." 'WARN'
+        } else { Write-Log "Cuenta registrada en Entra (Acceso a trabajo o escuela): $orgWpj" 'INFO' }
+    }
+
+    $lista = @(& dsregcmd.exe /ListAccounts 2>$null | ForEach-Object { "$_".Trim() } | Where-Object { $_ -and $_ -notmatch '^Call ListAccounts' })
+    if ($lista.Count) { foreach ($l in $lista) { Write-Log "WAM: $l" 'INFO' } }
+    else { Write-Log 'dsregcmd /ListAccounts no disponible en este Windows' 'SKIP' }
+
+    $office = @(Get-ChildItem "$identity\Identities" -ErrorAction SilentlyContinue |
+        ForEach-Object { (Get-ItemProperty -LiteralPath $_.PSPath -ErrorAction SilentlyContinue).EmailAddress } |
+        Where-Object { $_ } | Sort-Object -Unique)
+    if ($office.Count) { Write-Log "Cuentas que conoce Office: $($office -join ', ')" 'INFO' }
+    return $ajena
+}
+
 # ---------------------------------------------------------------------------
 # Parte de perfil: corre siempre con la cuenta del usuario afectado
 # ---------------------------------------------------------------------------
@@ -150,16 +223,20 @@ function Invoke-DiagUsuario {
     $ie = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -ErrorAction SilentlyContinue
     if ($ie.ProxyEnable -eq 1) { Write-Log "Proxy: $($ie.ProxyServer)" 'INFO' } else { Write-Log 'Sin proxy manual' 'INFO' }
     if ($ie.AutoConfigURL) { Write-Log "PAC: $($ie.AutoConfigURL)" 'INFO' }
+
+    Write-Section 'Cuentas de trabajo en Windows'
+    $script:wpjAjena = Show-CuentasWindows
 }
 
 function Invoke-ReparaUsuario {
     Write-Section 'Cerrar procesos'
-    foreach ($n in @('OUTLOOK', 'Microsoft.AAD.BrokerPlugin')) {
-        $pr = @(Get-Process -Name $n -ErrorAction SilentlyContinue)
-        if (-not $pr.Count) { Write-Log "${n}: no esta abierto" 'SKIP'; continue }
-        Invoke-Paso "Cerrado $n ($($pr.Count))" { $pr | Stop-Process -Force -ErrorAction Stop }
+    $abiertas = Get-AppsAbiertas (Get-Process -Id $PID).SessionId
+    if (-not $abiertas.Count) { Write-Log "Nada abierto de: $($cierre -join ', ')" 'SKIP' }
+    foreach ($g in ($abiertas | Group-Object ProcessName)) {
+        $pr = $g.Group
+        Invoke-Paso "Cerrado $($g.Name) ($($pr.Count))" { $pr | Stop-Process -Force -ErrorAction Stop }
     }
-    if (-not $DryRun) { Start-Sleep -Seconds 2 }
+    if (-not $DryRun -and $abiertas.Count) { Start-Sleep -Seconds 3 }
     Write-Log 'Si sigue abierta la ventana "Correo" del Panel de control, cerrarla a mano.' 'INFO'
 
     Write-Section 'Registro de identidad'
@@ -173,10 +250,18 @@ function Invoke-ReparaUsuario {
     foreach ($sub in @('AC\INetCache', 'AC\INetCookies')) { Rename-Respaldo (Join-Path $brokerData $sub) }
 
     if ($BorrarCuentasWam) {
-        Write-Section 'Cuentas cacheadas (WAM, OneAuth, IdentityCache)'
+        Write-Section 'Cuentas guardadas (WAM, TokenBroker, OneAuth, IdentityCache)'
+        # Primero el respaldo renombrando; CleanupAccounts borra lo que WAM guarde fuera.
         Rename-Respaldo (Join-Path $brokerData 'AC\TokenBroker\Accounts')
+        Rename-Respaldo (Join-Path $env:LOCALAPPDATA 'Microsoft\TokenBroker\Cache')
         Rename-Respaldo (Join-Path $env:LOCALAPPDATA 'Microsoft\OneAuth')
         Rename-Respaldo (Join-Path $env:LOCALAPPDATA 'Microsoft\IdentityCache')
+        if (@(& dsregcmd.exe /? 2>$null) -match '/CleanupAccounts') {
+            Invoke-Paso 'dsregcmd /CleanupAccounts' {
+                $out = & dsregcmd.exe /CleanupAccounts 2>&1 | Out-String
+                if ($LASTEXITCODE -ne 0) { throw "codigo $LASTEXITCODE $($out.Trim())" }
+            }
+        } else { Write-Log 'dsregcmd sin /CleanupAccounts en este Windows: solo se renombran las caches' 'SKIP' }
     }
 
     # El registro es por usuario y sobre un paquete ya instalado en SystemApps: se intenta
@@ -192,6 +277,15 @@ function Invoke-ReparaUsuario {
     foreach ($p in $paquetes) {
         $pkg = @(Get-AppxPackage -Name $p.Nombre -ErrorAction SilentlyContinue) | Select-Object -First 1
         if ($pkg -and "$($pkg.Status)" -eq 'Ok') { Write-Log "$($p.Nombre): Ok" 'OK' } else { Write-Log "$($p.Nombre): sigue sin estar Ok" 'WARN' }
+    }
+
+    if ($BorrarCuentasWam -and -not $DryRun) {
+        Write-Section 'Cuentas que quedan en Windows'
+        $script:wpjAjena = Show-CuentasWindows
+        if ($script:wpjAjena) {
+            # Desconectar un registro de Entra no tiene via soportada por linea de comandos.
+            Invoke-Paso "Abierta Configuracion > Acceso a trabajo o escuela para desconectar $($script:wpjAjena)" { Start-Process 'ms-settings:workplace' }
+        }
     }
 }
 
@@ -289,8 +383,13 @@ function Invoke-ReparaServicios {
 function Confirm-Reparacion {
     if ($Force -or $DryRun -or $SoloDiagnostico) { return $true }
     Write-Host ''
-    Write-Host 'Se cerrara Outlook y se reparara el broker de inicio de sesion.' -ForegroundColor Yellow
-    if ($BorrarCuentasWam) { Write-Host 'Con -BorrarCuentasWam habra que volver a iniciar sesion en Office, Teams y OneDrive.' -ForegroundColor Yellow }
+    Write-Host 'Se reparara el broker de inicio de sesion de Windows.' -ForegroundColor Yellow
+    $abiertas = @(Get-AppsAbiertas $script:sesionId | Where-Object { $_.ProcessName -ne 'Microsoft.AAD.BrokerPlugin' })
+    if ($abiertas.Count) {
+        $nombres = ($abiertas | Group-Object ProcessName | ForEach-Object { $_.Name }) -join ', '
+        Write-Host "Se cerraran SIN GUARDAR: $nombres" -ForegroundColor Yellow
+    }
+    if ($BorrarCuentasWam) { Write-Host 'Se quitaran las cuentas guardadas: habra que volver a iniciar sesion en Office, Teams y OneDrive.' -ForegroundColor Yellow }
     $resp = Read-Host 'Continuar? (S/N)'
     if ($resp -match '^[sSyY]') { return $true }
     Write-Log 'Cancelado por el usuario' 'SKIP'
@@ -299,10 +398,19 @@ function Confirm-Reparacion {
 
 function Show-SiguientePaso {
     Write-Section 'Siguiente paso'
-    Write-Host '  1. Abrir Outlook directamente (no desde Panel de control > Correo) y agregar la cuenta.'
-    Write-Host '  2. Si la ventana sigue en blanco: reiniciar el equipo y repetir.'
-    Write-Host '  3. Si persiste: volver a lanzar con -BorrarCuentasWam.'
-    Write-Host '  4. Si algun CDN sale SIN ACCESO: es proxy o firewall, no el equipo.'
+    # En modo remoto el aviso viene en el log de la tarea del usuario, no en esta variable.
+    $ajena = $script:wpjAjena -or @($avisos -match 'otra organizacion').Count
+    if ($BorrarCuentasWam) {
+        Write-Host '  1. Reiniciar el equipo.'
+        Write-Host '  2. Abrir Teams, Outlook y OneDrive e iniciar sesion con la cuenta de la empresa.'
+        if ($ajena) { Write-Host '  3. Desconectar la cuenta de la otra organizacion en Configuracion > Cuentas > Acceso a trabajo o escuela (no la de la empresa).' -ForegroundColor Yellow }
+    } else {
+        Write-Host '  1. Abrir Outlook directamente (no desde Panel de control > Correo) y agregar la cuenta.'
+        Write-Host '  2. Si la ventana sigue en blanco: reiniciar el equipo y repetir.'
+        Write-Host '  3. Si persiste, o si Teams/Office ofrecen cuentas que sobran: volver a lanzar con -BorrarCuentasWam.'
+        if ($ajena) { Write-Host '  -  Hay una cuenta registrada de otra organizacion: se quita en Acceso a trabajo o escuela > Desconectar.' -ForegroundColor Yellow }
+    }
+    Write-Host '  Si algun CDN sale SIN ACCESO: es proxy o firewall, no el equipo.'
     Write-Host ''
 }
 
@@ -321,27 +429,37 @@ if ($FaseUsuario) {
 # ---------------------------------------------------------------------------
 Write-Section 'Contexto'
 $identidad = [Security.Principal.WindowsIdentity]::GetCurrent()
-$yo        = "$env:USERDOMAIN\$env:USERNAME"
-$esSystem  = $identidad.User.Value -eq 'S-1-5-18'
 $esAdmin   = ([Security.Principal.WindowsPrincipal]$identidad).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 $sesion    = $null
+$sesionSid = $null
+$script:sesionId = (Get-Process -Id $PID).SessionId
 try {
     $exp = @(Get-CimInstance Win32_Process -Filter "Name='explorer.exe'" -ErrorAction Stop) | Select-Object -First 1
     if ($exp) {
+        $script:sesionId = [int]$exp.SessionId
         $o = Invoke-CimMethod -InputObject $exp -MethodName GetOwner -ErrorAction Stop
         if ($o.User) { $sesion = "$($o.Domain)\$($o.User)" }
+        $sesionSid = (Invoke-CimMethod -InputObject $exp -MethodName GetOwnerSid -ErrorAction Stop).Sid
     }
 } catch { }
-Write-Log "Ejecuta : $(if ($esSystem) { 'SYSTEM' } else { $yo })  (elevado: $esAdmin)"
-Write-Log "Sesion  : $(if ($sesion) { $sesion } else { 'no detectada' })"
+Write-Log "Ejecuta : $($identidad.Name) [$($identidad.User.Value)]  (elevado: $esAdmin)"
+Write-Log "Sesion  : $(if ($sesion) { "$sesion [$sesionSid]" } else { 'no detectada' })"
 Write-Log "Windows : $([Environment]::OSVersion.Version)"
 
+# Se compara por SID, no por nombre: las consolas de herramientas remotas corren como SYSTEM
+# o como cuentas de servicio propias, y el nombre que exponen no es fiable.
+$otraCuenta = $sesionSid -and $sesionSid -ne $identidad.User.Value
+if (-not $otraCuenta) { $script:sesionId = (Get-Process -Id $PID).SessionId }
+
 # ---------------------------------------------------------------------------
-# Modo SYSTEM (consola de herramienta remota): equipo aqui, perfil en tarea del usuario
+# Modo remoto (consola de otra cuenta, p. ej. SYSTEM): equipo aqui, perfil en tarea del usuario
 # ---------------------------------------------------------------------------
-if ($esSystem) {
-    if (-not $sesion) { Write-Log 'No hay ningun usuario con sesion abierta: la parte de perfil necesita que este conectado.' 'ERROR'; exit 1 }
-    Write-Log "Consola SYSTEM: la parte de perfil se ejecutara como tarea en la sesion de $sesion." 'INFO'
+if ($otraCuenta) {
+    if (-not $esAdmin) {
+        Write-Log "La consola es de $($identidad.Name), no de $sesion, y sin elevar no puede lanzar nada en su sesion." 'ERROR'
+        exit 1
+    }
+    Write-Log "Consola de otra cuenta: la parte de perfil se ejecutara como tarea en la sesion de $sesion." 'INFO'
 
     Invoke-DiagEquipo
     if (-not (Confirm-Reparacion)) { exit 0 }
@@ -396,10 +514,12 @@ if ($esSystem) {
 # ---------------------------------------------------------------------------
 # Modo consola del usuario
 # ---------------------------------------------------------------------------
-if ($sesion -and $sesion -ne $yo) {
-    Write-Log "La consola es de $yo pero la sesion es de $sesion. Se repararia el perfil equivocado." 'ERROR'
-    Write-Log 'Lanzarlo desde la sesion del usuario afectado, o desde la consola SYSTEM de la herramienta remota.' 'ERROR'
-    exit 1
+if (-not $sesionSid) {
+    if ($identidad.IsSystem -or $identidad.User.Value -match '^S-1-5-(18|19|20|80-)') {
+        Write-Log 'No hay ningun usuario con sesion abierta: la parte de perfil necesita que este conectado.' 'ERROR'
+        exit 1
+    }
+    Write-Log 'No se detecta la sesion del usuario: se asume que esta consola es la suya.' 'WARN'
 }
 if (-not $esAdmin -and -not $SoloDiagnostico) { Write-Log 'Sin elevar: se omitira el reinicio de servicios.' 'WARN' }
 
