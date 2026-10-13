@@ -175,6 +175,11 @@ function Add-Ficha($sb, [string]$resumen, [string]$cuerpo, [string]$linea, [stri
     [void]$sb.AppendLine()
 }
 
+# Mismo slug que GitHub: minusculas, fuera todo lo que no sea letra, digito, espacio,
+# guion o guion bajo, espacios a guiones. El <img> desaparece pero el espacio que lo
+# sigue no, por eso el ancla de un encabezado con icono empieza por guion.
+function Get-Ancla([string]$titulo) { '#-' + (($titulo.Trim().ToLower() -replace '[^\p{L}\p{Nd} _-]', '') -replace ' ', '-') }
+
 function Get-Titulo([string]$nombre, [string]$idioma, [string]$porDefecto) {
     if (-not $titulos.ContainsKey($nombre)) { return $porDefecto }
     if ($idioma -eq 'EN') { return $titulos[$nombre][1] }
@@ -266,6 +271,16 @@ if (Test-Path $rutaIndice) {
 
 function New-Indice([string]$idioma) {
     $sb = New-Object Text.StringBuilder
+
+    # Barra de saltos por area, sin etiqueta delante: el icono es lo que se busca con la
+    # vista. Las anclas solo existen si cada '## ' va precedido de linea en blanco (Add-Ficha).
+    $saltos = foreach ($sec in $secciones) {
+        if (-not (Test-Path (Join-Path $raiz $sec.Carpeta))) { continue }
+        # Icono fuera del enlace: GitHub envuelve cada <img> en su propio enlace y se anidarian.
+        "$(Get-Icono $sec.Icono) [$($sec.EN -replace '^\d+ - ', '')]($(Get-Ancla $sec.EN))"
+    }
+    [void]$sb.AppendLine($saltos -join ' | ')
+    [void]$sb.AppendLine()
 
     # Los destacados salen antes que ninguna carpeta: es la lista que se abre a diario.
     [void]$sb.AppendLine("## $(Get-Icono 'pin') 0 - LAS MAINS")
