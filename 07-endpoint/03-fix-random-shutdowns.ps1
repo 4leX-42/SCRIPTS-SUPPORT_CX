@@ -4,6 +4,8 @@
 .SYNOPSIS
     [ES] Diagnostica y corrige apagados y reinicios inesperados del equipo.
     [EN] Diagnoses and fixes unexpected shutdowns and restarts.
+.NOTES
+    Contexto: admin
 #>
 
 [CmdletBinding()]

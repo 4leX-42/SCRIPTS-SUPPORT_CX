@@ -28,6 +28,8 @@
 
 .EXAMPLE
     Doble clic en el .bat -> elige los archivos en el cuadro de dialogo.
+.NOTES
+    Contexto: usuario
 #>
 
 param(

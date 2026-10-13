@@ -20,6 +20,8 @@
     Al terminar elimina TODO el sandbox (registro + carpeta).
 
     Simula Windows 11 + Outlook Classic (Office 16.0).
+.NOTES
+    Contexto: usuario
 #>
 
 [CmdletBinding()]

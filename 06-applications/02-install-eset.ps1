@@ -16,6 +16,8 @@
 .EXAMPLE
     .\ESET-Deploy.ps1 -Modo Instalar
     .\ESET-Deploy.ps1 -Modo Diagnostico
+.NOTES
+    Contexto: admin
 #>
 param(
     [ValidateSet('Diagnostico','Instalar','Silent')]

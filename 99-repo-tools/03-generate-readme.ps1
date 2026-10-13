@@ -18,6 +18,10 @@
     Los scripts de 00-copy-paste no tienen bloque de ayuda -serian ruido al pegarlos-, asi
     que sus descripciones se leen de 00-copy-paste/index.psd1.
 
+    Cada script que se ejecuta lleva en el indice su cuenta y sus parametros. La cuenta sale
+    de la linea 'Contexto:' del .NOTES (usuario, admin o mixto); los parametros se leen del
+    param() con el parser de PowerShell, asi que no hay lista a mano que se desincronice.
+
     [EN]
     Exists so nobody has to hand-edit two READMEs every time a script changes. It reads the
     [ES] and [EN] lines from each .ps1 .SYNOPSIS and rewrites the index tables in both
@@ -32,6 +36,10 @@
     Scripts in 00-copy-paste carry no help block -it would be noise when pasted- so their
     descriptions come from 00-copy-paste/index.psd1.
 
+    Every runnable script gets its account and parameters in the index. The account comes
+    from the 'Contexto:' line in .NOTES (usuario, admin or mixto); parameters are read from
+    param() with the PowerShell parser, so there is no hand-kept list to drift.
+
 .PARAMETER Comprobar
     [ES] No escribe: falla si algun README esta desactualizado. Para usar antes de commitear.
     [EN] Does not write: fails if either README is stale. Use it before committing.
@@ -43,6 +51,7 @@
     .\03-generate-readme.ps1 -Comprobar
 
 .NOTES
+    Contexto: usuario
     PowerShell 5.1 y 7.
 #>
 [CmdletBinding()]
@@ -100,6 +109,33 @@ function Get-Sinopsis([string]$ruta) {
     return @{ ES = $es; EN = $en }
 }
 
+# Cuenta con la que se ejecuta. Sin linea Contexto: el generador falla: un script sin
+# cuenta declarada es justo el que acaba lanzandose elevado con el perfil equivocado.
+function Get-Contexto([string]$ruta, [string]$idioma) {
+    $texto = [IO.File]::ReadAllText($ruta)
+    if ($texto -notmatch '(?m)^\s*Contexto\s*:\s*(usuario|admin|mixto)\s*$') {
+        throw "Falta 'Contexto: usuario|admin|mixto' en el .NOTES de $ruta"
+    }
+    $valor = $Matches[1]
+    if ($idioma -eq 'EN') { return @{ usuario = 'user'; admin = 'admin'; mixto = 'admin + user' }[$valor] }
+    return @{ usuario = 'usuario'; admin = 'admin'; mixto = 'admin + usuario' }[$valor]
+}
+
+# Parametros tal y como los ve PowerShell: el parser lee el param() real, asi que lo que
+# sale en el README es lo que acepta el script. -WhatIf entra si el script lo soporta.
+function Get-Parametros([string]$ruta) {
+    $tokens = $null; $errores = $null
+    $ast = [Management.Automation.Language.Parser]::ParseFile($ruta, [ref]$tokens, [ref]$errores)
+    $nombres = New-Object System.Collections.ArrayList
+    if ($ast.ParamBlock) {
+        foreach ($p in $ast.ParamBlock.Parameters) { [void]$nombres.Add('-' + $p.Name.VariablePath.UserPath) }
+        $cb = $ast.ParamBlock.Attributes | Where-Object { $_.TypeName.Name -eq 'CmdletBinding' }
+        $sp = $cb | ForEach-Object { $_.NamedArguments } | Where-Object { $_.ArgumentName -eq 'SupportsShouldProcess' }
+        if ($sp -and $sp.Argument.Extent.Text -ne '$false' -and $nombres -notcontains '-WhatIf') { [void]$nombres.Add('-WhatIf') }
+    }
+    return @($nombres)
+}
+
 # Los .ps1 son ASCII, asi que las tildes del README en espanol salen de es-accents.ini.
 $tildes = New-Object System.Collections.ArrayList
 $rutaTildes = Join-Path $PSScriptRoot 'es-accents.ini'
@@ -125,7 +161,13 @@ function Add-Tildes([string]$texto) {
 
 $indicePaste = $null
 $rutaIndice = Join-Path $raiz '00-copy-paste\index.psd1'
-if (Test-Path $rutaIndice) { $indicePaste = Import-PowerShellDataFile $rutaIndice }
+# Parser + SafeGetValue en vez de Import-PowerShellDataFile: lanzado desde una consola de
+# PS 7, el PSModulePath heredado hace que PS 5.1 no encuentre ese cmdlet.
+if (Test-Path $rutaIndice) {
+    $tk = $null; $er = $null
+    $astIndice = [Management.Automation.Language.Parser]::ParseFile($rutaIndice, [ref]$tk, [ref]$er)
+    $indicePaste = $astIndice.Find({ param($n) $n -is [Management.Automation.Language.HashtableAst] }, $false).SafeGetValue()
+}
 
 function New-Indice([string]$idioma) {
     $sb = New-Object Text.StringBuilder
@@ -144,8 +186,8 @@ function New-Indice([string]$idioma) {
     # Los destacados salen antes que ninguna carpeta: es la lista que se abre a diario.
     [void]$sb.AppendLine("## $(Get-Icono 'pin') 0 - LAS MAINS")
     [void]$sb.AppendLine()
-    [void]$sb.AppendLine('| Operation | Script | How to run |')
-    [void]$sb.AppendLine('|---|---|---|')
+    [void]$sb.AppendLine('| Operation | Script | How to run | Run as |')
+    [void]$sb.AppendLine('|---|---|---|---|')
     foreach ($d in $destacados) {
         # Un destacado que apunta a un fichero renombrado seria un enlace roto en la
         # primera tabla del README: mejor que falle la generacion.
@@ -155,16 +197,18 @@ function New-Indice([string]$idioma) {
         $nombre = Split-Path $d.Ruta -Leaf
         $base = [IO.Path]::GetFileNameWithoutExtension($nombre)
         $esDe00 = $d.Ruta.StartsWith('00-copy-paste/')
-        # Tres formas de lanzarlo: pegar en consola de admin, pegar en la del usuario, o
-        # ejecutar el fichero. En ese ultimo caso la celda ya es la linea que se escribe.
-        $como = if ($esDe00) {
+        # Pegar o ejecutar el fichero; en ese ultimo caso la celda ya es la linea que se
+        # escribe. La cuenta va aparte: es lo primero que hay que preparar.
+        if ($esDe00) {
             $v = if ($indicePaste -and $indicePaste.ContainsKey($nombre)) { $indicePaste[$nombre].Ventana } else { 'usuario' }
-            "paste ($(if ($v -eq 'admin') { 'admin' } else { 'user' }))"
+            $como = 'paste'
+            $cuenta = if ($v -eq 'admin') { 'admin' } else { 'user' }
         } else {
-            ".\$nombre"
+            $como = ".\$nombre"
+            $cuenta = Get-Contexto (Join-Path $raiz ($d.Ruta -replace '/', '\')) 'EN'
         }
         $icoD = Get-Icono ($secciones | Where-Object { $d.Ruta.StartsWith($_.Carpeta + '/') } | Select-Object -First 1).Icono
-        [void]$sb.AppendLine("| $icoD **$($d.Nombre)** | [``$base``]($($d.Ruta)) | ``$como`` |")
+        [void]$sb.AppendLine("| $icoD **$($d.Nombre)** | [``$base``]($($d.Ruta)) | ``$como`` | ``$cuenta`` |")
     }
     [void]$sb.AppendLine()
 
@@ -196,8 +240,8 @@ function New-Indice([string]$idioma) {
         $esPaste = ($sec.Carpeta -eq '00-copy-paste')
 
         # En 00-copy-paste la primera celda es un titulo corto y tecnico, para identificar
-        # el informe de un vistazo; lo que hace en detalle va en la ultima columna. Solo
-        # ahi se declara ventana: en el resto la abre el script al ejecutarse.
+        # el informe de un vistazo; lo que hace en detalle va en la ultima columna. En el
+        # resto, la cuenta con la que se lanza y los parametros que acepta.
         if ($esPaste) {
             $colVentana = if ($idioma -eq 'ES') { 'Ventana' } else { 'Window' }
             $colDetalle = if ($idioma -eq 'ES') { 'Que saca' } else { 'What it reports' }
@@ -207,8 +251,10 @@ function New-Indice([string]$idioma) {
             [void]$sb.AppendLine('|---|---|---|---|')
         }
         else {
-            [void]$sb.AppendLine("| $colFuncion | Script |")
-            [void]$sb.AppendLine('|---|---|')
+            $colCuenta = if ($idioma -eq 'ES') { Add-Tildes 'Ejecucion' } else { 'Run as' }
+            $colParams = if ($idioma -eq 'ES') { Add-Tildes 'Parametros' } else { 'Parameters' }
+            [void]$sb.AppendLine("| $colFuncion | Script | $colCuenta | $colParams |")
+            [void]$sb.AppendLine('|---|---|---|---|')
         }
 
         foreach ($f in $ficheros) {
@@ -238,7 +284,10 @@ function New-Indice([string]$idioma) {
                 [void]$sb.AppendLine("| **$titulo** | [``$($f.BaseName)``]($ruta) | ``$ventanaTxt`` | $desc |")
             }
             else {
-                [void]$sb.AppendLine("| $desc | [``$($f.BaseName)``]($ruta) |")
+                $cuenta = Get-Contexto $f.FullName $idioma
+                $params = @(Get-Parametros $f.FullName)
+                $paramsTxt = if ($params.Count) { ($params | ForEach-Object { "``$_``" }) -join ' ' } elseif ($idioma -eq 'ES') { 'ninguno' } else { 'none' }
+                [void]$sb.AppendLine("| $desc | [``$($f.BaseName)``]($ruta) | ``$cuenta`` | $paramsTxt |")
             }
         }
         [void]$sb.AppendLine()

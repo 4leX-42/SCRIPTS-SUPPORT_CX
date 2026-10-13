@@ -1,7 +1,7 @@
 ﻿<#
 .SYNOPSIS
-    [ES] Valida todos los .ps1 del repo: solo ASCII, UTF-8 con BOM y sintaxis en 5.1 y 7.
-    [EN] Validates every .ps1 in the repo: ASCII only, UTF-8 with BOM and syntax on 5.1 and 7.
+    [ES] Valida todos los .ps1 del repo: solo ASCII, UTF-8 con BOM, Contexto declarado y sintaxis en 5.1 y 7.
+    [EN] Validates every .ps1 in the repo: ASCII only, UTF-8 with BOM, declared Contexto and syntax on 5.1 and 7.
 .DESCRIPTION
     Windows PowerShell 5.1 lee los .ps1 sin BOM como CP1252, no como UTF-8. Un guion
     largo (U+2014) se decodifica entonces como una comilla tipografica de cierre y
@@ -13,6 +13,7 @@
 .EXAMPLE
     .\Test-Toolkit.ps1
 .NOTES
+    Contexto: usuario
     PowerShell 5.1 y 7.
 #>
 [CmdletBinding()]
@@ -50,10 +51,19 @@ foreach ($f in (Get-ChildItem $raiz -Filter *.ps1 -Recurse -File | Sort-Object F
         }
     }
 
-    $cmd = '$e=$null;$t=$null;[void][Management.Automation.Language.Parser]::ParseFile("' + $f.FullName + '",[ref]$t,[ref]$e); if($e){ $e | ForEach-Object { "L$($_.Extent.StartLineNumber): $($_.Message)" } }'
+    # El README dice con que cuenta se lanza cada script: sin esta linea no hay de donde
+    # sacarlo. 00-copy-paste lo declara en index.psd1 y _archive no se ejecuta.
+    if ($rel -notmatch '^(00-copy-paste|_archive)\\' -and $texto -notmatch '(?m)^\s*Contexto\s*:\s*(usuario|admin|mixto)\s*$') {
+        [void]$problemas.Add("falta 'Contexto: usuario|admin|mixto' en .NOTES")
+    }
+
+    # -EncodedCommand: pasado con -Command, PS 5.1 se come las comillas dobles del argumento
+    # nativo y el parser falla en el propio comando, no en el fichero.
+    $cmd = '$e=$null;$t=$null;[void][Management.Automation.Language.Parser]::ParseFile(''' + ($f.FullName -replace "'", "''") + ''',[ref]$t,[ref]$e); if($e){ $e | ForEach-Object { "L$($_.Extent.StartLineNumber): $($_.Message)" } }'
+    $cmd64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cmd))
     foreach ($motor in @(@{ N = '5.1'; X = $ps51 }, @{ N = '7'; X = $pwsh })) {
         if (-not $motor.X -or -not (Test-Path $motor.X)) { continue }
-        $salida = & $motor.X -NoProfile -Command $cmd 2>&1
+        $salida = & $motor.X -NoProfile -NonInteractive -EncodedCommand $cmd64 2>&1
         if ($salida) { [void]$problemas.Add(("sintaxis PS {0}: {1}" -f $motor.N, ($salida -join ' | '))) }
     }
 

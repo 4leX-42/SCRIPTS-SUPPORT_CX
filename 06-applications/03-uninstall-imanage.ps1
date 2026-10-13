@@ -4,6 +4,8 @@
 .SYNOPSIS
     [ES] Desinstala iManage Work Desktop por completo, con sus complementos de Office.
     [EN] Fully uninstalls iManage Work Desktop along with its Office add-ins.
+.NOTES
+    Contexto: admin
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true)]

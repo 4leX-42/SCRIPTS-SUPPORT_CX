@@ -54,6 +54,7 @@
     .\03-reset-file-picker-mru.ps1 -Restore C:\...\comdlg32-backup-20260916-1120.reg
 
 .NOTES
+    Contexto: usuario
     PowerShell 5.1 y 7.
     Ambito: solo HKCU del usuario que lo ejecuta. No requiere admin.
     Reversible: si (copia .reg automatica + -Restore).

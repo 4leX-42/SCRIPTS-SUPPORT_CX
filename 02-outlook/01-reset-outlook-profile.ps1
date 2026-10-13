@@ -61,6 +61,7 @@
     Simulacion: registra lo que haria pero NO borra ni crea nada.
 
 .NOTES
+    Contexto: usuario
     - EJECUTAR EN LA SESION DEL USUARIO AFECTADO. Las claves estan en HKCU
       (por usuario); si se ejecuta como otro usuario/admin se limpiaria el
       perfil equivocado. No ejecutar elevado: Outlook se abriria como admin.

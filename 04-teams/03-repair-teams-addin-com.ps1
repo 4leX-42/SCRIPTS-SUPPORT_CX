@@ -39,6 +39,7 @@
     .-repair-teams-addin-com.ps1 -NoKillOutlook
 
 .NOTES
+    Contexto: usuario
     [ES] Se ejecuta como el usuario afectado. PowerShell 5.1 y 7. Windows 10 y 11.
     [EN] Run as the affected user. PowerShell 5.1 and 7. Windows 10 and 11.
 #>

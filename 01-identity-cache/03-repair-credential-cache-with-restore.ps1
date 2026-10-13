@@ -76,6 +76,7 @@
     .\Repair-M365CredentialCache.ps1 -Mode Restore -RestoreFrom "$env:LOCALAPPDATA\M365CacheRepair\Session_20260622_101500"
 
 .NOTES
+    Contexto: usuario
     Autor: IT   |   Probado en Windows 10/11, PowerShell 5.1+
 #>
 

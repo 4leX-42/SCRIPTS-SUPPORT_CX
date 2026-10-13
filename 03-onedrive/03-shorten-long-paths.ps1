@@ -85,6 +85,7 @@
 .EXAMPLE
     .\03-shorten-long-paths.ps1 -Revertir "$env:TEMP\OneDriveRutasLargas\20261007-131500-000\cambios.csv"
 .NOTES
+    Contexto: usuario
     EJECUTAR COMO: cuenta del usuario, SIN elevar. La cuenta y la carpeta de OneDrive
     salen de su perfil; elevando con otra cuenta se analizaria otro OneDrive.
     PowerShell 5.1 (el de Windows) y 7. Sin modulos externos.

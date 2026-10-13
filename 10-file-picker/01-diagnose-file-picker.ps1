@@ -39,6 +39,7 @@
     .\01-diagnose-file-picker.ps1 -DiasEventos 30 -OutDir C:\Temp\diag
 
 .NOTES
+    Contexto: usuario
     PowerShell 5.1 y 7.
     Permisos: ninguno especial (local). Solo lectura.
 #>

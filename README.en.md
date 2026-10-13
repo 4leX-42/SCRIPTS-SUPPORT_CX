@@ -12,15 +12,15 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 
 ## <img src=".github/icons/pin.svg" width="20" height="20" align="top" alt=""> 0 - LAS MAINS
 
-| Operation | Script | How to run |
-|---|---|---|
-| <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Identity Cache Purge** | [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1) | `.\01-clear-cached-accounts.ps1` |
-| <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Stale Tenant Reset** | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) | `.\02-reset-stale-tenant-v2.1.ps1` |
-| <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Credential Cache Repair** | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) | `.\03-repair-credential-cache-with-restore.ps1` |
-| <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> **OneDrive Long Path Fix** | [`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1) | `.\03-shorten-long-paths.ps1` |
-| <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> **Endpoint Technical Audit** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `paste (admin)` |
-| <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> **OneDrive Tiered Remediation** | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) | `.\01-remediate-onedrive-tiered.ps1` |
-| <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> **Teams Authentication Reset** | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) | `.\01-repair-teams-signin.ps1` |
+| Operation | Script | How to run | Run as |
+|---|---|---|---|
+| <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Identity Cache Purge** | [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1) | `.\01-clear-cached-accounts.ps1` | `user` |
+| <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Stale Tenant Reset** | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) | `.\02-reset-stale-tenant-v2.1.ps1` | `user` |
+| <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Credential Cache Repair** | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) | `.\03-repair-credential-cache-with-restore.ps1` | `user` |
+| <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> **OneDrive Long Path Fix** | [`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1) | `.\03-shorten-long-paths.ps1` | `user` |
+| <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> **Endpoint Technical Audit** | [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1) | `paste` | `admin` |
+| <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> **OneDrive Tiered Remediation** | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) | `.\01-remediate-onedrive-tiered.ps1` | `user` |
+| <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> **Teams Authentication Reset** | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) | `.\01-repair-teams-signin.ps1` | `user` |
 
 ## <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> 00 - Copy and paste (diagnostics)
 
@@ -35,100 +35,100 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 
 ## <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> 01 - Identity cache
 
-| Function | Script |
-|---|---|
-| Clears cached work accounts. Removes them all except the ones you choose to keep. | [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1) |
-| Removes the account left over from an old tenant. Auto-detects the UPN and the tenant. | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) |
-| Repairs the Microsoft 365 credential cache in tiers, and can roll the changes back. | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) |
+| Function | Script | Run as | Parameters |
+|---|---|---|---|
+| Clears cached work accounts. Removes them all except the ones you choose to keep. | [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1) | `user` | `-Excluir` `-Quitar` `-NoCerrarApps` `-Detalle` `-DryRun` `-Force` |
+| Removes the account left over from an old tenant. Auto-detects the UPN and the tenant. | [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1) | `user` | `-Upn` `-TenantOrigen` `-TenantEsperado` `-RutaRespaldo` `-SoloDetectar` `-NoInteractivo` `-DryRun` `-NoCerrarApps` `-BorrarCookiesEdge` `-QuitarWorkplaceJoin` `-IgnorarPerfil` `-Force` |
+| Repairs the Microsoft 365 credential cache in tiers, and can roll the changes back. | [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1) | `user` | `-Mode` `-Accounts` `-Tiers` `-BackupRoot` `-RestoreFrom` `-CloseApps` `-DryRun` `-Force` |
 
 ## <img src=".github/icons/mail.svg" width="20" height="20" align="top" alt=""> 02 - Outlook
 
-| Function | Script |
-|---|---|
-| Rebuilds the classic Outlook profile keeping .pst and .ost files and recreates it with the same account. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) |
-| Aggressive Outlook reset: profile, OST files and autocomplete cache. | [`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1) |
+| Function | Script | Run as | Parameters |
+|---|---|---|---|
+| Rebuilds the classic Outlook profile keeping .pst and .ost files and recreates it with the same account. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) | `user` | `-FullReset` `-ClearAutoComplete` `-Email` `-ProfileName` `-NoRecreate` `-WaitSeconds` `-Force` `-WhatIf` |
+| Aggressive Outlook reset: profile, OST files and autocomplete cache. | [`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1) | `user` | `-SkipProfileReset` `-SkipOST` `-SkipRoamCache` `-DeleteWholeLocalOutlookFolder` `-WhatIf` |
 
 ## <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> 03 - OneDrive
 
-| Function | Script |
-|---|---|
-| Fixes OneDrive escalating through 5 tiers: restart, reset, cache, binary and reinstall. | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) |
-| Removes deny ACEs left behind by a domain GPO that make OneDrive prompt for admin. | [`02-fix-onedrive-permissions`](03-onedrive/02-fix-onedrive-permissions.ps1) |
-| Shortens OneDrive paths over 380 characters ("the path is too long") without renaming the documents. | [`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1) |
+| Function | Script | Run as | Parameters |
+|---|---|---|---|
+| Fixes OneDrive escalating through 5 tiers: restart, reset, cache, binary and reinstall. | [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1) | `user` | `-MaxLevel` `-LocalInstallerPath` `-StartupWaitSeconds` `-SkipEnvironmentChecks` `-ClearCredentials` `-ForceReinstall` |
+| Removes deny ACEs left behind by a domain GPO that make OneDrive prompt for admin. | [`02-fix-onedrive-permissions`](03-onedrive/02-fix-onedrive-permissions.ps1) | `admin + user` | `-Fase` `-Ruta` `-DryRun` |
+| Shortens OneDrive paths over 380 characters ("the path is too long") without renaming the documents. | [`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1) | `user` | `-Ruta` `-Upn` `-Raiz` `-Limite` `-Margen` `-PermitirRecorte` `-MinNombre` `-DryRun` `-SinConfirmar` `-Ascii` `-Revertir` |
 
 Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive-permissions.md)
 
 ## <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> 04 - Teams
 
-| Function | Script |
-|---|---|
-| Fixes Teams sign-in when it loops or fails to authenticate. | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) |
-| Restores the Teams meeting button when it disappears from classic Outlook. | [`02-repair-teams-outlook-addin`](04-teams/02-repair-teams-outlook-addin.ps1) |
-| Re-registers the Teams meeting add-in in classic Outlook and hardens it. | [`03-repair-teams-addin-com`](04-teams/03-repair-teams-addin-com.ps1) |
+| Function | Script | Run as | Parameters |
+|---|---|---|---|
+| Fixes Teams sign-in when it loops or fails to authenticate. | [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1) | `user` | `-DryRun` `-Force` `-Aggressive` `-IncludeOutlook` `-RepairTeams` `-LogPath` |
+| Restores the Teams meeting button when it disappears from classic Outlook. | [`02-repair-teams-outlook-addin`](04-teams/02-repair-teams-outlook-addin.ps1) | `admin` | `-User` |
+| Re-registers the Teams meeting add-in in classic Outlook and hardens it. | [`03-repair-teams-addin-com`](04-teams/03-repair-teams-addin-com.ps1) | `user` | `-NoKillOutlook` |
 
 ## <img src=".github/icons/apps.svg" width="20" height="20" align="top" alt=""> 05 - Office apps
 
-| Function | Script |
-|---|---|
-| Repairs the Office installation: quick or online repair, plus reactivation. | [`01-repair-office-install`](05-office-apps/01-repair-office-install.ps1) |
-| Unattended engine that diagnoses and repairs OneDrive, Outlook, Office, identity and network. | [`02-m365-remediation-engine`](05-office-apps/02-m365-remediation-engine.ps1) |
+| Function | Script | Run as | Parameters |
+|---|---|---|---|
+| Repairs the Office installation: quick or online repair, plus reactivation. | [`01-repair-office-install`](05-office-apps/01-repair-office-install.ps1) | `admin` | none |
+| Unattended engine that diagnoses and repairs OneDrive, Outlook, Office, identity and network. | [`02-m365-remediation-engine`](05-office-apps/02-m365-remediation-engine.ps1) | `admin` | `-TargetService` `-MaxLevel` `-DiagnosticOnly` `-LogPath` |
 
 ## <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> 06 - Corporate applications
 
-| Function | Script |
-|---|---|
-| Explains why ESET Endpoint is missing, not starting or not reaching the console. | [`01-diagnose-eset`](06-applications/01-diagnose-eset.ps1) |
-| Installs ESET Endpoint unattended, even when the installer has no silent mode. | [`02-install-eset`](06-applications/02-install-eset.ps1) |
-| Fully uninstalls iManage Work Desktop along with its Office add-ins. | [`03-uninstall-imanage`](06-applications/03-uninstall-imanage.ps1) |
-| Installs PDFelement and iManage by driving their wizard, which has no silent mode. | [`04-install-pdfelement-imanage`](06-applications/04-install-pdfelement-imanage.ps1) |
-| Inspects an installer package and reports its type and supported silent switches. | [`05-diagnose-installers`](06-applications/05-diagnose-installers.ps1) |
-| Repairs the Mitel Connect / MiCollab client: cache, registry, Outlook, credentials and DNS. | [`06-repair-mitel-client`](06-applications/06-repair-mitel-client.ps1) |
+| Function | Script | Run as | Parameters |
+|---|---|---|---|
+| Explains why ESET Endpoint is missing, not starting or not reaching the console. | [`01-diagnose-eset`](06-applications/01-diagnose-eset.ps1) | `admin` | none |
+| Installs ESET Endpoint unattended, even when the installer has no silent mode. | [`02-install-eset`](06-applications/02-install-eset.ps1) | `admin` | `-Modo` |
+| Fully uninstalls iManage Work Desktop along with its Office add-ins. | [`03-uninstall-imanage`](06-applications/03-uninstall-imanage.ps1) | `admin` | `-WhatIf` |
+| Installs PDFelement and iManage by driving their wizard, which has no silent mode. | [`04-install-pdfelement-imanage`](06-applications/04-install-pdfelement-imanage.ps1) | `admin` | `-Modo` |
+| Inspects an installer package and reports its type and supported silent switches. | [`05-diagnose-installers`](06-applications/05-diagnose-installers.ps1) | `admin` | none |
+| Repairs the Mitel Connect / MiCollab client: cache, registry, Outlook, credentials and DNS. | [`06-repair-mitel-client`](06-applications/06-repair-mitel-client.ps1) | `admin + user` | `-DryRun` `-Force` `-AllUsers` `-KeepOutlookAddin` `-DisableOutlookAddin` `-KeepCredentials` `-ServerHost` `-FixDns` `-DnsServers` `-DnsSuffix` `-FixHosts` `-FixFirewall` `-Reinstall` `-LogPath` |
 
 ## <img src=".github/icons/laptop.svg" width="20" height="20" align="top" alt=""> 07 - Endpoint
 
-| Function | Script |
-|---|---|
-| What is filling the disk: largest folders and reclaimable junk. | [`01-disk-usage`](07-endpoint/01-disk-usage.ps1) |
-| Retrieves the BitLocker recovery key by serial number, device name or Entra device id. | [`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1) |
-| Diagnoses and fixes unexpected shutdowns and restarts. | [`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1) |
-| Gets the clock back in sync so e-government signing works: detects location, matches time zone and country NTP servers, and repairs W32Time. | [`04-repair-time-sync`](07-endpoint/04-repair-time-sync.ps1) |
-| Enables Windows long paths (over 260 characters) and disables 8.3 short names. | [`05-enable-long-paths`](07-endpoint/05-enable-long-paths.ps1) |
+| Function | Script | Run as | Parameters |
+|---|---|---|---|
+| What is filling the disk: largest folders and reclaimable junk. | [`01-disk-usage`](07-endpoint/01-disk-usage.ps1) | `admin` | `-Ruta` `-Top` `-SoloBasura` |
+| Retrieves the BitLocker recovery key by serial number, device name or Entra device id. | [`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1) | `user` | `-Serie` `-Nombre` `-DeviceId` `-RutaCsv` `-ConfigPath` |
+| Diagnoses and fixes unexpected shutdowns and restarts. | [`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1) | `admin` | `-SkipDiag` `-SkipWifi` |
+| Gets the clock back in sync so e-government signing works: detects location, matches time zone and country NTP servers, and repairs W32Time. | [`04-repair-time-sync`](07-endpoint/04-repair-time-sync.ps1) | `admin` | `-DryRun` `-Force` `-DiagnoseOnly` `-TimeZoneId` `-NtpServers` `-SkipGeo` `-NoTimeZoneChange` `-PersistPublicNtp` `-AllowStepTime` `-NoStepTime` `-AutoTimeZoneService` `-PollSeconds` `-LogPath` |
+| Enables Windows long paths (over 260 characters) and disables 8.3 short names. | [`05-enable-long-paths`](07-endpoint/05-enable-long-paths.ps1) | `admin` | `-DryRun` |
 
 ## <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> 08 - Network
 
-| Function | Script |
-|---|---|
-| Disables Wi-Fi adapter power saving and switches to the high performance power plan. | [`01-optimize-wifi-adapter`](08-network/01-optimize-wifi-adapter.ps1) |
+| Function | Script | Run as | Parameters |
+|---|---|---|---|
+| Disables Wi-Fi adapter power saving and switches to the high performance power plan. | [`01-optimize-wifi-adapter`](08-network/01-optimize-wifi-adapter.ps1) | `admin` | `-Adaptador` `-DryRun` |
 
 ## <img src=".github/icons/document.svg" width="20" height="20" align="top" alt=""> 09 - Documents
 
-| Function | Script |
-|---|---|
-| Removes edit protection from a Word document when the password is lost. | [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1) |
+| Function | Script | Run as | Parameters |
+|---|---|---|---|
+| Removes edit protection from a Word document when the password is lost. | [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1) | `user` | `-NoPause` `-Paths` |
 
 ## <img src=".github/icons/folder_open.svg" width="20" height="20" align="top" alt=""> 10 - File picker
 
-| Function | Script |
-|---|---|
-| Read-only. Inventory of everything that can hang the Windows file picker. | [`01-diagnose-file-picker`](10-file-picker/01-diagnose-file-picker.ps1) |
-| Read-only. Reproduces the file picker hang and captures the DLL behind it. | [`02-test-file-picker-hang`](10-file-picker/02-test-file-picker-hang.ps1) |
-| Clears the file picker's remembered folders (ComDlg32 MRU). DryRun by default. | [`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1) |
-| Disables shell extensions by CLSID, reversibly. DryRun by default. | [`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1) |
-| Read-only. Diagnoses an application crashing when it opens the Open/Save As dialog. | [`05-diagnose-file-picker-crash`](10-file-picker/05-diagnose-file-picker-crash.ps1) |
+| Function | Script | Run as | Parameters |
+|---|---|---|---|
+| Read-only. Inventory of everything that can hang the Windows file picker. | [`01-diagnose-file-picker`](10-file-picker/01-diagnose-file-picker.ps1) | `user` | `-OutDir` `-DiasEventos` `-TimeoutRutaSegundos` `-SinFirmas` |
+| Read-only. Reproduces the file picker hang and captures the DLL behind it. | [`02-test-file-picker-hang`](10-file-picker/02-test-file-picker-hang.ps1) | `user` | `-TimeoutSegundos` `-Proceso` `-CarpetaInicial` `-Volcado` `-RutaProcdump` `-OutDir` |
+| Clears the file picker's remembered folders (ComDlg32 MRU). DryRun by default. | [`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1) | `user` | `-Execute` `-IncluirRecientes` `-ReiniciarExplorer` `-Restore` `-BackupDir` |
+| Disables shell extensions by CLSID, reversibly. DryRun by default. | [`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1) | `admin` | `-Clsid` `-ClsidFile` `-DesdeCsv` `-FiltroDll` `-Quitar` `-Listar` `-Execute` `-ReiniciarExplorer` `-Motivo` `-BackupDir` |
+| Read-only. Diagnoses an application crashing when it opens the Open/Save As dialog. | [`05-diagnose-file-picker-crash`](10-file-picker/05-diagnose-file-picker-crash.ps1) | `admin + user` | `-ProcessName` `-OutDir` `-Interactive` `-EnableDumps` `-DryRun` `-SkipSignatures` `-TimeoutSec` |
 
 ## <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> 11 - Certificates
 
-| Function | Script |
-|---|---|
-| Repairs one specific certificate AutoFirma cannot list, leaving the rest of the store untouched. | [`01-repair-autofirma-certificate`](11-certificates/01-repair-autofirma-certificate.ps1) |
+| Function | Script | Run as | Parameters |
+|---|---|---|---|
+| Repairs one specific certificate AutoFirma cannot list, leaving the rest of the store untouched. | [`01-repair-autofirma-certificate`](11-certificates/01-repair-autofirma-certificate.ps1) | `user` | `-Mode` `-P12` `-Password` `-Match` `-Thumbprint` `-DryRun` `-Force` `-Log` |
 
 ## <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> 99 - Repo tools
 
-| Function | Script |
-|---|---|
-| Validates every .ps1 in the repo: ASCII only, UTF-8 with BOM and syntax on 5.1 and 7. | [`01-validate-scripts`](99-repo-tools/01-validate-scripts.ps1) |
-| Sandbox-tests the deletion logic behind the Outlook scripts. Never touches Outlook. | [`02-test-outlook-reset`](99-repo-tools/02-test-outlook-reset.ps1) |
-| Rebuilds the index in README.md and README.en.md from each script's .SYNOPSIS. | [`03-generate-readme`](99-repo-tools/03-generate-readme.ps1) |
+| Function | Script | Run as | Parameters |
+|---|---|---|---|
+| Validates every .ps1 in the repo: ASCII only, UTF-8 with BOM, declared Contexto and syntax on 5.1 and 7. | [`01-validate-scripts`](99-repo-tools/01-validate-scripts.ps1) | `user` | `-Corregir` |
+| Sandbox-tests the deletion logic behind the Outlook scripts. Never touches Outlook. | [`02-test-outlook-reset`](99-repo-tools/02-test-outlook-reset.ps1) | `user` | none |
+| Rebuilds the index in README.md and README.en.md from each script's .SYNOPSIS. | [`03-generate-readme`](99-repo-tools/03-generate-readme.ps1) | `user` | `-Comprobar` |
 
 <!-- INDICE-FIN -->
 
@@ -157,9 +157,18 @@ Get-Help .\script.ps1 -Full                               # parameters and examp
 | `-ProcessName`, `-EnableDumps`, `-Interactive` | `10/05` | processes to inspect, WER dump of the next crash, real dialog test in 64 and 32 bits |
 | `$env:SOPORTE_ORIGEN_PAQUETES` | `05/01`, `06/*` | installer share path |
 
-`paste` mode scripts take no parameters: paste and go.
+`paste` mode scripts take no parameters: paste and go. Each script's full parameter list is
+in its index row, read from the actual `param()`.
 
 ## Execution context
+
+The **Run as** column in the index says which account runs each script:
+
+| Value | How to launch |
+|---|---|
+| `user` | regular PowerShell, in the affected user's session, **not elevated** |
+| `admin` | PowerShell **as administrator**, from the affected user's session |
+| `admin + user` | in phases: some elevated, some not; the script's help (`Get-Help -Full`) says which |
 
 | Scope the script touches | Account |
 |---|---|
@@ -194,7 +203,7 @@ needs no download.
 Before every commit:
 
 ```powershell
-.\99-repo-tools\01-validate-scripts.ps1      # ASCII, BOM and syntax on 5.1 and 7
+.\99-repo-tools\01-validate-scripts.ps1      # ASCII, BOM, Contexto and syntax on 5.1 and 7
 .\99-repo-tools\03-generate-readme.ps1       # rebuilds the index in both READMEs
 ```
 
@@ -205,6 +214,8 @@ Before every commit:
 - `.SYNOPSIS` with an `[ES]` line and an `[EN]` line — the README index is built from those.
 - Self-contained: no external modules, no certificates.
 - `#Requires` separated from the `<#` block by a blank line, or `Get-Help` won't read the synopsis.
+- `.NOTES` with a `Contexto: usuario`, `Contexto: admin` or `Contexto: mixto` line — the Run as
+  column comes from it. The validator fails if it is missing.
 - `00-copy-paste` is the exception: **no help block and no comments**. Descriptions live in
   [`00-copy-paste/index.psd1`](00-copy-paste/index.psd1).
 

@@ -58,6 +58,7 @@
     .\02-test-file-picker-hang.ps1 -Proceso outlook -Volcado
 
 .NOTES
+    Contexto: usuario
     PowerShell 5.1 y 7.
     No modifica el sistema. El unico proceso que crea es su propio hijo de prueba.
 #>

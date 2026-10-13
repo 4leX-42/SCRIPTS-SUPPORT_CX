@@ -4,6 +4,8 @@
 .SYNOPSIS
     [ES] Analiza un paquete de instalacion y dice que tipo es y que parametros silenciosos admite.
     [EN] Inspects an installer package and reports its type and supported silent switches.
+.NOTES
+    Contexto: admin
 #>
 
 $ErrorActionPreference = 'Continue'

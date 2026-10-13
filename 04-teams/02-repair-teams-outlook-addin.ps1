@@ -37,6 +37,7 @@
     powershell -ExecutionPolicy Bypass -File .\02-repair-teams-outlook-addin.ps1 -User juan
 
 .NOTES
+    Contexto: admin
     [ES] Exit code: 0 = OK, 1 = fallo, 2 = OK con avisos. Log en C:\Windows\Temp.
          Requiere admin. PowerShell 5.1 y 7. Windows 10 y 11. Solo Outlook clasico.
     [EN] Exit code: 0 = OK, 1 = failure, 2 = OK with warnings. Log in C:\Windows\Temp.

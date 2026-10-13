@@ -60,6 +60,7 @@
     .\04-block-shell-extension.ps1 -Clsid '{1234...}' -Quitar -Execute
 
 .NOTES
+    Contexto: admin
     Solicitante: soporte IT   Motivo: aislamiento del cuelgue del selector de archivos
     Reversible: si (-Quitar, y copia .reg automatica de la clave completa).
     Requiere: administrador local.

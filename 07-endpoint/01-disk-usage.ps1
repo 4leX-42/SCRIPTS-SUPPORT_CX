@@ -19,6 +19,7 @@
 .EXAMPLE
     .\02-espacio-disco.ps1 -Ruta C:\Users -Top 10
 .NOTES
+    Contexto: admin
     PowerShell 5.1 y 7. No borra nada. Sin admin ve menos: lo omitido se cuenta aparte.
 #>
 [CmdletBinding()]

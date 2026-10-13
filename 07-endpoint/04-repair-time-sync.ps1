@@ -152,6 +152,7 @@
     Red con proxy que bloquea la geolocalizacion: se le indica la zona horaria a mano.
 
 .NOTES
+    Contexto: admin
     PowerShell 5.1 y 7. Requiere administrador para reparar; sin el solo diagnostica.
 #>
 [CmdletBinding()]

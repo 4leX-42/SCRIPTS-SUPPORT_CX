@@ -15,7 +15,7 @@
     Version : 2.0.0
     Platform: Windows 11 / Windows 10 21H2+
     PSVer   : 5.1+
-    Context : SYSTEM or CurrentUser
+    Contexto: admin
 #>
 
 [CmdletBinding()]

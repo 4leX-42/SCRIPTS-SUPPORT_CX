@@ -72,6 +72,8 @@
     # Todo por parametro, desatendido
     .\Reset-StaleTenantAccount.ps1 -Upn usuario@invabpo.com `
         -TenantOrigen invataxlegal.onmicrosoft.com -NoInteractivo -Force
+.NOTES
+    Contexto: usuario
 #>
 [CmdletBinding()]
 param(

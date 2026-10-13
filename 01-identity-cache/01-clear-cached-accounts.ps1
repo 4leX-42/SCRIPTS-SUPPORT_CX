@@ -29,6 +29,7 @@
 .EXAMPLE
     .\02-clear-office-creds-tenant.ps1 -Excluir buena@contoso.com -Force
 .NOTES
+    Contexto: usuario
     EJECUTAR COMO: la sesion del usuario afectado, SIN elevar. Borra de HKCU y de su
     perfil; elevado con otra cuenta limpiaria el perfil equivocado. El script lo
     detecta comparando con el dueno de explorer.exe y aborta.

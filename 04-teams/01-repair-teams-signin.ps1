@@ -80,6 +80,7 @@
     Reparacion profunda y desatendida (reiniciar el equipo al terminar).
 
 .NOTES
+    Contexto: usuario
     Autor : Generado para Andersen (entorno corporativo).
     Compat: Windows 11, Windows PowerShell 5.1 / PowerShell 7+.
     Forma de uso recomendada en equipos problematicos: GUARDAR este .ps1 y ejecutarlo con

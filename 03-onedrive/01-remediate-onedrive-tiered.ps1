@@ -18,7 +18,7 @@
 .NOTES
     Version      : 2.0.0
     Compatibilidad: PowerShell 5.1+, Windows 10, Intune / GPO / RMM
-    Ejecucion    : SYSTEM o usuario estandar
+    Contexto     : usuario
     Idempotente  : Si -- re-ejecutable sin efectos secundarios
 #>
 

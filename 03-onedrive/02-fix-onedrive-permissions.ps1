@@ -49,6 +49,7 @@
     .\02-reparar-permisos-onedrive.ps1 -Fase Verificar
 
 .NOTES
+    Contexto: mixto
     [ES] El arreglo es permanente: sin dominio nada vuelve a aplicar esas ACE. No concede
          privilegios de admin -los permisos NTFS y el grupo Administradores son sistemas
          independientes-, el usuario sigue siendo estandar.

@@ -129,6 +129,7 @@
     Limpieza conservando el complemento de Outlook (lo reactiva si estaba desactivado).
 
 .NOTES
+    Contexto: mixto
     PowerShell 5.1 y 7.
     Dos pasadas: primero sin admin en la sesion del usuario afectado (perfil, HKCU, Outlook,
     credenciales), luego en consola de administrador (ProgramData, servicios, DNS, hosts,

@@ -11,6 +11,7 @@
     - Timeout 15 min (Office descarga ~2GB)
     - Verificacion post-instalacion
 .NOTES
+    Contexto: admin
     v1.0 - 2026-04-11 - Modulo independiente
 #>
 

@@ -9,6 +9,7 @@
     service/process monitoring, and recording mode support.
     Resolves stale cache issues and provides detailed diagnostics.
 .NOTES
+    Contexto: admin
     v1.0 - 2026-04-11
 #>
 

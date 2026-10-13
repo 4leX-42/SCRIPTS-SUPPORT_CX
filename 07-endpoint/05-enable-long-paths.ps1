@@ -27,6 +27,7 @@
 .EXAMPLE
     .\05-enable-long-paths.ps1 -DryRun
 .NOTES
+    Contexto: admin
     EJECUTAR COMO: administrador (escribe en HKLM). PowerShell 5.1 y 7.
     Revertir: poner los dos valores a 0 y reiniciar.
 #>

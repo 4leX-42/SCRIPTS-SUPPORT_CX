@@ -58,6 +58,7 @@
     .\05-diagnose-file-picker-crash.ps1 -ProcessName ms-teams -EnableDumps -DryRun
 
 .NOTES
+    Contexto: mixto
     PowerShell 5.1 y 7.
     Ejecutar en la sesion del usuario afectado: HKCU, recientes y OneDrive son suyos.
     Si no es administrador, lanzar dos veces: sin elevar (HKCU correcto) y elevado

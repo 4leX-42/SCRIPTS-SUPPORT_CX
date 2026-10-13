@@ -45,6 +45,7 @@
     .\Get-BitlockerRecoveryKey.ps1 -Nombre TESTEOINTUNE
 
 .NOTES
+    Contexto: usuario
     Solicitante: soporte.ti@ejemplo.com
     Permiso requerido: BitlockerKey.Read.All (concedido) + DeviceManagementServiceConfig.Read.All
     y DeviceManagementManagedDevices.Read.All para resolver la serie y el nombre.

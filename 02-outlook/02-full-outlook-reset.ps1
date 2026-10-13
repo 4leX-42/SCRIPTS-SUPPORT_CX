@@ -4,6 +4,8 @@
 .SYNOPSIS
     [ES] Reset agresivo de Outlook: perfil, OST y cache de autocompletado.
     [EN] Aggressive Outlook reset: profile, OST files and autocomplete cache.
+.NOTES
+    Contexto: usuario
 #>
 
 [CmdletBinding(SupportsShouldProcess = $true)]

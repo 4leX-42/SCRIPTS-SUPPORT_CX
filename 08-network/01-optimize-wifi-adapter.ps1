@@ -54,6 +54,7 @@
     .\02-optimizar-tarjeta-wifi.ps1 -Adaptador 'Wi-Fi 2'
 
 .NOTES
+    Contexto: admin
     [ES] Requiere admin (toca el plan de energia y el driver). Reiniciar para aplicarlo todo.
          Sube el consumo de bateria: es el precio de que no se corte.
     [EN] Requires admin (touches the power plan and the driver). Reboot to apply everything.

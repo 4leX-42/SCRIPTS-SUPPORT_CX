@@ -15,6 +15,8 @@
 
     # Solo uno
     .\Fix-PDFelement-iManage.ps1 -Modo Solo-IM
+.NOTES
+    Contexto: admin
 #>
 param(
     [ValidateSet('Todo','Solo-PDF','Solo-IM')]

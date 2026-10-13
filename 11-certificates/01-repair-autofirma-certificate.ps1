@@ -73,6 +73,7 @@
     .\01-repair-autofirma-certificate.ps1 -Mode Fix -P12 "C:\temp\cert.p12" -DryRun
 
 .NOTES
+    Contexto: usuario
     PowerShell 5.1 y 7. Sesion del usuario afectado, sin elevar: el almacen Personal del
     administrador es otro distinto.
 #>
