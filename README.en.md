@@ -47,6 +47,7 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 |---|---|---|---|
 | Rebuilds the classic Outlook profile keeping .pst and .ost files and recreates it with the same account. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) | `user` | `-FullReset` `-ClearAutoComplete` `-Email` `-ProfileName` `-NoRecreate` `-WaitSeconds` `-Force` `-WhatIf` |
 | Aggressive Outlook reset: profile, OST files and autocomplete cache. | [`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1) | `user` | `-SkipProfileReset` `-SkipOST` `-SkipRoamCache` `-DeleteWholeLocalOutlookFolder` `-WhatIf` |
+| Repairs the Microsoft 365 sign-in window that stays blank or stuck on "One moment..." when adding the account in Outlook. | [`03-repair-signin-window`](02-outlook/03-repair-signin-window.ps1) | `admin` | `-SoloDiagnostico` `-BorrarCuentasWam` `-DryRun` `-Force` |
 
 ## <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> 03 - OneDrive
 

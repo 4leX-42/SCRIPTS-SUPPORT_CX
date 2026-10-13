@@ -45,6 +45,7 @@
 |---|---|---|---|
 | Rehace el perfil de Outlook clásico conservando los .pst y .ost y lo recrea con la misma cuenta. | [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1) | `usuario` | `-FullReset` `-ClearAutoComplete` `-Email` `-ProfileName` `-NoRecreate` `-WaitSeconds` `-Force` `-WhatIf` |
 | Reset agresivo de Outlook: perfil, OST y caché de autocompletado. | [`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1) | `usuario` | `-SkipProfileReset` `-SkipOST` `-SkipRoamCache` `-DeleteWholeLocalOutlookFolder` `-WhatIf` |
+| Repara la ventana de inicio de sesión de Microsoft 365 que se queda en blanco o en "Un momento..." al agregar la cuenta en Outlook. | [`03-repair-signin-window`](02-outlook/03-repair-signin-window.ps1) | `admin` | `-SoloDiagnostico` `-BorrarCuentasWam` `-DryRun` `-Force` |
 
 ## <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> 03 - OneDrive
 
