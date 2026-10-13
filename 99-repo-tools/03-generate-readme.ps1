@@ -95,7 +95,49 @@ $destacados = @(
     @{ Ruta = '04-teams/01-repair-teams-signin.ps1'; Nombre = 'Teams Authentication Reset' }
 )
 
-$urlRaw = 'https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main'
+# Titulo corto de cada script, por sintoma: es la unica linea que se ve con el indice
+# plegado, asi que tiene que leerse de un vistazo. ES sin tildes (las pone es-accents.ini).
+# Un script sin entrada aqui sale con su .SYNOPSIS entero: largo, pero no se pierde.
+$titulos = @{
+    '01-clear-cached-accounts.ps1'                = @('Borrar cuentas de trabajo cacheadas', 'Clear cached work accounts')
+    '02-reset-stale-tenant-v2.1.ps1'              = @('Cuenta de un tenant antiguo que no se va', 'Stale tenant account that keeps coming back')
+    '03-repair-credential-cache-with-restore.ps1' = @('Reparar cache de credenciales M365', 'Repair M365 credential cache')
+    '01-reset-outlook-profile.ps1'                = @('Rehacer el perfil de Outlook', 'Rebuild the Outlook profile')
+    '02-full-outlook-reset.ps1'                   = @('Reset completo de Outlook', 'Full Outlook reset')
+    '03-repair-signin-window.ps1'                 = @('Ventana de login en blanco en Outlook', 'Blank sign-in window in Outlook')
+    '01-remediate-onedrive-tiered.ps1'            = @('OneDrive no sincroniza o no arranca', 'OneDrive not syncing or not starting')
+    '02-fix-onedrive-permissions.ps1'             = @('OneDrive pide permisos de administrador', 'OneDrive asks for admin rights')
+    '03-shorten-long-paths.ps1'                   = @('OneDrive: la ruta es demasiado larga', 'OneDrive: path too long')
+    '01-repair-teams-signin.ps1'                  = @('Teams no inicia sesion', 'Teams will not sign in')
+    '02-repair-teams-outlook-addin.ps1'           = @('Falta el boton de Teams en Outlook', 'Teams button missing in Outlook')
+    '03-repair-teams-addin-com.ps1'               = @('Complemento de Teams en Outlook se desactiva', 'Teams Outlook add-in keeps turning off')
+    '01-repair-office-install.ps1'                = @('Reparar la instalacion de Office', 'Repair the Office install')
+    '02-m365-remediation-engine.ps1'              = @('Reparacion automatica de M365', 'Automatic M365 repair')
+    '01-diagnose-eset.ps1'                        = @('ESET no instala, no arranca o no conecta', 'ESET not installed, running or connecting')
+    '02-install-eset.ps1'                         = @('Instalar ESET', 'Install ESET')
+    '03-uninstall-imanage.ps1'                    = @('Desinstalar iManage', 'Uninstall iManage')
+    '04-install-pdfelement-imanage.ps1'           = @('Instalar PDFelement e iManage', 'Install PDFelement and iManage')
+    '05-diagnose-installers.ps1'                  = @('Parametros silenciosos de un instalador','Which silent switches an installer takes')
+    '06-repair-mitel-client.ps1'                  = @('Reparar Mitel Connect / MiCollab', 'Repair Mitel Connect / MiCollab')
+    '01-disk-usage.ps1'                           = @('Disco lleno', 'Disk full')
+    '02-bitlocker-recovery-key.ps1'               = @('Clave de recuperacion de BitLocker', 'BitLocker recovery key')
+    '03-fix-random-shutdowns.ps1'                 = @('Apagados o reinicios inesperados', 'Unexpected shutdowns or restarts')
+    '04-repair-time-sync.ps1'                     = @('Hora mal: no deja firmar en sedes electronicas', 'Wrong clock: e-signature portals fail')
+    '05-enable-long-paths.ps1'                    = @('Activar rutas largas de Windows', 'Enable Windows long paths')
+    '01-optimize-wifi-adapter.ps1'                = @('Wi-Fi lenta o que se corta', 'Slow or dropping Wi-Fi')
+    '01-unlock-protected-word.ps1'                = @('Word protegido y sin contrasena', 'Protected Word file, password lost')
+    '01-diagnose-file-picker.ps1'                 = @('Selector de archivos: diagnostico', 'File picker: diagnosis')
+    '02-test-file-picker-hang.ps1'                = @('Selector de archivos se cuelga', 'File picker hangs')
+    '03-reset-file-picker-mru.ps1'                = @('Limpiar carpetas recientes del selector', 'Clear file picker recent folders')
+    '04-block-shell-extension.ps1'                = @('Bloquear una extension de shell', 'Block a shell extension')
+    '05-diagnose-file-picker-crash.ps1'           = @('La app se cierra al Abrir o Guardar como', 'App crashes on Open or Save as')
+    '01-repair-autofirma-certificate.ps1'         = @('AutoFirma no muestra el certificado', 'AutoFirma does not list the certificate')
+    '01-validate-scripts.ps1'                     = @('Validar los scripts del repo', 'Validate repo scripts')
+    '02-test-outlook-reset.ps1'                   = @('Probar el reset de Outlook en sandbox', 'Test the Outlook reset in a sandbox')
+    '03-generate-readme.ps1'                      = @('Regenerar los README', 'Rebuild the READMEs')
+}
+
+$urlRaw ='https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main'
 
 # Linea unica para pegar en la consola del usuario: descarga de main y ejecuta, en 5.1 y 7.
 # - TLS 1.2 forzado: 5.1 en equipos viejos negocia TLS 1.0 y GitHub lo rechaza.
@@ -113,17 +155,27 @@ function Get-UnaLinea([string]$ruta, [string]$argumentos) {
     return $linea
 }
 
-# Una ficha por script en vez de fila de tabla: GitHub solo pone boton de copiar en los
-# bloques de codigo, nunca en una celda. Arriba la consola (color) y el problema que
-# arregla, que es lo que se busca; debajo la linea para pegar y los parametros.
-function Add-Ficha($sb, [string]$cabecera, [string]$linea, [string]$pie) {
-    [void]$sb.AppendLine($cabecera)
+# Una ficha plegable por script en vez de fila de tabla: GitHub solo pone boton de copiar
+# en los bloques de codigo, nunca en una celda. Plegada se ve una linea -consola en color y
+# sintoma-; al abrirla, descripcion, linea para pegar y parametros. Ctrl+F del navegador
+# encuentra el texto aunque este plegado. El summary es HTML: ahi no vale Markdown.
+function Add-Ficha($sb, [string]$resumen, [string]$cuerpo, [string]$linea, [string]$pie) {
+    [void]$sb.AppendLine("<details><summary>$resumen</summary>")
+    [void]$sb.AppendLine()
+    [void]$sb.AppendLine($cuerpo)
     [void]$sb.AppendLine()
     [void]$sb.AppendLine('```powershell')
     [void]$sb.AppendLine($linea)
     [void]$sb.AppendLine('```')
     if ($pie) { [void]$sb.AppendLine($pie) }
     [void]$sb.AppendLine()
+    [void]$sb.AppendLine('</details>')
+}
+
+function Get-Titulo([string]$nombre, [string]$idioma, [string]$porDefecto) {
+    if (-not $titulos.ContainsKey($nombre)) { return $porDefecto }
+    if ($idioma -eq 'EN') { return $titulos[$nombre][1] }
+    return (Add-Tildes $titulos[$nombre][0])
 }
 
 # alt vacio: asi la imagen no entra en el ancla que GitHub genera para el encabezado.
@@ -245,7 +297,9 @@ function New-Indice([string]$idioma) {
             $cuenta = Get-Contexto (Join-Path $raiz ($d.Ruta -replace '/', '\')) $idioma
         }
         $icoD = Get-Icono ($secciones | Where-Object { $d.Ruta.StartsWith($_.Carpeta + '/') } | Select-Object -First 1).Icono
-        Add-Ficha $sb "$icoD **$($d.Nombre)** $cuenta [``$base``]($($d.Ruta))" (Get-UnaLinea $d.Ruta $d.Args) $null
+        $descD = if ($esDe00) { $indicePaste[$nombre].$idioma } else { (Get-Sinopsis (Join-Path $raiz ($d.Ruta -replace '/', '\'))).$idioma }
+        if ($idioma -eq 'ES') { $descD = Add-Tildes $descD }
+        Add-Ficha $sb "$cuenta $icoD <b>$($d.Nombre)</b>" "$descD<br>[``$base``]($($d.Ruta))" (Get-UnaLinea $d.Ruta $d.Args) $null
     }
 
     foreach ($sec in $secciones) {
@@ -299,7 +353,7 @@ function New-Indice([string]$idioma) {
                 # Titulo corto y tecnico para identificar el informe; el detalle, debajo.
                 if (-not $titulo) { $titulo = $f.BaseName }
                 if (-not $ventana) { $ventana = 'usuario' }
-                Add-Ficha $sb "$(Get-Etiqueta $ventana $idioma) **$titulo** [``$($f.BaseName)``]($ruta)<br>$desc" (Get-UnaLinea $ruta $null) $null
+                Add-Ficha $sb "$(Get-Etiqueta $ventana $idioma) <b>$titulo</b>" "$desc<br>[``$($f.BaseName)``]($ruta)" (Get-UnaLinea $ruta $null) $null
             }
             else {
                 $params = @(Get-Parametros $f.FullName)
@@ -309,7 +363,8 @@ function New-Indice([string]$idioma) {
                     $pie = "<sub>$txtParams`: $lista</sub>"
                 }
                 $linea = if ($esLocal) { ".\$($sec.Carpeta)\$($f.Name)" } else { Get-UnaLinea $ruta $null }
-                Add-Ficha $sb "$(Get-Contexto $f.FullName $idioma) **$desc** [``$($f.BaseName)``]($ruta)" $linea $pie
+                $tit = Get-Titulo $f.Name $idioma $desc
+                Add-Ficha $sb "$(Get-Contexto $f.FullName $idioma) <b>$tit</b>" "$desc<br>[``$($f.BaseName)``]($ruta)" $linea $pie
             }
         }
 

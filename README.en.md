@@ -12,359 +12,507 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 
 ## <img src=".github/icons/pin.svg" width="20" height="20" align="top" alt=""> 0 - LAS MAINS
 
-<img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Identity Cache Purge** <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1)
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> <b>Identity Cache Purge</b></summary>
+
+Clears cached work accounts. Removes them all except the ones you choose to keep.<br>[`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-clear-cached-accounts.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/01-identity-cache/01-clear-cached-accounts.ps1 -OutFile $f; & $f
 ```
 
-<img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Stale Tenant Reset** <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> <b>Stale Tenant Reset</b></summary>
+
+Removes the account left over from an old tenant. Auto-detects the UPN and the tenant.<br>[`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\02-reset-stale-tenant-v2.1.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/01-identity-cache/02-reset-stale-tenant-v2.1.ps1 -OutFile $f; & $f
 ```
 
-<img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> **Credential Cache Repair** <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> <b>Credential Cache Repair</b></summary>
+
+Repairs the Microsoft 365 credential cache in tiers, and can roll the changes back.<br>[`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-repair-credential-cache-with-restore.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/01-identity-cache/03-repair-credential-cache-with-restore.ps1 -OutFile $f; & $f -Mode Repair -CloseApps
 ```
 
-<img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> **OneDrive Long Path Fix** <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> [`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> <b>OneDrive Long Path Fix</b></summary>
+
+Shortens OneDrive paths over 380 characters ("the path is too long") without renaming the documents.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-shorten-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/03-shorten-long-paths.ps1 -OutFile $f; & $f
 ```
 
-<img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> **Endpoint Technical Audit** <img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> <b>Endpoint Technical Audit</b></summary>
+
+Hardware, real Windows generation, Entra or domain join, MDM, disk, BitLocker, network and Office<br>[`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1)
 
 ```powershell
 [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/00-copy-paste/03-endpoint-report.ps1 | iex
 ```
 
-<img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> **OneDrive Tiered Remediation** <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> <b>OneDrive Tiered Remediation</b></summary>
+
+Fixes OneDrive escalating through 5 tiers: restart, reset, cache, binary and reinstall.<br>[`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-remediate-onedrive-tiered.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/01-remediate-onedrive-tiered.ps1 -OutFile $f; & $f
 ```
 
-<img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> **Teams Authentication Reset** <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> <b>Teams Authentication Reset</b></summary>
+
+Fixes Teams sign-in when it loops or fails to authenticate.<br>[`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-repair-teams-signin.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/04-teams/01-repair-teams-signin.ps1 -OutFile $f; & $f
 ```
 
+</details>
 ## <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> 00 - Copy and paste (diagnostics)
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Machine snapshot** [`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1)<br>Hardware, real Windows generation, Entra or domain join, MDM, disk, BitLocker, network and Office
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Machine snapshot</b></summary>
+
+Hardware, real Windows generation, Entra or domain join, MDM, disk, BitLocker, network and Office<br>[`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1)
 
 ```powershell
 [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/00-copy-paste/03-endpoint-report.ps1 | iex
 ```
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **ESET agent state** [`06-eset-status`](00-copy-paste/06-eset-status.ps1)<br>Installation, services, binary signature, enrolment read from the trace log and ESET PROTECT connectivity
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>ESET agent state</b></summary>
+
+Installation, services, binary signature, enrolment read from the trace log and ESET PROTECT connectivity<br>[`06-eset-status`](00-copy-paste/06-eset-status.ps1)
 
 ```powershell
 [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/00-copy-paste/06-eset-status.ps1 | iex
 ```
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Cached accounts and identities** [`01-cached-accounts`](00-copy-paste/01-cached-accounts.ps1)<br>Cached account inventory: source of each one, GUID UPN detection and real tenantId per domain
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Cached accounts and identities</b></summary>
+
+Cached account inventory: source of each one, GUID UPN detection and real tenantId per domain<br>[`01-cached-accounts`](00-copy-paste/01-cached-accounts.ps1)
 
 ```powershell
 [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/00-copy-paste/01-cached-accounts.ps1 | iex
 ```
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **OneDrive state** [`02-onedrive-status`](00-copy-paste/02-onedrive-status.ps1)<br>Process, version, linked accounts, deny ACEs, write test and log freshness
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>OneDrive state</b></summary>
+
+Process, version, linked accounts, deny ACEs, write test and log freshness<br>[`02-onedrive-status`](00-copy-paste/02-onedrive-status.ps1)
 
 ```powershell
 [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/00-copy-paste/02-onedrive-status.ps1 | iex
 ```
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **M365 reachability** [`04-m365-connectivity`](00-copy-paste/04-m365-connectivity.ps1)<br>Proxy, DNS, TCP 443, TLS version and latency across the 7 Microsoft 365 endpoints
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>M365 reachability</b></summary>
+
+Proxy, DNS, TCP 443, TLS version and latency across the 7 Microsoft 365 endpoints<br>[`04-m365-connectivity`](00-copy-paste/04-m365-connectivity.ps1)
 
 ```powershell
 [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/00-copy-paste/04-m365-connectivity.ps1 | iex
 ```
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Office and Outlook state** [`05-office-outlook-status`](00-copy-paste/05-office-outlook-status.ps1)<br>Version, licence, identities, profiles, .ost and .pst, add-ins and disabled items
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Office and Outlook state</b></summary>
+
+Version, licence, identities, profiles, .ost and .pst, add-ins and disabled items<br>[`05-office-outlook-status`](00-copy-paste/05-office-outlook-status.ps1)
 
 ```powershell
 [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/00-copy-paste/05-office-outlook-status.ps1 | iex
 ```
 
+</details>
 ## <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> 01 - Identity cache
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Clears cached work accounts. Removes them all except the ones you choose to keep.** [`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1)
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Clear cached work accounts</b></summary>
+
+Clears cached work accounts. Removes them all except the ones you choose to keep.<br>[`01-clear-cached-accounts`](01-identity-cache/01-clear-cached-accounts.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-clear-cached-accounts.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/01-identity-cache/01-clear-cached-accounts.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Excluir` `-Quitar` `-NoCerrarApps` `-Detalle` `-DryRun` `-Force`</sub>
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Removes the account left over from an old tenant. Auto-detects the UPN and the tenant.** [`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Stale tenant account that keeps coming back</b></summary>
+
+Removes the account left over from an old tenant. Auto-detects the UPN and the tenant.<br>[`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\02-reset-stale-tenant-v2.1.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/01-identity-cache/02-reset-stale-tenant-v2.1.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Upn` `-TenantOrigen` `-TenantEsperado` `-RutaRespaldo` `-SoloDetectar` `-NoInteractivo` `-DryRun` `-NoCerrarApps` `-BorrarCookiesEdge` `-QuitarWorkplaceJoin` `-IgnorarPerfil` `-Force`</sub>
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Repairs the Microsoft 365 credential cache in tiers, and can roll the changes back.** [`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Repair M365 credential cache</b></summary>
+
+Repairs the Microsoft 365 credential cache in tiers, and can roll the changes back.<br>[`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-repair-credential-cache-with-restore.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/01-identity-cache/03-repair-credential-cache-with-restore.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Mode` `-Accounts` `-Tiers` `-BackupRoot` `-RestoreFrom` `-CloseApps` `-DryRun` `-Force`</sub>
 
+</details>
 ## <img src=".github/icons/mail.svg" width="20" height="20" align="top" alt=""> 02 - Outlook
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Rebuilds the classic Outlook profile keeping .pst and .ost files and recreates it with the same account.** [`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1)
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Rebuild the Outlook profile</b></summary>
+
+Rebuilds the classic Outlook profile keeping .pst and .ost files and recreates it with the same account.<br>[`01-reset-outlook-profile`](02-outlook/01-reset-outlook-profile.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-reset-outlook-profile.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/02-outlook/01-reset-outlook-profile.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-FullReset` `-ClearAutoComplete` `-Email` `-ProfileName` `-NoRecreate` `-WaitSeconds` `-Force` `-WhatIf`</sub>
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Aggressive Outlook reset: profile, OST files and autocomplete cache.** [`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Full Outlook reset</b></summary>
+
+Aggressive Outlook reset: profile, OST files and autocomplete cache.<br>[`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\02-full-outlook-reset.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/02-outlook/02-full-outlook-reset.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-SkipProfileReset` `-SkipOST` `-SkipRoamCache` `-DeleteWholeLocalOutlookFolder` `-WhatIf`</sub>
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Repairs the Microsoft 365 sign-in window that stays blank or stuck on "One moment..." when adding the account in Outlook; with -BorrarCuentasWam removes the work accounts stored in Windows that Teams and Office offer.** [`03-repair-signin-window`](02-outlook/03-repair-signin-window.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Blank sign-in window in Outlook</b></summary>
+
+Repairs the Microsoft 365 sign-in window that stays blank or stuck on "One moment..." when adding the account in Outlook; with -BorrarCuentasWam removes the work accounts stored in Windows that Teams and Office offer.<br>[`03-repair-signin-window`](02-outlook/03-repair-signin-window.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-repair-signin-window.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/02-outlook/03-repair-signin-window.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-SoloDiagnostico` `-BorrarCuentasWam` `-DryRun` `-Force` `-FaseUsuario` `-DirTrabajo`</sub>
 
+</details>
 ## <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> 03 - OneDrive
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Fixes OneDrive escalating through 5 tiers: restart, reset, cache, binary and reinstall.** [`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1)
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>OneDrive not syncing or not starting</b></summary>
+
+Fixes OneDrive escalating through 5 tiers: restart, reset, cache, binary and reinstall.<br>[`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-remediate-onedrive-tiered.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/01-remediate-onedrive-tiered.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-MaxLevel` `-LocalInstallerPath` `-StartupWaitSeconds` `-SkipEnvironmentChecks` `-ClearCredentials` `-ForceReinstall`</sub>
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> + <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Removes deny ACEs left behind by a domain GPO that make OneDrive prompt for admin.** [`02-fix-onedrive-permissions`](03-onedrive/02-fix-onedrive-permissions.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> + <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>OneDrive asks for admin rights</b></summary>
+
+Removes deny ACEs left behind by a domain GPO that make OneDrive prompt for admin.<br>[`02-fix-onedrive-permissions`](03-onedrive/02-fix-onedrive-permissions.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\02-fix-onedrive-permissions.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/02-fix-onedrive-permissions.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Fase` `-Ruta` `-DryRun`</sub>
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Shortens OneDrive paths over 380 characters ("the path is too long") without renaming the documents.** [`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>OneDrive: path too long</b></summary>
+
+Shortens OneDrive paths over 380 characters ("the path is too long") without renaming the documents.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-shorten-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/03-shorten-long-paths.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Ruta` `-Upn` `-Raiz` `-Limite` `-Margen` `-PermitirRecorte` `-MinNombre` `-DryRun` `-SinConfirmar` `-Ascii` `-Revertir`</sub>
 
+</details>
 Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive-permissions.md)
 
 ## <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> 04 - Teams
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Fixes Teams sign-in when it loops or fails to authenticate.** [`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1)
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Teams will not sign in</b></summary>
+
+Fixes Teams sign-in when it loops or fails to authenticate.<br>[`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-repair-teams-signin.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/04-teams/01-repair-teams-signin.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-DryRun` `-Force` `-Aggressive` `-IncludeOutlook` `-RepairTeams` `-LogPath`</sub>
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Restores the Teams meeting button when it disappears from classic Outlook.** [`02-repair-teams-outlook-addin`](04-teams/02-repair-teams-outlook-addin.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Teams button missing in Outlook</b></summary>
+
+Restores the Teams meeting button when it disappears from classic Outlook.<br>[`02-repair-teams-outlook-addin`](04-teams/02-repair-teams-outlook-addin.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\02-repair-teams-outlook-addin.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/04-teams/02-repair-teams-outlook-addin.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-User`</sub>
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Re-registers the Teams meeting add-in in classic Outlook and hardens it.** [`03-repair-teams-addin-com`](04-teams/03-repair-teams-addin-com.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Teams Outlook add-in keeps turning off</b></summary>
+
+Re-registers the Teams meeting add-in in classic Outlook and hardens it.<br>[`03-repair-teams-addin-com`](04-teams/03-repair-teams-addin-com.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-repair-teams-addin-com.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/04-teams/03-repair-teams-addin-com.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-NoKillOutlook`</sub>
 
+</details>
 ## <img src=".github/icons/apps.svg" width="20" height="20" align="top" alt=""> 05 - Office apps
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Repairs the Office installation: quick or online repair, plus reactivation.** [`01-repair-office-install`](05-office-apps/01-repair-office-install.ps1)
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Repair the Office install</b></summary>
+
+Repairs the Office installation: quick or online repair, plus reactivation.<br>[`01-repair-office-install`](05-office-apps/01-repair-office-install.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-repair-office-install.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/05-office-apps/01-repair-office-install.ps1 -OutFile $f; & $f
 ```
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Unattended engine that diagnoses and repairs OneDrive, Outlook, Office, identity and network.** [`02-m365-remediation-engine`](05-office-apps/02-m365-remediation-engine.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Automatic M365 repair</b></summary>
+
+Unattended engine that diagnoses and repairs OneDrive, Outlook, Office, identity and network.<br>[`02-m365-remediation-engine`](05-office-apps/02-m365-remediation-engine.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\02-m365-remediation-engine.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/05-office-apps/02-m365-remediation-engine.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-TargetService` `-MaxLevel` `-DiagnosticOnly` `-LogPath`</sub>
 
+</details>
 ## <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> 06 - Corporate applications
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Explains why ESET Endpoint is missing, not starting or not reaching the console.** [`01-diagnose-eset`](06-applications/01-diagnose-eset.ps1)
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>ESET not installed, running or connecting</b></summary>
+
+Explains why ESET Endpoint is missing, not starting or not reaching the console.<br>[`01-diagnose-eset`](06-applications/01-diagnose-eset.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-diagnose-eset.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/06-applications/01-diagnose-eset.ps1 -OutFile $f; & $f
 ```
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Installs ESET Endpoint unattended, even when the installer has no silent mode.** [`02-install-eset`](06-applications/02-install-eset.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Install ESET</b></summary>
+
+Installs ESET Endpoint unattended, even when the installer has no silent mode.<br>[`02-install-eset`](06-applications/02-install-eset.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\02-install-eset.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/06-applications/02-install-eset.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Modo`</sub>
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Fully uninstalls iManage Work Desktop along with its Office add-ins.** [`03-uninstall-imanage`](06-applications/03-uninstall-imanage.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Uninstall iManage</b></summary>
+
+Fully uninstalls iManage Work Desktop along with its Office add-ins.<br>[`03-uninstall-imanage`](06-applications/03-uninstall-imanage.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-uninstall-imanage.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/06-applications/03-uninstall-imanage.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-WhatIf`</sub>
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Installs PDFelement and iManage by driving their wizard, which has no silent mode.** [`04-install-pdfelement-imanage`](06-applications/04-install-pdfelement-imanage.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Install PDFelement and iManage</b></summary>
+
+Installs PDFelement and iManage by driving their wizard, which has no silent mode.<br>[`04-install-pdfelement-imanage`](06-applications/04-install-pdfelement-imanage.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\04-install-pdfelement-imanage.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/06-applications/04-install-pdfelement-imanage.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Modo`</sub>
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Inspects an installer package and reports its type and supported silent switches.** [`05-diagnose-installers`](06-applications/05-diagnose-installers.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Which silent switches an installer takes</b></summary>
+
+Inspects an installer package and reports its type and supported silent switches.<br>[`05-diagnose-installers`](06-applications/05-diagnose-installers.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\05-diagnose-installers.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/06-applications/05-diagnose-installers.ps1 -OutFile $f; & $f
 ```
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> + <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Repairs the Mitel Connect / MiCollab client: cache, registry, Outlook, credentials and DNS.** [`06-repair-mitel-client`](06-applications/06-repair-mitel-client.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> + <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Repair Mitel Connect / MiCollab</b></summary>
+
+Repairs the Mitel Connect / MiCollab client: cache, registry, Outlook, credentials and DNS.<br>[`06-repair-mitel-client`](06-applications/06-repair-mitel-client.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\06-repair-mitel-client.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/06-applications/06-repair-mitel-client.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-DryRun` `-Force` `-AllUsers` `-KeepOutlookAddin` `-DisableOutlookAddin` `-KeepCredentials` `-ServerHost` `-FixDns` `-DnsServers` `-DnsSuffix` `-FixHosts` `-FixFirewall` `-Reinstall` `-LogPath`</sub>
 
+</details>
 ## <img src=".github/icons/laptop.svg" width="20" height="20" align="top" alt=""> 07 - Endpoint
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **What is filling the disk: largest folders and reclaimable junk.** [`01-disk-usage`](07-endpoint/01-disk-usage.ps1)
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Disk full</b></summary>
+
+What is filling the disk: largest folders and reclaimable junk.<br>[`01-disk-usage`](07-endpoint/01-disk-usage.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-disk-usage.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/01-disk-usage.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Ruta` `-Top` `-SoloBasura`</sub>
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Retrieves the BitLocker recovery key by serial number, device name or Entra device id.** [`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>BitLocker recovery key</b></summary>
+
+Retrieves the BitLocker recovery key by serial number, device name or Entra device id.<br>[`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\02-bitlocker-recovery-key.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/02-bitlocker-recovery-key.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Serie` `-Nombre` `-DeviceId` `-RutaCsv` `-ConfigPath`</sub>
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Diagnoses and fixes unexpected shutdowns and restarts.** [`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Unexpected shutdowns or restarts</b></summary>
+
+Diagnoses and fixes unexpected shutdowns and restarts.<br>[`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-fix-random-shutdowns.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/03-fix-random-shutdowns.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-SkipDiag` `-SkipWifi`</sub>
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Gets the clock back in sync so e-government signing works: detects location, matches time zone and country NTP servers, and repairs W32Time.** [`04-repair-time-sync`](07-endpoint/04-repair-time-sync.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Wrong clock: e-signature portals fail</b></summary>
+
+Gets the clock back in sync so e-government signing works: detects location, matches time zone and country NTP servers, and repairs W32Time.<br>[`04-repair-time-sync`](07-endpoint/04-repair-time-sync.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\04-repair-time-sync.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/04-repair-time-sync.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-DryRun` `-Force` `-DiagnoseOnly` `-TimeZoneId` `-NtpServers` `-SkipGeo` `-NoTimeZoneChange` `-PersistPublicNtp` `-AllowStepTime` `-NoStepTime` `-AutoTimeZoneService` `-PollSeconds` `-LogPath`</sub>
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Enables Windows long paths (over 260 characters) and disables 8.3 short names.** [`05-enable-long-paths`](07-endpoint/05-enable-long-paths.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Enable Windows long paths</b></summary>
+
+Enables Windows long paths (over 260 characters) and disables 8.3 short names.<br>[`05-enable-long-paths`](07-endpoint/05-enable-long-paths.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\05-enable-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/05-enable-long-paths.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-DryRun`</sub>
 
+</details>
 ## <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> 08 - Network
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Disables Wi-Fi adapter power saving and switches to the high performance power plan.** [`01-optimize-wifi-adapter`](08-network/01-optimize-wifi-adapter.ps1)
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Slow or dropping Wi-Fi</b></summary>
+
+Disables Wi-Fi adapter power saving and switches to the high performance power plan.<br>[`01-optimize-wifi-adapter`](08-network/01-optimize-wifi-adapter.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-optimize-wifi-adapter.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/08-network/01-optimize-wifi-adapter.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Adaptador` `-DryRun`</sub>
 
+</details>
 ## <img src=".github/icons/document.svg" width="20" height="20" align="top" alt=""> 09 - Documents
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Removes edit protection from a Word document when the password is lost.** [`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1)
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Protected Word file, password lost</b></summary>
+
+Removes edit protection from a Word document when the password is lost.<br>[`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-unlock-protected-word.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/09-documents/01-unlock-protected-word.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-NoPause` `-Paths`</sub>
 
+</details>
 ## <img src=".github/icons/folder_open.svg" width="20" height="20" align="top" alt=""> 10 - File picker
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Read-only. Inventory of everything that can hang the Windows file picker.** [`01-diagnose-file-picker`](10-file-picker/01-diagnose-file-picker.ps1)
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>File picker: diagnosis</b></summary>
+
+Read-only. Inventory of everything that can hang the Windows file picker.<br>[`01-diagnose-file-picker`](10-file-picker/01-diagnose-file-picker.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-diagnose-file-picker.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/10-file-picker/01-diagnose-file-picker.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-OutDir` `-DiasEventos` `-TimeoutRutaSegundos` `-SinFirmas`</sub>
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Read-only. Reproduces the file picker hang and captures the DLL behind it.** [`02-test-file-picker-hang`](10-file-picker/02-test-file-picker-hang.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>File picker hangs</b></summary>
+
+Read-only. Reproduces the file picker hang and captures the DLL behind it.<br>[`02-test-file-picker-hang`](10-file-picker/02-test-file-picker-hang.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\02-test-file-picker-hang.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/10-file-picker/02-test-file-picker-hang.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-TimeoutSegundos` `-Proceso` `-CarpetaInicial` `-Volcado` `-RutaProcdump` `-OutDir`</sub>
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Clears the file picker's remembered folders (ComDlg32 MRU). DryRun by default.** [`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Clear file picker recent folders</b></summary>
+
+Clears the file picker's remembered folders (ComDlg32 MRU). DryRun by default.<br>[`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-reset-file-picker-mru.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/10-file-picker/03-reset-file-picker-mru.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Execute` `-IncluirRecientes` `-ReiniciarExplorer` `-Restore` `-BackupDir`</sub>
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> **Disables shell extensions by CLSID, reversibly. DryRun by default.** [`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Block a shell extension</b></summary>
+
+Disables shell extensions by CLSID, reversibly. DryRun by default.<br>[`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\04-block-shell-extension.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/10-file-picker/04-block-shell-extension.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Clsid` `-ClsidFile` `-DesdeCsv` `-FiltroDll` `-Quitar` `-Listar` `-Execute` `-ReiniciarExplorer` `-Motivo` `-BackupDir`</sub>
 
-<img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> + <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Read-only. Diagnoses an application crashing when it opens the Open/Save As dialog.** [`05-diagnose-file-picker-crash`](10-file-picker/05-diagnose-file-picker-crash.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> + <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>App crashes on Open or Save as</b></summary>
+
+Read-only. Diagnoses an application crashing when it opens the Open/Save As dialog.<br>[`05-diagnose-file-picker-crash`](10-file-picker/05-diagnose-file-picker-crash.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\05-diagnose-file-picker-crash.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/10-file-picker/05-diagnose-file-picker-crash.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-ProcessName` `-OutDir` `-Interactive` `-EnableDumps` `-DryRun` `-SkipSignatures` `-TimeoutSec`</sub>
 
+</details>
 ## <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> 11 - Certificates
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Repairs one specific certificate AutoFirma cannot list, leaving the rest of the store untouched.** [`01-repair-autofirma-certificate`](11-certificates/01-repair-autofirma-certificate.ps1)
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>AutoFirma does not list the certificate</b></summary>
+
+Repairs one specific certificate AutoFirma cannot list, leaving the rest of the store untouched.<br>[`01-repair-autofirma-certificate`](11-certificates/01-repair-autofirma-certificate.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-repair-autofirma-certificate.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/11-certificates/01-repair-autofirma-certificate.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Mode` `-P12` `-Password` `-Match` `-Thumbprint` `-DryRun` `-Force` `-Log`</sub>
 
+</details>
 ## <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> 99 - Repo tools
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Validates every .ps1 in the repo: ASCII only, UTF-8 with BOM, declared Contexto and syntax on 5.1 and 7.** [`01-validate-scripts`](99-repo-tools/01-validate-scripts.ps1)
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Validate repo scripts</b></summary>
+
+Validates every .ps1 in the repo: ASCII only, UTF-8 with BOM, declared Contexto and syntax on 5.1 and 7.<br>[`01-validate-scripts`](99-repo-tools/01-validate-scripts.ps1)
 
 ```powershell
 .\99-repo-tools\01-validate-scripts.ps1
 ```
 <sub>Parameters: `-Corregir`</sub>
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Sandbox-tests the deletion logic behind the Outlook scripts. Never touches Outlook.** [`02-test-outlook-reset`](99-repo-tools/02-test-outlook-reset.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Test the Outlook reset in a sandbox</b></summary>
+
+Sandbox-tests the deletion logic behind the Outlook scripts. Never touches Outlook.<br>[`02-test-outlook-reset`](99-repo-tools/02-test-outlook-reset.ps1)
 
 ```powershell
 .\99-repo-tools\02-test-outlook-reset.ps1
 ```
 
-<img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> **Rebuilds the index in README.md and README.en.md from each script's .SYNOPSIS.** [`03-generate-readme`](99-repo-tools/03-generate-readme.ps1)
+</details>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Rebuild the READMEs</b></summary>
+
+Rebuilds the index in README.md and README.en.md from each script's .SYNOPSIS.<br>[`03-generate-readme`](99-repo-tools/03-generate-readme.ps1)
 
 ```powershell
 .\99-repo-tools\03-generate-readme.ps1
 ```
 <sub>Parameters: `-Comprobar`</sub>
+
+</details>
 
 <!-- INDICE-FIN -->
 
