@@ -82,15 +82,37 @@ $secciones = @(
 # viviendo en su carpeta; aqui solo se listan otra vez para tenerlos a mano. El orden es el
 # de uso real en una incidencia de identidad, no el de las carpetas.
 # El nombre va en ingles en los dos README: identifica la operacion, no la describe.
+# Args: parametros que se anaden a la linea de How to run cuando el valor por defecto del
+# script no arregla nada (03-repair-credential-cache arranca en Diagnose, solo lectura;
+# aqui va en la reparacion segura de su ayuda, con backup y Restore para deshacer).
 $destacados = @(
     @{ Ruta = '01-identity-cache/01-clear-cached-accounts.ps1'; Nombre = 'Identity Cache Purge' }
     @{ Ruta = '01-identity-cache/02-reset-stale-tenant-v2.1.ps1'; Nombre = 'Stale Tenant Reset' }
-    @{ Ruta = '01-identity-cache/03-repair-credential-cache-with-restore.ps1'; Nombre = 'Credential Cache Repair' }
+    @{ Ruta = '01-identity-cache/03-repair-credential-cache-with-restore.ps1'; Nombre = 'Credential Cache Repair'; Args = '-Mode Repair -CloseApps' }
     @{ Ruta = '03-onedrive/03-shorten-long-paths.ps1'; Nombre = 'OneDrive Long Path Fix' }
     @{ Ruta = '00-copy-paste/03-endpoint-report.ps1'; Nombre = 'Endpoint Technical Audit' }
     @{ Ruta = '03-onedrive/01-remediate-onedrive-tiered.ps1'; Nombre = 'OneDrive Tiered Remediation' }
     @{ Ruta = '04-teams/01-repair-teams-signin.ps1'; Nombre = 'Teams Authentication Reset' }
 )
+
+$urlRaw = 'https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main'
+
+# Linea unica para pegar en la consola del usuario: descarga de main y ejecuta, en 5.1 y 7.
+# - TLS 1.2 forzado: 5.1 en equipos viejos negocia TLS 1.0 y GitHub lo rechaza.
+# - Lo de 00-copy-paste no lleva param() ni ayuda: va en memoria con iex y no le afecta la
+#   politica de ejecucion.
+# - El resto se baja a %TEMP% con su nombre y se lanza como fichero, no con iex: asi
+#   funcionan param(), #Requires, $PSCommandPath (03-shorten-long-paths se relanza a si
+#   mismo) y la copia que hace 03-repair-signin-window para la sesion del usuario. La
+#   politica se abre solo para este proceso (-Scope Process): no queda cambiada.
+# El | de la forma iex va escapado: dentro de una tabla partiria la celda.
+function Get-UnaLinea([string]$ruta, [string]$argumentos) {
+    $tls = '[Net.ServicePointManager]::SecurityProtocol=3072'
+    if ($ruta.StartsWith('00-copy-paste/')) { return "$tls; irm $urlRaw/$ruta \| iex" }
+    $linea = "Set-ExecutionPolicy -Scope Process Bypass -Force; $tls; `$f=`"`$env:TEMP\$(Split-Path $ruta -Leaf)`"; irm $urlRaw/$ruta -OutFile `$f; & `$f"
+    if ($argumentos) { $linea += " $argumentos" }
+    return $linea
+}
 
 # alt vacio: asi la imagen no entra en el ancla que GitHub genera para el encabezado.
 function Get-Icono([string]$n) { "<img src=`".github/icons/$n.svg`" width=`"20`" height=`"20`" align=`"top`" alt=`"`">" }
@@ -116,9 +138,20 @@ function Get-Contexto([string]$ruta, [string]$idioma) {
     if ($texto -notmatch '(?m)^\s*Contexto\s*:\s*(usuario|admin|mixto)\s*$') {
         throw "Falta 'Contexto: usuario|admin|mixto' en el .NOTES de $ruta"
     }
-    $valor = $Matches[1]
-    if ($idioma -eq 'EN') { return @{ usuario = 'user'; admin = 'admin'; mixto = 'admin + user' }[$valor] }
-    return @{ usuario = 'usuario'; admin = 'admin'; mixto = 'admin + usuario' }[$valor]
+    return Get-Etiqueta $Matches[1] $idioma
+}
+
+# Consola en la que se lanza, en color para verla de un vistazo: verde sin elevar, rojo
+# elevada. GitHub no colorea texto en Markdown, asi que son SVG de .github/icons. mixto
+# pinta las dos: el script tiene fases en cada una (Get-Help -Full dice cual).
+function Get-Etiqueta([string]$valor, [string]$idioma) {
+    $user = if ($idioma -eq 'EN') { 'user' } else { 'usuario' }
+    $img = { param($n, $alt) "<img src=`".github/icons/badge-$n.svg`" height=`"20`" align=`"top`" alt=`"$alt`">" }
+    switch ($valor) {
+        'admin' { return (& $img 'admin' 'admin') }
+        'mixto' { return "$(& $img 'admin' 'admin') + $(& $img $user $user)" }
+        default { return (& $img $user $user) }
+    }
 }
 
 # Parametros tal y como los ve PowerShell: el parser lee el param() real, asi que lo que
@@ -186,7 +219,8 @@ function New-Indice([string]$idioma) {
     # Los destacados salen antes que ninguna carpeta: es la lista que se abre a diario.
     [void]$sb.AppendLine("## $(Get-Icono 'pin') 0 - LAS MAINS")
     [void]$sb.AppendLine()
-    [void]$sb.AppendLine('| Operation | Script | How to run | Run as |')
+    # Run as antes que How to run: primero se abre la consola correcta, luego se pega.
+    [void]$sb.AppendLine('| Operation | Script | Run as | How to run |')
     [void]$sb.AppendLine('|---|---|---|---|')
     foreach ($d in $destacados) {
         # Un destacado que apunta a un fichero renombrado seria un enlace roto en la
@@ -197,18 +231,17 @@ function New-Indice([string]$idioma) {
         $nombre = Split-Path $d.Ruta -Leaf
         $base = [IO.Path]::GetFileNameWithoutExtension($nombre)
         $esDe00 = $d.Ruta.StartsWith('00-copy-paste/')
-        # Pegar o ejecutar el fichero; en ese ultimo caso la celda ya es la linea que se
-        # escribe. La cuenta va aparte: es lo primero que hay que preparar.
+        # La celda es la linea que se pega tal cual. La cuenta va aparte: es lo primero que
+        # hay que preparar (consola normal o elevada).
+        $como = Get-UnaLinea $d.Ruta $d.Args
         if ($esDe00) {
             $v = if ($indicePaste -and $indicePaste.ContainsKey($nombre)) { $indicePaste[$nombre].Ventana } else { 'usuario' }
-            $como = 'paste'
-            $cuenta = if ($v -eq 'admin') { 'admin' } else { 'user' }
+            $cuenta = Get-Etiqueta $v 'EN'
         } else {
-            $como = ".\$nombre"
             $cuenta = Get-Contexto (Join-Path $raiz ($d.Ruta -replace '/', '\')) 'EN'
         }
         $icoD = Get-Icono ($secciones | Where-Object { $d.Ruta.StartsWith($_.Carpeta + '/') } | Select-Object -First 1).Icono
-        [void]$sb.AppendLine("| $icoD **$($d.Nombre)** | [``$base``]($($d.Ruta)) | ``$como`` | ``$cuenta`` |")
+        [void]$sb.AppendLine("| $icoD **$($d.Nombre)** | [``$base``]($($d.Ruta)) | $cuenta | ``$como`` |")
     }
     [void]$sb.AppendLine()
 
@@ -276,18 +309,14 @@ function New-Indice([string]$idioma) {
             if ($esPaste) {
                 if (-not $titulo) { $titulo = $f.BaseName }
                 if (-not $ventana) { $ventana = 'usuario' }
-                $ventanaTxt = if ($idioma -eq 'ES') {
-                    if ($ventana -eq 'admin') { 'admin' } else { 'usuario' }
-                } else {
-                    if ($ventana -eq 'admin') { 'admin' } else { 'user' }
-                }
-                [void]$sb.AppendLine("| **$titulo** | [``$($f.BaseName)``]($ruta) | ``$ventanaTxt`` | $desc |")
+                $ventanaTxt = Get-Etiqueta $ventana $idioma
+                [void]$sb.AppendLine("| **$titulo** | [``$($f.BaseName)``]($ruta) | $ventanaTxt | $desc |")
             }
             else {
                 $cuenta = Get-Contexto $f.FullName $idioma
                 $params = @(Get-Parametros $f.FullName)
                 $paramsTxt = if ($params.Count) { ($params | ForEach-Object { "``$_``" }) -join ' ' } elseif ($idioma -eq 'ES') { 'ninguno' } else { 'none' }
-                [void]$sb.AppendLine("| $desc | [``$($f.BaseName)``]($ruta) | ``$cuenta`` | $paramsTxt |")
+                [void]$sb.AppendLine("| $desc | [``$($f.BaseName)``]($ruta) | $cuenta | $paramsTxt |")
             }
         }
         [void]$sb.AppendLine()
