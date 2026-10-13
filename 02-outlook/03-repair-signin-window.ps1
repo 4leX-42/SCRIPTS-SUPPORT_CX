@@ -26,9 +26,12 @@
       3. Renombra la cache web del broker (INetCache, INetCookies) a .bak: no cierra sesion.
       4. Con -BorrarCuentasWam, renombra tambien las cuentas de WAM, OneAuth e IdentityCache.
       5. Re-registra los tres paquetes (procedimiento oficial de Microsoft).
-      6. Reinicia TokenBroker, wlidsvc y cloudidsvc.
+      6. Reinicia TokenBroker, wlidsvc y cloudidsvc (requiere administrador).
 
-    Los pasos 5 y 6 necesitan administrador. Sin elevar, el script hace el resto y avisa.
+    Desde la consola de una herramienta remota (SYSTEM) el script se reparte solo: la parte
+    de equipo (servicios, WebView2, red, modulos) la hace como SYSTEM, y la parte de perfil
+    (pasos 1-5) la lanza como tarea programada dentro de la sesion del usuario conectado y
+    muestra su log al terminar.
 
 .PARAMETER SoloDiagnostico
     Solo la fase 1. No cambia nada.
@@ -43,21 +46,27 @@
 .PARAMETER Force
     No pide confirmacion.
 
+.PARAMETER FaseUsuario
+    Uso interno: la parte de perfil, lanzada por el propio script desde SYSTEM.
+
+.PARAMETER DirTrabajo
+    Uso interno: carpeta compartida entre SYSTEM y la tarea del usuario para el log.
+
 .EXAMPLE
     # Con la ventana de login en blanco abierta en pantalla:
     .\03-repair-signin-window.ps1 -SoloDiagnostico
 
 .EXAMPLE
-    .\03-repair-signin-window.ps1
+    .\03-repair-signin-window.ps1 -Force
 
 .EXAMPLE
     .\03-repair-signin-window.ps1 -BorrarCuentasWam -Force
 
 .NOTES
     Contexto: admin
-    PowerShell como administrador DESDE LA SESION DEL USUARIO AFECTADO. Los paquetes se
-    registran y la cache se limpia para la cuenta que ejecuta: elevar con otra cuenta
-    repararia el perfil equivocado, y el script lo detecta contra explorer.exe y aborta.
+    Vale PowerShell como administrador desde la sesion del usuario afectado, o la consola
+    SYSTEM de la herramienta remota con el usuario conectado. Elevar con OTRA cuenta de
+    usuario repararia el perfil equivocado: el script lo detecta contra explorer.exe y aborta.
     PowerShell 5.1 y 7. Windows 10 y 11.
     Referencia: learn.microsoft.com/troubleshoot/microsoft-365/admin/authentication/automatic-authentication-fails
 #>
@@ -67,14 +76,16 @@ param(
     [switch]$SoloDiagnostico,
     [switch]$BorrarCuentasWam,
     [switch]$DryRun,
-    [switch]$Force
+    [switch]$Force,
+    [switch]$FaseUsuario,
+    [string]$DirTrabajo
 )
 
 $ErrorActionPreference = 'Continue'
-$stamp   = Get-Date -Format 'yyyyMMdd_HHmmss'
-$logDir  = Join-Path $env:TEMP "SigninWindow_$stamp"
+$stamp  = Get-Date -Format 'yyyyMMdd_HHmmss'
+$logDir = if ($DirTrabajo) { $DirTrabajo } else { Join-Path $env:TEMP "SigninWindow_$stamp" }
 New-Item -ItemType Directory -Path $logDir -Force | Out-Null
-$logFile = Join-Path $logDir 'repair.log'
+$logFile = Join-Path $logDir $(if ($FaseUsuario) { 'usuario.log' } else { 'repair.log' })
 $avisos  = New-Object System.Collections.ArrayList
 
 function Write-Log {
@@ -88,8 +99,18 @@ function Write-Log {
 
 function Write-Section([string]$t) { Write-Host ''; Write-Host "=== $t ===" -ForegroundColor Cyan; Add-Content -Path $logFile -Value "=== $t ===" -Encoding UTF8 }
 
-$broker     = 'Microsoft.AAD.BrokerPlugin_cw5n1h2txyewy'
-$brokerData = Join-Path $env:LOCALAPPDATA "Packages\$broker"
+function Invoke-Paso([string]$Desc, [scriptblock]$Accion) {
+    if ($DryRun) { Write-Log "[SIMULACION] $Desc" 'DRY'; return }
+    try { & $Accion; Write-Log $Desc 'OK' } catch { Write-Log "$Desc -> $($_.Exception.Message)" 'ERROR' }
+}
+
+function Rename-Respaldo([string]$Ruta) {
+    if (-not (Test-Path -LiteralPath $Ruta)) { Write-Log "No existe: $Ruta" 'SKIP'; return }
+    $destino = "$(Split-Path $Ruta -Leaf).bak_$stamp"
+    Invoke-Paso "Renombrado $Ruta -> $destino" { Rename-Item -LiteralPath $Ruta -NewName $destino -ErrorAction Stop }
+}
+
+$brokerData = Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.AAD.BrokerPlugin_cw5n1h2txyewy'
 $paquetes   = @(
     @{ Nombre = 'Microsoft.AAD.BrokerPlugin'; Carpeta = 'Microsoft.AAD.BrokerPlugin_cw5n1h2txyewy'; Para = 'cuentas de trabajo' }
     @{ Nombre = 'Microsoft.AccountsControl'; Carpeta = 'Microsoft.AccountsControl_cw5n1h2txyewy'; Para = 'selector de cuentas' }
@@ -101,101 +122,127 @@ $valoresWam = @('DisableAADWAM', 'DisableADALatopWAMOverride', 'DisableMSAWAM')
 $endpoints  = @('login.microsoftonline.com', 'aadcdn.msftauth.net', 'aadcdn.msauth.net', 'logincdn.msftauth.net', 'login.live.com')
 
 # ---------------------------------------------------------------------------
-# Contexto: la cuenta que ejecuta debe ser la del usuario de la sesion
+# Parte de perfil: corre siempre con la cuenta del usuario afectado
 # ---------------------------------------------------------------------------
-Write-Section 'Contexto'
-$yo      = "$env:USERDOMAIN\$env:USERNAME"
-$esAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-$sesion  = $null
-try {
-    $exp = @(Get-CimInstance Win32_Process -Filter "Name='explorer.exe'" -ErrorAction Stop) | Select-Object -First 1
-    if ($exp) {
-        $o = Invoke-CimMethod -InputObject $exp -MethodName GetOwner -ErrorAction Stop
-        if ($o.User) { $sesion = "$($o.Domain)\$($o.User)" }
+function Invoke-DiagUsuario {
+    Write-Section 'Paquetes de cuentas de Windows'
+    foreach ($p in $paquetes) {
+        $pkg = @(Get-AppxPackage -Name $p.Nombre -ErrorAction SilentlyContinue) | Select-Object -First 1
+        if (-not $pkg) { Write-Log "$($p.Nombre) ($($p.Para)): NO registrado para este usuario" 'WARN' }
+        elseif ("$($pkg.Status)" -ne 'Ok') { Write-Log "$($p.Nombre): estado $($pkg.Status)" 'WARN' }
+        else { Write-Log "$($p.Nombre): Ok ($($pkg.Version))" 'OK' }
     }
-} catch { }
-Write-Log "Ejecuta : $yo  (elevado: $esAdmin)"
-Write-Log "Sesion  : $(if ($sesion) { $sesion } else { 'no detectada' })"
-Write-Log "Windows : $([Environment]::OSVersion.Version)"
-if ($sesion -and $sesion -ne $yo) {
-    Write-Log "La consola es de $yo pero la sesion es de $sesion. Se repararia el perfil equivocado." 'ERROR'
-    Write-Log 'Abrir PowerShell como administrador desde la sesion del usuario afectado (su propia cuenta).' 'ERROR'
-    exit 1
-}
-if (-not $esAdmin -and -not $SoloDiagnostico) {
-    Write-Log 'Sin elevar: se omitiran el re-registro de paquetes y el reinicio de servicios.' 'WARN'
-}
 
-# ---------------------------------------------------------------------------
-# Fase 1 - Diagnostico
-# ---------------------------------------------------------------------------
-Write-Section 'Paquetes de cuentas de Windows'
-foreach ($p in $paquetes) {
-    $pkg = @(Get-AppxPackage -Name $p.Nombre -ErrorAction SilentlyContinue) | Select-Object -First 1
-    if (-not $pkg) { Write-Log "$($p.Nombre) ($($p.Para)): NO registrado para este usuario" 'WARN' }
-    elseif ("$($pkg.Status)" -ne 'Ok') { Write-Log "$($p.Nombre): estado $($pkg.Status)" 'WARN' }
-    else { Write-Log "$($p.Nombre): Ok ($($pkg.Version))" 'OK' }
-}
-
-Write-Section 'WebView2 Runtime'
-$wv2Id  = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
-$wv2Ver = $null
-foreach ($k in @("HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\$wv2Id", "HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\$wv2Id", "HKCU:\Software\Microsoft\EdgeUpdate\Clients\$wv2Id")) {
-    $pv = (Get-ItemProperty -Path $k -Name pv -ErrorAction SilentlyContinue).pv
-    if ($pv -and $pv -ne '0.0.0.0') { $wv2Ver = $pv; break }
-}
-if ($wv2Ver) { Write-Log "WebView2 $wv2Ver" 'OK' }
-else { Write-Log 'WebView2 Runtime no instalado o roto. Instalar el Evergreen Bootstrapper de Microsoft.' 'WARN' }
-
-Write-Section 'Servicios'
-foreach ($s in $servicios) {
-    $svc = Get-Service -Name $s -ErrorAction SilentlyContinue
-    if (-not $svc) { Write-Log "${s}: no existe en este Windows" 'SKIP'; continue }
-    $modo = (Get-CimInstance Win32_Service -Filter "Name='$s'" -ErrorAction SilentlyContinue).StartMode
-    if ($modo -eq 'Disabled') { Write-Log "${s}: DESHABILITADO. WAM no puede funcionar." 'WARN' }
-    else { Write-Log "${s}: $($svc.Status) ($modo)" 'OK' }
-}
-
-Write-Section 'Registro de identidad de Office'
-$quitar = New-Object System.Collections.ArrayList
-foreach ($v in $valoresWam) {
-    $val = (Get-ItemProperty -Path $identity -Name $v -ErrorAction SilentlyContinue).$v
-    if ($null -ne $val) { Write-Log "$identity\$v = $val (desactiva o altera WAM)" 'WARN'; [void]$quitar.Add($v) }
-}
-$pol = 'HKCU:\Software\Policies\Microsoft\Office\16.0\Common\Identity'
-foreach ($v in $valoresWam) {
-    $val = (Get-ItemProperty -Path $pol -Name $v -ErrorAction SilentlyContinue).$v
-    if ($null -ne $val) { Write-Log "$pol\$v = $val viene por directiva: hay que quitarlo en la GPO/Intune, no aqui" 'WARN' }
-}
-if (-not $quitar.Count) { Write-Log 'Sin valores heredados que desactiven WAM' 'OK' }
-
-Write-Section 'Red'
-$proxyHkcu = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -ErrorAction SilentlyContinue
-if ($proxyHkcu.ProxyEnable -eq 1) { Write-Log "Proxy de usuario: $($proxyHkcu.ProxyServer)" 'INFO' }
-if ($proxyHkcu.AutoConfigURL) { Write-Log "PAC: $($proxyHkcu.AutoConfigURL)" 'INFO' }
-$winhttp = (& netsh winhttp show proxy 2>$null) -join ' '
-if ($winhttp -match 'Direct access|Acceso directo') { Write-Log 'WinHTTP: acceso directo' 'INFO' } else { Write-Log "WinHTTP: $($winhttp -replace '\s+', ' ')" 'INFO' }
-try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
-foreach ($h in $endpoints) {
-    $ok = $false; $det = ''
-    try {
-        $r = Invoke-WebRequest -Uri "https://$h/" -Method Head -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
-        $ok = $true; $det = "HTTP $($r.StatusCode)"
-    } catch {
-        # Un 400/404 tambien demuestra que la conexion TLS llega: lo que falla es la ruta, no la red.
-        if ($_.Exception.Response) { $ok = $true; $det = 'responde' } else { $det = $_.Exception.Message }
+    Write-Section 'Registro de identidad de Office'
+    $script:quitar = New-Object System.Collections.ArrayList
+    foreach ($v in $valoresWam) {
+        $val = (Get-ItemProperty -Path $identity -Name $v -ErrorAction SilentlyContinue).$v
+        if ($null -ne $val) { Write-Log "$identity\$v = $val (desactiva o altera WAM)" 'WARN'; [void]$script:quitar.Add($v) }
     }
-    if ($ok) { Write-Log "$h : $det" 'OK' } else { Write-Log "$h : SIN ACCESO ($det). La pagina de login no puede cargarse." 'WARN' }
+    $pol = 'HKCU:\Software\Policies\Microsoft\Office\16.0\Common\Identity'
+    foreach ($v in $valoresWam) {
+        $val = (Get-ItemProperty -Path $pol -Name $v -ErrorAction SilentlyContinue).$v
+        if ($null -ne $val) { Write-Log "$pol\$v = $val viene por directiva: hay que quitarlo en la GPO/Intune, no aqui" 'WARN' }
+    }
+    if (-not $script:quitar.Count) { Write-Log 'Sin valores heredados que desactiven WAM' 'OK' }
+
+    Write-Section 'Proxy del usuario'
+    $ie = Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Internet Settings' -ErrorAction SilentlyContinue
+    if ($ie.ProxyEnable -eq 1) { Write-Log "Proxy: $($ie.ProxyServer)" 'INFO' } else { Write-Log 'Sin proxy manual' 'INFO' }
+    if ($ie.AutoConfigURL) { Write-Log "PAC: $($ie.AutoConfigURL)" 'INFO' }
 }
 
-# Mismo patron que el selector de archivos (10-file-picker): la ventana la pinta otro proceso
-# y lo que la deja en blanco suele ser una DLL de terceros cargada dentro. Solo sirve con la
-# ventana en blanco abierta delante: entonces el broker y sus WebView2 estan vivos.
-Write-Section 'Modulos de terceros en la ventana de login'
-$brk = @(Get-CimInstance Win32_Process -Filter "Name='Microsoft.AAD.BrokerPlugin.exe'" -ErrorAction SilentlyContinue)
-if (-not $brk.Count) {
-    Write-Log 'El broker no esta abierto. Para esta prueba, lanzar con la ventana en blanco en pantalla.' 'SKIP'
-} else {
+function Invoke-ReparaUsuario {
+    Write-Section 'Cerrar procesos'
+    foreach ($n in @('OUTLOOK', 'Microsoft.AAD.BrokerPlugin')) {
+        $pr = @(Get-Process -Name $n -ErrorAction SilentlyContinue)
+        if (-not $pr.Count) { Write-Log "${n}: no esta abierto" 'SKIP'; continue }
+        Invoke-Paso "Cerrado $n ($($pr.Count))" { $pr | Stop-Process -Force -ErrorAction Stop }
+    }
+    if (-not $DryRun) { Start-Sleep -Seconds 2 }
+    Write-Log 'Si sigue abierta la ventana "Correo" del Panel de control, cerrarla a mano.' 'INFO'
+
+    Write-Section 'Registro de identidad'
+    if ($script:quitar.Count) {
+        $reg = Join-Path $logDir 'Identity.reg'
+        Invoke-Paso "Backup $identity -> $reg" { & reg.exe export 'HKCU\Software\Microsoft\Office\16.0\Common\Identity' $reg /y | Out-Null }
+        foreach ($v in $script:quitar) { Invoke-Paso "Quitado $v" { Remove-ItemProperty -Path $identity -Name $v -ErrorAction Stop } }
+    } else { Write-Log 'Nada que quitar' 'SKIP' }
+
+    Write-Section 'Cache web del broker'
+    foreach ($sub in @('AC\INetCache', 'AC\INetCookies')) { Rename-Respaldo (Join-Path $brokerData $sub) }
+
+    if ($BorrarCuentasWam) {
+        Write-Section 'Cuentas cacheadas (WAM, OneAuth, IdentityCache)'
+        Rename-Respaldo (Join-Path $brokerData 'AC\TokenBroker\Accounts')
+        Rename-Respaldo (Join-Path $env:LOCALAPPDATA 'Microsoft\OneAuth')
+        Rename-Respaldo (Join-Path $env:LOCALAPPDATA 'Microsoft\IdentityCache')
+    }
+
+    # El registro es por usuario y sobre un paquete ya instalado en SystemApps: se intenta
+    # aunque no haya elevacion, y si Windows lo deniega queda en el log.
+    Write-Section 'Re-registro de paquetes'
+    foreach ($p in $paquetes) {
+        $manifest = Join-Path $env:windir "SystemApps\$($p.Carpeta)\AppxManifest.xml"
+        if (-not (Test-Path $manifest)) { Write-Log "No existe $manifest" 'SKIP'; continue }
+        Invoke-Paso "Re-registrado $($p.Nombre)" { Add-AppxPackage -Register $manifest -DisableDevelopmentMode -ForceApplicationShutdown -ErrorAction Stop }
+    }
+
+    Write-Section 'Verificacion'
+    foreach ($p in $paquetes) {
+        $pkg = @(Get-AppxPackage -Name $p.Nombre -ErrorAction SilentlyContinue) | Select-Object -First 1
+        if ($pkg -and "$($pkg.Status)" -eq 'Ok') { Write-Log "$($p.Nombre): Ok" 'OK' } else { Write-Log "$($p.Nombre): sigue sin estar Ok" 'WARN' }
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Parte de equipo: vale desde cualquier cuenta con privilegios
+# ---------------------------------------------------------------------------
+function Invoke-DiagEquipo {
+    Write-Section 'WebView2 Runtime'
+    $wv2Id  = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+    $wv2Ver = $null
+    foreach ($k in @("HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\$wv2Id", "HKLM:\SOFTWARE\Microsoft\EdgeUpdate\Clients\$wv2Id", "HKCU:\Software\Microsoft\EdgeUpdate\Clients\$wv2Id")) {
+        $pv = (Get-ItemProperty -Path $k -Name pv -ErrorAction SilentlyContinue).pv
+        if ($pv -and $pv -ne '0.0.0.0') { $wv2Ver = $pv; break }
+    }
+    if ($wv2Ver) { Write-Log "WebView2 $wv2Ver" 'OK' }
+    else { Write-Log 'WebView2 Runtime no instalado o roto. Instalar el Evergreen Bootstrapper de Microsoft.' 'WARN' }
+
+    Write-Section 'Servicios'
+    foreach ($s in $servicios) {
+        $svc = Get-Service -Name $s -ErrorAction SilentlyContinue
+        if (-not $svc) { Write-Log "${s}: no existe en este Windows" 'SKIP'; continue }
+        $modo = (Get-CimInstance Win32_Service -Filter "Name='$s'" -ErrorAction SilentlyContinue).StartMode
+        if ($modo -eq 'Disabled') { Write-Log "${s}: DESHABILITADO. WAM no puede funcionar." 'WARN' }
+        else { Write-Log "${s}: $($svc.Status) ($modo)" 'OK' }
+    }
+
+    Write-Section 'Red'
+    $winhttp = (& netsh winhttp show proxy 2>$null) -join ' '
+    if ($winhttp -match 'Direct access|Acceso directo') { Write-Log 'WinHTTP: acceso directo' 'INFO' } else { Write-Log "WinHTTP: $($winhttp -replace '\s+', ' ')" 'INFO' }
+    try { [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12 } catch { }
+    foreach ($h in $endpoints) {
+        $ok = $false; $det = ''
+        try {
+            $r = Invoke-WebRequest -Uri "https://$h/" -Method Head -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+            $ok = $true; $det = "HTTP $($r.StatusCode)"
+        } catch {
+            # Un 400/404 tambien demuestra que la conexion TLS llega: lo que falla es la ruta, no la red.
+            if ($_.Exception.Response) { $ok = $true; $det = 'responde' } else { $det = $_.Exception.Message }
+        }
+        if ($ok) { Write-Log "$h : $det" 'OK' } else { Write-Log "$h : SIN ACCESO ($det). La pagina de login no puede cargarse." 'WARN' }
+    }
+
+    # Mismo patron que el selector de archivos (10-file-picker): la ventana la pinta otro proceso
+    # y lo que la deja en blanco suele ser una DLL de terceros cargada dentro. Solo sirve con la
+    # ventana en blanco abierta delante: entonces el broker y sus WebView2 estan vivos.
+    Write-Section 'Modulos de terceros en la ventana de login'
+    $brk = @(Get-CimInstance Win32_Process -Filter "Name='Microsoft.AAD.BrokerPlugin.exe'" -ErrorAction SilentlyContinue)
+    if (-not $brk.Count) {
+        Write-Log 'El broker no esta abierto. Para esta prueba, lanzar con la ventana en blanco en pantalla.' 'SKIP'
+        return
+    }
     $ids   = @($brk | ForEach-Object { $_.ProcessId })
     $hijos = @(Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" -ErrorAction SilentlyContinue | Where-Object { $ids -contains $_.ParentProcessId })
     $ids  += @($hijos | ForEach-Object { $_.ProcessId })
@@ -220,82 +267,15 @@ if (-not $brk.Count) {
         $emisor = if ($firma -match 'O=([^,]+)') { $Matches[1].Trim('"') } else { 'SIN FIRMA' }
         [void]$terceros.Add([pscustomobject]@{ Proceso = $rutas[$r]; Firmante = $emisor; Ruta = $r })
     }
-    if (-not $terceros.Count) { Write-Log "$($rutas.Count) modulos, todos de Microsoft" 'OK' }
-    else {
-        foreach ($t in ($terceros | Sort-Object Firmante, Ruta)) { Write-Log "SOSPECHOSO [$($t.Firmante)] $($t.Ruta) (en $($t.Proceso))" 'WARN' }
-        $csv = Join-Path $logDir 'modulos-terceros.csv'
-        $terceros | Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
-        Write-Log "Lista en $csv. Desactivar o desinstalar el producto de ese firmante y repetir el login." 'WARN'
-    }
+    if (-not $terceros.Count) { Write-Log "$($rutas.Count) modulos, todos de Microsoft" 'OK'; return }
+    foreach ($t in ($terceros | Sort-Object Firmante, Ruta)) { Write-Log "SOSPECHOSO [$($t.Firmante)] $($t.Ruta) (en $($t.Proceso))" 'WARN' }
+    $csv = Join-Path $logDir 'modulos-terceros.csv'
+    $terceros | Export-Csv -Path $csv -NoTypeInformation -Encoding UTF8
+    Write-Log "Lista en $csv. Desactivar o desinstalar el producto de ese firmante y repetir el login." 'WARN'
 }
 
-if ($SoloDiagnostico) {
-    Write-Section 'Resultado'
-    Write-Log "Solo diagnostico. Log: $logFile"
-    exit 0
-}
-
-# ---------------------------------------------------------------------------
-# Fase 2 - Reparacion
-# ---------------------------------------------------------------------------
-if (-not $Force -and -not $DryRun) {
-    Write-Host ''
-    Write-Host 'Se cerrara Outlook y se reparara el broker de inicio de sesion.' -ForegroundColor Yellow
-    if ($BorrarCuentasWam) { Write-Host 'Con -BorrarCuentasWam habra que volver a iniciar sesion en Office, Teams y OneDrive.' -ForegroundColor Yellow }
-    $resp = Read-Host 'Continuar? (S/N)'
-    if ($resp -notmatch '^[sSyY]') { Write-Log 'Cancelado por el usuario' 'SKIP'; exit 0 }
-}
-
-function Invoke-Paso([string]$Desc, [scriptblock]$Accion) {
-    if ($DryRun) { Write-Log "[SIMULACION] $Desc" 'DRY'; return }
-    try { & $Accion; Write-Log $Desc 'OK' } catch { Write-Log "$Desc -> $($_.Exception.Message)" 'ERROR' }
-}
-
-function Rename-Respaldo([string]$Ruta) {
-    if (-not (Test-Path -LiteralPath $Ruta)) { Write-Log "No existe: $Ruta" 'SKIP'; return }
-    $destino = "$(Split-Path $Ruta -Leaf).bak_$stamp"
-    Invoke-Paso "Renombrado $Ruta -> $destino" { Rename-Item -LiteralPath $Ruta -NewName $destino -ErrorAction Stop }
-}
-
-Write-Section 'Cerrar procesos'
-foreach ($n in @('OUTLOOK', 'Microsoft.AAD.BrokerPlugin')) {
-    $pr = @(Get-Process -Name $n -ErrorAction SilentlyContinue)
-    if (-not $pr.Count) { Write-Log "${n}: no esta abierto" 'SKIP'; continue }
-    Invoke-Paso "Cerrado $n ($($pr.Count))" { $pr | Stop-Process -Force -ErrorAction Stop }
-}
-if (-not $DryRun) { Start-Sleep -Seconds 2 }
-Write-Log 'Si sigue abierta la ventana "Correo" del Panel de control, cerrarla a mano.' 'INFO'
-
-Write-Section 'Registro de identidad'
-if ($quitar.Count) {
-    $reg = Join-Path $logDir 'Identity.reg'
-    Invoke-Paso "Backup $identity -> $reg" { & reg.exe export 'HKCU\Software\Microsoft\Office\16.0\Common\Identity' $reg /y | Out-Null }
-    foreach ($v in $quitar) { Invoke-Paso "Quitado $v" { Remove-ItemProperty -Path $identity -Name $v -ErrorAction Stop } }
-} else { Write-Log 'Nada que quitar' 'SKIP' }
-
-Write-Section 'Cache web del broker'
-foreach ($sub in @('AC\INetCache', 'AC\INetCookies')) { Rename-Respaldo (Join-Path $brokerData $sub) }
-
-if ($BorrarCuentasWam) {
-    Write-Section 'Cuentas cacheadas (WAM, OneAuth, IdentityCache)'
-    Rename-Respaldo (Join-Path $brokerData 'AC\TokenBroker\Accounts')
-    Rename-Respaldo (Join-Path $env:LOCALAPPDATA 'Microsoft\OneAuth')
-    Rename-Respaldo (Join-Path $env:LOCALAPPDATA 'Microsoft\IdentityCache')
-}
-
-Write-Section 'Re-registro de paquetes'
-if (-not $esAdmin) { Write-Log 'Omitido: requiere PowerShell como administrador' 'WARN' }
-else {
-    foreach ($p in $paquetes) {
-        $manifest = Join-Path $env:windir "SystemApps\$($p.Carpeta)\AppxManifest.xml"
-        if (-not (Test-Path $manifest)) { Write-Log "No existe $manifest" 'SKIP'; continue }
-        Invoke-Paso "Re-registrado $($p.Nombre)" { Add-AppxPackage -Register $manifest -DisableDevelopmentMode -ForceApplicationShutdown -ErrorAction Stop }
-    }
-}
-
-Write-Section 'Servicios'
-if (-not $esAdmin) { Write-Log 'Omitido: requiere PowerShell como administrador' 'WARN' }
-else {
+function Invoke-ReparaServicios {
+    Write-Section 'Servicios'
     foreach ($s in $servicios) {
         $svc = Get-Service -Name $s -ErrorAction SilentlyContinue
         if (-not $svc) { continue }
@@ -306,19 +286,132 @@ else {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Verificacion
-# ---------------------------------------------------------------------------
-Write-Section 'Verificacion'
-foreach ($p in $paquetes) {
-    $pkg = @(Get-AppxPackage -Name $p.Nombre -ErrorAction SilentlyContinue) | Select-Object -First 1
-    if ($pkg -and "$($pkg.Status)" -eq 'Ok') { Write-Log "$($p.Nombre): Ok" 'OK' } else { Write-Log "$($p.Nombre): sigue sin estar Ok" 'WARN' }
+function Confirm-Reparacion {
+    if ($Force -or $DryRun -or $SoloDiagnostico) { return $true }
+    Write-Host ''
+    Write-Host 'Se cerrara Outlook y se reparara el broker de inicio de sesion.' -ForegroundColor Yellow
+    if ($BorrarCuentasWam) { Write-Host 'Con -BorrarCuentasWam habra que volver a iniciar sesion en Office, Teams y OneDrive.' -ForegroundColor Yellow }
+    $resp = Read-Host 'Continuar? (S/N)'
+    if ($resp -match '^[sSyY]') { return $true }
+    Write-Log 'Cancelado por el usuario' 'SKIP'
+    return $false
 }
 
-Write-Section 'Siguiente paso'
-Write-Host '  1. Abrir Outlook directamente (no desde Panel de control > Correo) y agregar la cuenta.'
-Write-Host '  2. Si la ventana sigue en blanco: reiniciar el equipo y repetir.'
-Write-Host '  3. Si persiste: volver a lanzar con -BorrarCuentasWam.'
-Write-Host '  4. Si algun CDN sale SIN ACCESO: es proxy o firewall, no el equipo.'
-Write-Host ''
+function Show-SiguientePaso {
+    Write-Section 'Siguiente paso'
+    Write-Host '  1. Abrir Outlook directamente (no desde Panel de control > Correo) y agregar la cuenta.'
+    Write-Host '  2. Si la ventana sigue en blanco: reiniciar el equipo y repetir.'
+    Write-Host '  3. Si persiste: volver a lanzar con -BorrarCuentasWam.'
+    Write-Host '  4. Si algun CDN sale SIN ACCESO: es proxy o firewall, no el equipo.'
+    Write-Host ''
+}
+
+# ---------------------------------------------------------------------------
+# Fase lanzada por SYSTEM dentro de la sesion del usuario
+# ---------------------------------------------------------------------------
+if ($FaseUsuario) {
+    Write-Section "Perfil de $env:USERDOMAIN\$env:USERNAME"
+    Invoke-DiagUsuario
+    if (-not $SoloDiagnostico) { Invoke-ReparaUsuario }
+    exit 0
+}
+
+# ---------------------------------------------------------------------------
+# Contexto
+# ---------------------------------------------------------------------------
+Write-Section 'Contexto'
+$identidad = [Security.Principal.WindowsIdentity]::GetCurrent()
+$yo        = "$env:USERDOMAIN\$env:USERNAME"
+$esSystem  = $identidad.User.Value -eq 'S-1-5-18'
+$esAdmin   = ([Security.Principal.WindowsPrincipal]$identidad).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+$sesion    = $null
+try {
+    $exp = @(Get-CimInstance Win32_Process -Filter "Name='explorer.exe'" -ErrorAction Stop) | Select-Object -First 1
+    if ($exp) {
+        $o = Invoke-CimMethod -InputObject $exp -MethodName GetOwner -ErrorAction Stop
+        if ($o.User) { $sesion = "$($o.Domain)\$($o.User)" }
+    }
+} catch { }
+Write-Log "Ejecuta : $(if ($esSystem) { 'SYSTEM' } else { $yo })  (elevado: $esAdmin)"
+Write-Log "Sesion  : $(if ($sesion) { $sesion } else { 'no detectada' })"
+Write-Log "Windows : $([Environment]::OSVersion.Version)"
+
+# ---------------------------------------------------------------------------
+# Modo SYSTEM (consola de herramienta remota): equipo aqui, perfil en tarea del usuario
+# ---------------------------------------------------------------------------
+if ($esSystem) {
+    if (-not $sesion) { Write-Log 'No hay ningun usuario con sesion abierta: la parte de perfil necesita que este conectado.' 'ERROR'; exit 1 }
+    Write-Log "Consola SYSTEM: la parte de perfil se ejecutara como tarea en la sesion de $sesion." 'INFO'
+
+    Invoke-DiagEquipo
+    if (-not (Confirm-Reparacion)) { exit 0 }
+
+    # Carpeta que pueden leer y escribir SYSTEM y el usuario: el log vuelve por aqui.
+    $trabajo = Join-Path $env:ProgramData "SigninWindow\$stamp"
+    New-Item -ItemType Directory -Path $trabajo -Force | Out-Null
+    & icacls.exe $trabajo /grant "${sesion}:(OI)(CI)M" | Out-Null
+    $copia = Join-Path $trabajo 'repair-signin-window.ps1'
+    Copy-Item -LiteralPath $PSCommandPath -Destination $copia -Force
+
+    $argumentos = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$copia`" -FaseUsuario -Force -DirTrabajo `"$trabajo`""
+    if ($SoloDiagnostico)  { $argumentos += ' -SoloDiagnostico' }
+    if ($BorrarCuentasWam) { $argumentos += ' -BorrarCuentasWam' }
+    if ($DryRun)           { $argumentos += ' -DryRun' }
+
+    $tarea = "SigninWindowRepair_$stamp"
+    try {
+        $accion    = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $argumentos
+        $principal = New-ScheduledTaskPrincipal -UserId $sesion -LogonType Interactive -RunLevel Highest
+        $ajustes   = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
+        Register-ScheduledTask -TaskName $tarea -Action $accion -Principal $principal -Settings $ajustes -Force | Out-Null
+        Start-ScheduledTask -TaskName $tarea
+        Write-Log "Tarea $tarea lanzada en la sesion de $sesion. Esperando..." 'INFO'
+        $limite = (Get-Date).AddMinutes(5)
+        do { Start-Sleep -Seconds 2 } while ((Get-ScheduledTask -TaskName $tarea).State -eq 'Running' -and (Get-Date) -lt $limite)
+        $resultado = (Get-ScheduledTaskInfo -TaskName $tarea).LastTaskResult
+        if ((Get-ScheduledTask -TaskName $tarea).State -eq 'Running') { Write-Log 'La parte de perfil no ha terminado en 5 minutos.' 'WARN' }
+        elseif ($resultado -ne 0) { Write-Log "La parte de perfil termino con codigo $resultado" 'WARN' }
+    } catch {
+        Write-Log "No se pudo lanzar la tarea en la sesion del usuario: $($_.Exception.Message)" 'ERROR'
+    } finally {
+        Unregister-ScheduledTask -TaskName $tarea -Confirm:$false -ErrorAction SilentlyContinue
+    }
+
+    $logUsuario = Join-Path $trabajo 'usuario.log'
+    if (Test-Path $logUsuario) {
+        Write-Host ''
+        foreach ($l in (Get-Content -Path $logUsuario -Encoding UTF8)) {
+            $c = if ($l -match '\[(ERROR)') { 'Red' } elseif ($l -match '\[WARN') { 'Yellow' } elseif ($l -match '\[OK') { 'Green' } elseif ($l -match '^===') { 'Cyan' } elseif ($l -match '\[DRY') { 'Cyan' } else { 'Gray' }
+            Write-Host $l -ForegroundColor $c
+            if ($l -match '\[(WARN |ERROR)\]') { [void]$avisos.Add($l) }
+        }
+    } else { Write-Log "La parte de perfil no dejo log en $logUsuario" 'ERROR' }
+
+    if (-not $SoloDiagnostico) { Invoke-ReparaServicios }
+    if (-not $SoloDiagnostico) { Show-SiguientePaso }
+    if ($avisos.Count) { Write-Log "$($avisos.Count) aviso/s. Logs: $trabajo y $logFile" 'WARN' } else { Write-Log "Terminado sin avisos. Logs: $trabajo" 'OK' }
+    exit 0
+}
+
+# ---------------------------------------------------------------------------
+# Modo consola del usuario
+# ---------------------------------------------------------------------------
+if ($sesion -and $sesion -ne $yo) {
+    Write-Log "La consola es de $yo pero la sesion es de $sesion. Se repararia el perfil equivocado." 'ERROR'
+    Write-Log 'Lanzarlo desde la sesion del usuario afectado, o desde la consola SYSTEM de la herramienta remota.' 'ERROR'
+    exit 1
+}
+if (-not $esAdmin -and -not $SoloDiagnostico) { Write-Log 'Sin elevar: se omitira el reinicio de servicios.' 'WARN' }
+
+Invoke-DiagUsuario
+Invoke-DiagEquipo
+if ($SoloDiagnostico) {
+    Write-Section 'Resultado'
+    Write-Log "Solo diagnostico. Log: $logFile"
+    exit 0
+}
+if (-not (Confirm-Reparacion)) { exit 0 }
+Invoke-ReparaUsuario
+if ($esAdmin) { Invoke-ReparaServicios } else { Write-Log 'Reinicio de servicios omitido: requiere PowerShell como administrador' 'WARN' }
+Show-SiguientePaso
 if ($avisos.Count) { Write-Log "$($avisos.Count) aviso/s. Log: $logFile" 'WARN' } else { Write-Log "Terminado sin avisos. Log: $logFile" 'OK' }
