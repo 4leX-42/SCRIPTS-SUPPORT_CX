@@ -170,6 +170,9 @@ function Add-Ficha($sb, [string]$resumen, [string]$cuerpo, [string]$linea, [stri
     if ($pie) { [void]$sb.AppendLine($pie) }
     [void]$sb.AppendLine()
     [void]$sb.AppendLine('</details>')
+    # Linea en blanco obligatoria: un bloque HTML solo termina en linea vacia, y sin ella el
+    # '## ' de la seccion siguiente se queda dentro y GitHub lo pinta tal cual.
+    [void]$sb.AppendLine()
 }
 
 function Get-Titulo([string]$nombre, [string]$idioma, [string]$porDefecto) {
@@ -180,11 +183,6 @@ function Get-Titulo([string]$nombre, [string]$idioma, [string]$porDefecto) {
 
 # alt vacio: asi la imagen no entra en el ancla que GitHub genera para el encabezado.
 function Get-Icono([string]$n) { "<img src=`".github/icons/$n.svg`" width=`"20`" height=`"20`" align=`"top`" alt=`"`">" }
-
-# Mismo slug que GitHub: minusculas, fuera todo lo que no sea letra, digito, espacio,
-# guion o guion bajo, espacios a guiones. El <img> desaparece pero el espacio que lo
-# sigue no, por eso el ancla de un encabezado con icono empieza por guion.
-function Get-Ancla([string]$titulo) { '#-' + (($titulo.Trim().ToLower() -replace '[^\p{L}\p{Nd} _-]', '') -replace ' ', '-') }
 
 function Get-Sinopsis([string]$ruta) {
     # Se lee el fichero en crudo en vez de usar Get-Help: Get-Help carga el script en una
@@ -268,15 +266,6 @@ if (Test-Path $rutaIndice) {
 
 function New-Indice([string]$idioma) {
     $sb = New-Object Text.StringBuilder
-
-    # Barra de saltos por area: el icono es lo que se busca con la vista, no el numero.
-    $saltos = foreach ($sec in $secciones) {
-        if (-not (Test-Path (Join-Path $raiz $sec.Carpeta))) { continue }
-        # Icono fuera del enlace: GitHub envuelve cada <img> en su propio enlace y se anidarian.
-        "$(Get-Icono $sec.Icono) [$($sec.EN -replace '^\d+ - ', '')]($(Get-Ancla $sec.EN))"
-    }
-    [void]$sb.AppendLine("$(if ($idioma -eq 'ES') { '**Ir a:**' } else { '**Jump to:**' }) $($saltos -join ' | ')")
-    [void]$sb.AppendLine()
 
     # Los destacados salen antes que ninguna carpeta: es la lista que se abre a diario.
     [void]$sb.AppendLine("## $(Get-Icono 'pin') 0 - LAS MAINS")

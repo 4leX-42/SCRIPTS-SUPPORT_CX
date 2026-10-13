@@ -8,8 +8,6 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 
 <!-- INDICE-INICIO: generado por 99-repo-tools/03-generate-readme.ps1, no editar a mano -->
 
-**Jump to:** <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> [Copy and paste (diagnostics)](#-00---copy-and-paste-diagnostics) | <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> [Identity cache](#-01---identity-cache) | <img src=".github/icons/mail.svg" width="20" height="20" align="top" alt=""> [Outlook](#-02---outlook) | <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> [OneDrive](#-03---onedrive) | <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> [Teams](#-04---teams) | <img src=".github/icons/apps.svg" width="20" height="20" align="top" alt=""> [Office apps](#-05---office-apps) | <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> [Corporate applications](#-06---corporate-applications) | <img src=".github/icons/laptop.svg" width="20" height="20" align="top" alt=""> [Endpoint](#-07---endpoint) | <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> [Network](#-08---network) | <img src=".github/icons/document.svg" width="20" height="20" align="top" alt=""> [Documents](#-09---documents) | <img src=".github/icons/folder_open.svg" width="20" height="20" align="top" alt=""> [File picker](#-10---file-picker) | <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> [Certificates](#-11---certificates) | <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> [Repo tools](#-99---repo-tools)
-
 ## <img src=".github/icons/pin.svg" width="20" height="20" align="top" alt=""> 0 - LAS MAINS
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> <b>Identity Cache Purge</b></summary>
@@ -21,6 +19,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> <b>Stale Tenant Reset</b></summary>
 
 Removes the account left over from an old tenant. Auto-detects the UPN and the tenant.<br>[`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1)
@@ -30,6 +29,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> <b>Credential Cache Repair</b></summary>
 
 Repairs the Microsoft 365 credential cache in tiers, and can roll the changes back.<br>[`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1)
@@ -39,6 +39,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> <b>OneDrive Long Path Fix</b></summary>
 
 Shortens OneDrive paths over 380 characters ("the path is too long") without renaming the documents.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
@@ -48,6 +49,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> <b>Endpoint Technical Audit</b></summary>
 
 Hardware, real Windows generation, Entra or domain join, MDM, disk, BitLocker, network and Office<br>[`03-endpoint-report`](00-copy-paste/03-endpoint-report.ps1)
@@ -57,6 +59,7 @@ Hardware, real Windows generation, Entra or domain join, MDM, disk, BitLocker, n
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> <b>OneDrive Tiered Remediation</b></summary>
 
 Fixes OneDrive escalating through 5 tiers: restart, reset, cache, binary and reinstall.<br>[`01-remediate-onedrive-tiered`](03-onedrive/01-remediate-onedrive-tiered.ps1)
@@ -66,6 +69,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> <b>Teams Authentication Reset</b></summary>
 
 Fixes Teams sign-in when it loops or fails to authenticate.<br>[`01-repair-teams-signin`](04-teams/01-repair-teams-signin.ps1)
@@ -75,6 +79,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 ```
 
 </details>
+
 ## <img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> 00 - Copy and paste (diagnostics)
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Machine snapshot</b></summary>
@@ -86,6 +91,7 @@ Hardware, real Windows generation, Entra or domain join, MDM, disk, BitLocker, n
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>ESET agent state</b></summary>
 
 Installation, services, binary signature, enrolment read from the trace log and ESET PROTECT connectivity<br>[`06-eset-status`](00-copy-paste/06-eset-status.ps1)
@@ -95,6 +101,7 @@ Installation, services, binary signature, enrolment read from the trace log and 
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Cached accounts and identities</b></summary>
 
 Cached account inventory: source of each one, GUID UPN detection and real tenantId per domain<br>[`01-cached-accounts`](00-copy-paste/01-cached-accounts.ps1)
@@ -104,6 +111,7 @@ Cached account inventory: source of each one, GUID UPN detection and real tenant
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>OneDrive state</b></summary>
 
 Process, version, linked accounts, deny ACEs, write test and log freshness<br>[`02-onedrive-status`](00-copy-paste/02-onedrive-status.ps1)
@@ -113,6 +121,7 @@ Process, version, linked accounts, deny ACEs, write test and log freshness<br>[`
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>M365 reachability</b></summary>
 
 Proxy, DNS, TCP 443, TLS version and latency across the 7 Microsoft 365 endpoints<br>[`04-m365-connectivity`](00-copy-paste/04-m365-connectivity.ps1)
@@ -122,6 +131,7 @@ Proxy, DNS, TCP 443, TLS version and latency across the 7 Microsoft 365 endpoint
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Office and Outlook state</b></summary>
 
 Version, licence, identities, profiles, .ost and .pst, add-ins and disabled items<br>[`05-office-outlook-status`](00-copy-paste/05-office-outlook-status.ps1)
@@ -131,6 +141,7 @@ Version, licence, identities, profiles, .ost and .pst, add-ins and disabled item
 ```
 
 </details>
+
 ## <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> 01 - Identity cache
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Clear cached work accounts</b></summary>
@@ -143,6 +154,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Excluir` `-Quitar` `-NoCerrarApps` `-Detalle` `-DryRun` `-Force`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Stale tenant account that keeps coming back</b></summary>
 
 Removes the account left over from an old tenant. Auto-detects the UPN and the tenant.<br>[`02-reset-stale-tenant-v2.1`](01-identity-cache/02-reset-stale-tenant-v2.1.ps1)
@@ -153,6 +165,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Upn` `-TenantOrigen` `-TenantEsperado` `-RutaRespaldo` `-SoloDetectar` `-NoInteractivo` `-DryRun` `-NoCerrarApps` `-BorrarCookiesEdge` `-QuitarWorkplaceJoin` `-IgnorarPerfil` `-Force`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Repair M365 credential cache</b></summary>
 
 Repairs the Microsoft 365 credential cache in tiers, and can roll the changes back.<br>[`03-repair-credential-cache-with-restore`](01-identity-cache/03-repair-credential-cache-with-restore.ps1)
@@ -163,6 +176,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Mode` `-Accounts` `-Tiers` `-BackupRoot` `-RestoreFrom` `-CloseApps` `-DryRun` `-Force`</sub>
 
 </details>
+
 ## <img src=".github/icons/mail.svg" width="20" height="20" align="top" alt=""> 02 - Outlook
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Rebuild the Outlook profile</b></summary>
@@ -175,6 +189,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-FullReset` `-ClearAutoComplete` `-Email` `-ProfileName` `-NoRecreate` `-WaitSeconds` `-Force` `-WhatIf`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Full Outlook reset</b></summary>
 
 Aggressive Outlook reset: profile, OST files and autocomplete cache.<br>[`02-full-outlook-reset`](02-outlook/02-full-outlook-reset.ps1)
@@ -185,6 +200,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-SkipProfileReset` `-SkipOST` `-SkipRoamCache` `-DeleteWholeLocalOutlookFolder` `-WhatIf`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Blank sign-in window in Outlook</b></summary>
 
 Repairs the Microsoft 365 sign-in window that stays blank or stuck on "One moment..." when adding the account in Outlook; with -BorrarCuentasWam removes the work accounts stored in Windows that Teams and Office offer.<br>[`03-repair-signin-window`](02-outlook/03-repair-signin-window.ps1)
@@ -195,6 +211,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-SoloDiagnostico` `-BorrarCuentasWam` `-DryRun` `-Force` `-FaseUsuario` `-DirTrabajo`</sub>
 
 </details>
+
 ## <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> 03 - OneDrive
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>OneDrive not syncing or not starting</b></summary>
@@ -207,6 +224,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-MaxLevel` `-LocalInstallerPath` `-StartupWaitSeconds` `-SkipEnvironmentChecks` `-ClearCredentials` `-ForceReinstall`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> + <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>OneDrive asks for admin rights</b></summary>
 
 Removes deny ACEs left behind by a domain GPO that make OneDrive prompt for admin.<br>[`02-fix-onedrive-permissions`](03-onedrive/02-fix-onedrive-permissions.ps1)
@@ -217,6 +235,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Fase` `-Ruta` `-DryRun`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>OneDrive: path too long</b></summary>
 
 Shortens OneDrive paths over 380 characters ("the path is too long") without renaming the documents.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
@@ -227,6 +246,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Ruta` `-Upn` `-Raiz` `-Limite` `-Margen` `-PermitirRecorte` `-MinNombre` `-DryRun` `-SinConfirmar` `-Ascii` `-Revertir`</sub>
 
 </details>
+
 Detailed runbook: [`02-fix-onedrive-permissions.md`](03-onedrive/02-fix-onedrive-permissions.md)
 
 ## <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> 04 - Teams
@@ -241,6 +261,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-DryRun` `-Force` `-Aggressive` `-IncludeOutlook` `-RepairTeams` `-LogPath`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Teams button missing in Outlook</b></summary>
 
 Restores the Teams meeting button when it disappears from classic Outlook.<br>[`02-repair-teams-outlook-addin`](04-teams/02-repair-teams-outlook-addin.ps1)
@@ -251,6 +272,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-User`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Teams Outlook add-in keeps turning off</b></summary>
 
 Re-registers the Teams meeting add-in in classic Outlook and hardens it.<br>[`03-repair-teams-addin-com`](04-teams/03-repair-teams-addin-com.ps1)
@@ -261,6 +283,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-NoKillOutlook`</sub>
 
 </details>
+
 ## <img src=".github/icons/apps.svg" width="20" height="20" align="top" alt=""> 05 - Office apps
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Repair the Office install</b></summary>
@@ -272,6 +295,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Automatic M365 repair</b></summary>
 
 Unattended engine that diagnoses and repairs OneDrive, Outlook, Office, identity and network.<br>[`02-m365-remediation-engine`](05-office-apps/02-m365-remediation-engine.ps1)
@@ -282,6 +306,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-TargetService` `-MaxLevel` `-DiagnosticOnly` `-LogPath`</sub>
 
 </details>
+
 ## <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> 06 - Corporate applications
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>ESET not installed, running or connecting</b></summary>
@@ -293,6 +318,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Install ESET</b></summary>
 
 Installs ESET Endpoint unattended, even when the installer has no silent mode.<br>[`02-install-eset`](06-applications/02-install-eset.ps1)
@@ -303,6 +329,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Modo`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Uninstall iManage</b></summary>
 
 Fully uninstalls iManage Work Desktop along with its Office add-ins.<br>[`03-uninstall-imanage`](06-applications/03-uninstall-imanage.ps1)
@@ -313,6 +340,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-WhatIf`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Install PDFelement and iManage</b></summary>
 
 Installs PDFelement and iManage by driving their wizard, which has no silent mode.<br>[`04-install-pdfelement-imanage`](06-applications/04-install-pdfelement-imanage.ps1)
@@ -323,6 +351,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Modo`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Which silent switches an installer takes</b></summary>
 
 Inspects an installer package and reports its type and supported silent switches.<br>[`05-diagnose-installers`](06-applications/05-diagnose-installers.ps1)
@@ -332,6 +361,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> + <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Repair Mitel Connect / MiCollab</b></summary>
 
 Repairs the Mitel Connect / MiCollab client: cache, registry, Outlook, credentials and DNS.<br>[`06-repair-mitel-client`](06-applications/06-repair-mitel-client.ps1)
@@ -342,6 +372,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-DryRun` `-Force` `-AllUsers` `-KeepOutlookAddin` `-DisableOutlookAddin` `-KeepCredentials` `-ServerHost` `-FixDns` `-DnsServers` `-DnsSuffix` `-FixHosts` `-FixFirewall` `-Reinstall` `-LogPath`</sub>
 
 </details>
+
 ## <img src=".github/icons/laptop.svg" width="20" height="20" align="top" alt=""> 07 - Endpoint
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Disk full</b></summary>
@@ -354,6 +385,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Ruta` `-Top` `-SoloBasura`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>BitLocker recovery key</b></summary>
 
 Retrieves the BitLocker recovery key by serial number, device name or Entra device id.<br>[`02-bitlocker-recovery-key`](07-endpoint/02-bitlocker-recovery-key.ps1)
@@ -364,6 +396,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Serie` `-Nombre` `-DeviceId` `-RutaCsv` `-ConfigPath`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Unexpected shutdowns or restarts</b></summary>
 
 Diagnoses and fixes unexpected shutdowns and restarts.<br>[`03-fix-random-shutdowns`](07-endpoint/03-fix-random-shutdowns.ps1)
@@ -374,6 +407,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-SkipDiag` `-SkipWifi`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Wrong clock: e-signature portals fail</b></summary>
 
 Gets the clock back in sync so e-government signing works: detects location, matches time zone and country NTP servers, and repairs W32Time.<br>[`04-repair-time-sync`](07-endpoint/04-repair-time-sync.ps1)
@@ -384,6 +418,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-DryRun` `-Force` `-DiagnoseOnly` `-TimeZoneId` `-NtpServers` `-SkipGeo` `-NoTimeZoneChange` `-PersistPublicNtp` `-AllowStepTime` `-NoStepTime` `-AutoTimeZoneService` `-PollSeconds` `-LogPath`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Enable Windows long paths</b></summary>
 
 Enables Windows long paths (over 260 characters) and disables 8.3 short names.<br>[`05-enable-long-paths`](07-endpoint/05-enable-long-paths.ps1)
@@ -394,6 +429,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-DryRun`</sub>
 
 </details>
+
 ## <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> 08 - Network
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Slow or dropping Wi-Fi</b></summary>
@@ -406,6 +442,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Adaptador` `-DryRun`</sub>
 
 </details>
+
 ## <img src=".github/icons/document.svg" width="20" height="20" align="top" alt=""> 09 - Documents
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Protected Word file, password lost</b></summary>
@@ -418,6 +455,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-NoPause` `-Paths`</sub>
 
 </details>
+
 ## <img src=".github/icons/folder_open.svg" width="20" height="20" align="top" alt=""> 10 - File picker
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>File picker: diagnosis</b></summary>
@@ -430,6 +468,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-OutDir` `-DiasEventos` `-TimeoutRutaSegundos` `-SinFirmas`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>File picker hangs</b></summary>
 
 Read-only. Reproduces the file picker hang and captures the DLL behind it.<br>[`02-test-file-picker-hang`](10-file-picker/02-test-file-picker-hang.ps1)
@@ -440,6 +479,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-TimeoutSegundos` `-Proceso` `-CarpetaInicial` `-Volcado` `-RutaProcdump` `-OutDir`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Clear file picker recent folders</b></summary>
 
 Clears the file picker's remembered folders (ComDlg32 MRU). DryRun by default.<br>[`03-reset-file-picker-mru`](10-file-picker/03-reset-file-picker-mru.ps1)
@@ -450,6 +490,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Execute` `-IncluirRecientes` `-ReiniciarExplorer` `-Restore` `-BackupDir`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Block a shell extension</b></summary>
 
 Disables shell extensions by CLSID, reversibly. DryRun by default.<br>[`04-block-shell-extension`](10-file-picker/04-block-shell-extension.ps1)
@@ -460,6 +501,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Clsid` `-ClsidFile` `-DesdeCsv` `-FiltroDll` `-Quitar` `-Listar` `-Execute` `-ReiniciarExplorer` `-Motivo` `-BackupDir`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> + <img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>App crashes on Open or Save as</b></summary>
 
 Read-only. Diagnoses an application crashing when it opens the Open/Save As dialog.<br>[`05-diagnose-file-picker-crash`](10-file-picker/05-diagnose-file-picker-crash.ps1)
@@ -470,6 +512,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-ProcessName` `-OutDir` `-Interactive` `-EnableDumps` `-DryRun` `-SkipSignatures` `-TimeoutSec`</sub>
 
 </details>
+
 ## <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> 11 - Certificates
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>AutoFirma does not list the certificate</b></summary>
@@ -482,6 +525,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Mode` `-P12` `-Password` `-Match` `-Thumbprint` `-DryRun` `-Force` `-Log`</sub>
 
 </details>
+
 ## <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> 99 - Repo tools
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Validate repo scripts</b></summary>
@@ -494,6 +538,7 @@ Validates every .ps1 in the repo: ASCII only, UTF-8 with BOM, declared Contexto 
 <sub>Parameters: `-Corregir`</sub>
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Test the Outlook reset in a sandbox</b></summary>
 
 Sandbox-tests the deletion logic behind the Outlook scripts. Never touches Outlook.<br>[`02-test-outlook-reset`](99-repo-tools/02-test-outlook-reset.ps1)
@@ -503,6 +548,7 @@ Sandbox-tests the deletion logic behind the Outlook scripts. Never touches Outlo
 ```
 
 </details>
+
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Rebuild the READMEs</b></summary>
 
 Rebuilds the index in README.md and README.en.md from each script's .SYNOPSIS.<br>[`03-generate-readme`](99-repo-tools/03-generate-readme.ps1)
