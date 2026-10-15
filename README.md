@@ -307,6 +307,16 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 </details>
 
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Instalar o reparar impresoras Ricoh y Canon</b></summary>
+
+PrintDeploy: instala y repara impresoras Ricoh y Canon, detecta el modelo solo y deja la bandeja bypass.<br>[`03-printdeploy`](05-office-apps/03-printdeploy)
+
+```powershell
+dotnet build -c Release .\05-office-apps\03-printdeploy\PrintDeploy.csproj
+```
+
+</details>
+
 ## <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> 06 - Corporate applications
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>ESET no instala, no arranca o no conecta</b></summary>

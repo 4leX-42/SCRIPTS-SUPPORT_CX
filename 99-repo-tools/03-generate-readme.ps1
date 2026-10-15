@@ -113,6 +113,7 @@ $titulos = @{
     '03-repair-teams-addin-com.ps1'               = @('Complemento de Teams en Outlook se desactiva', 'Teams Outlook add-in keeps turning off')
     '01-repair-office-install.ps1'                = @('Reparar la instalacion de Office', 'Repair the Office install')
     '02-m365-remediation-engine.ps1'              = @('Reparacion automatica de M365', 'Automatic M365 repair')
+    '03-printdeploy'                              = @('Instalar o reparar impresoras Ricoh y Canon', 'Install or repair Ricoh and Canon printers')
     '01-diagnose-eset.ps1'                        = @('ESET no instala, no arranca o no conecta', 'ESET not installed, running or connecting')
     '02-install-eset.ps1'                         = @('Instalar ESET', 'Install ESET')
     '03-uninstall-imanage.ps1'                    = @('Desinstalar iManage', 'Uninstall iManage')
@@ -313,7 +314,10 @@ function New-Indice([string]$idioma) {
         $ficheros = Get-ChildItem $dir -File |
             Where-Object { $_.Extension -in '.ps1', '.txt' -and $_.Name -ne 'index.psd1' } |
             Sort-Object Name
-        if (-not $ficheros) { continue }
+        # Proyectos que no son un .ps1 suelto (p. ej. una app C#): subcarpeta con README.md
+        # que declara [ES], [EN] y Contexto: en su cabecera, igual que el .SYNOPSIS/.NOTES.
+        $proyectos = @(Get-ChildItem $dir -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'README.md') } | Sort-Object Name)
+        if (-not $ficheros -and -not $proyectos) { continue }
 
         # En 00-copy-paste el orden lo fija index.psd1, no el nombre: primero los que
         # piden consola de administrador, que hay que preparar antes de ir al usuario.
@@ -370,6 +374,19 @@ function New-Indice([string]$idioma) {
                 $tit = Get-Titulo $f.Name $idioma $desc
                 Add-Ficha $sb "$(Get-Contexto $f.FullName $idioma) <b>$tit</b>" "$desc<br>[``$($f.BaseName)``]($ruta)" $linea $pie
             }
+        }
+
+        # Proyecto: no se descarga con irm, se compila desde el checkout. Su linea es el build.
+        foreach ($p in $proyectos) {
+            $rm = Join-Path $p.FullName 'README.md'
+            $desc = (Get-Sinopsis $rm).$idioma
+            if (-not $desc) { $desc = '(sin descripcion)' }
+            if ($idioma -eq 'ES') { $desc = Add-Tildes $desc }
+            $ruta = "$($sec.Carpeta)/$($p.Name)"
+            $csproj = Get-ChildItem $p.FullName -Filter *.csproj -File | Select-Object -First 1
+            $linea = if ($csproj) { "dotnet build -c Release .\$($sec.Carpeta)\$($p.Name)\$($csproj.Name)" } else { ".\$($sec.Carpeta)\$($p.Name)" }
+            $tit = Get-Titulo $p.Name $idioma $desc
+            Add-Ficha $sb "$(Get-Contexto $rm $idioma) <b>$tit</b>" "$desc<br>[``$($p.Name)``]($ruta)" $linea $null
         }
 
         # Runbooks: un .md con el mismo nombre base que un .ps1 documenta ese script.
