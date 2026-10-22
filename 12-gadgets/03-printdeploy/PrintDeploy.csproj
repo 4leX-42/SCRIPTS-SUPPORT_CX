@@ -12,7 +12,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Product>PrintDeploy</Product>
     <Description>PrintDeploy · despliegue de drivers de impresora Canon y Ricoh (IM C4510A, IM C4500, universal)</Description>
-    <Version>2.4.0</Version>
+    <Version>2.5.0</Version>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <!-- Release sin .pdb: el .exe es lo unico que se distribuye -->
     <DebugType Condition="'$(Configuration)' == 'Release'">none</DebugType>

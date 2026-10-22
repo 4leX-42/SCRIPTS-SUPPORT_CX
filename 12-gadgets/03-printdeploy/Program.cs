@@ -11,7 +11,7 @@ namespace InstaladorImpresoras
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.ThreadException += (s, e) =>
-                MessageBox.Show(e.Exception.Message, "PrintDeploy", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                ThemedDialog.Info(null, "Error", "Error inesperado", e.Exception.Message);
             Application.Run(new MainForm());
         }
     }

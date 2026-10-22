@@ -18,6 +18,8 @@
 param([Parameter(Mandatory)] [string]$JobsB64)
 
 $ErrorActionPreference = 'Stop'
+# sin barras de progreso: con la salida redirigida llegan como CLIXML por el canal de errores
+$ProgressPreference = 'SilentlyContinue'
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 function Out-Line($kind, $text) { [Console]::Out.WriteLine("$kind|$text"); [Console]::Out.Flush() }
