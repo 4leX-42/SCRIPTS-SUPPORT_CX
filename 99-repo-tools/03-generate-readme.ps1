@@ -126,8 +126,8 @@ $titulos = @{
     '04-repair-time-sync.ps1'                     = @('Hora mal: no deja firmar en sedes electronicas', 'Wrong clock: e-signature portals fail')
     '05-enable-long-paths.ps1'                    = @('Activar rutas largas de Windows', 'Enable Windows long paths')
     '01-optimize-wifi-adapter.ps1'                = @('Wi-Fi lenta o que se corta', 'Slow or dropping Wi-Fi')
-    '01-unlock-protected-word.ps1'                = @('Word protegido y sin contrasena', 'Protected Word file, password lost')
-    '02-rescate-admin-local.bat'                  = @('Equipo sin administrador (rescate WinRE)', 'PC with no administrator (WinRE rescue)')
+    '02-docunlock'                                = @('Desbloquear y limpiar PDF y Office', 'Unlock and clean PDF and Office files')
+    '01-rescate-admin-local.bat'                  = @('Equipo sin administrador (rescate WinRE)', 'PC with no administrator (WinRE rescue)')
     '01-diagnose-file-picker.ps1'                 = @('Selector de archivos: diagnostico', 'File picker: diagnosis')
     '02-test-file-picker-hang.ps1'                = @('Selector de archivos se cuelga', 'File picker hangs')
     '03-reset-file-picker-mru.ps1'                = @('Limpiar carpetas recientes del selector', 'Clear file picker recent folders')
@@ -394,8 +394,13 @@ function New-Indice([string]$idioma) {
             if (-not $desc) { $desc = '(sin descripcion)' }
             if ($idioma -eq 'ES') { $desc = Add-Tildes $desc }
             $ruta = "$($sec.Carpeta)/$($p.Name)"
+            # .NET se compila con dotnet; un proyecto con build.bat (p. ej. PyInstaller) con
+            # su propio script; lo demas se abre por carpeta.
             $csproj = Get-ChildItem $p.FullName -Filter *.csproj -File | Select-Object -First 1
-            $linea = if ($csproj) { "dotnet build -c Release .\$($sec.Carpeta)\$($p.Name)\$($csproj.Name)" } else { ".\$($sec.Carpeta)\$($p.Name)" }
+            $linea =
+                if ($csproj) { "dotnet build -c Release .\$($sec.Carpeta)\$($p.Name)\$($csproj.Name)" }
+                elseif (Test-Path (Join-Path $p.FullName 'build.bat')) { ".\$($sec.Carpeta)\$($p.Name)\build.bat" }
+                else { ".\$($sec.Carpeta)\$($p.Name)" }
             $tit = Get-Titulo $p.Name $idioma $desc
             Add-Ficha $sb "$(Get-Contexto $rm $idioma) <b>$tit</b>" "$desc<br>[``$($p.Name)``]($ruta)" $linea $null
         }

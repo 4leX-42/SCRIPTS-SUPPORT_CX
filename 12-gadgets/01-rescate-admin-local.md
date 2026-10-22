@@ -19,13 +19,13 @@ seguridad y lo detecta Defender.
 
 1. En la pantalla de inicio de sesión: con **Mayús** pulsada, **Encendido → Reiniciar**.
 2. **Solucionar problemas → Opciones avanzadas → Símbolo del sistema**.
-3. Copia `02-rescate-admin-local.bat` a un USB. Enchúfalo y mira su letra:
+3. Copia `01-rescate-admin-local.bat` a un USB. Enchúfalo y mira su letra:
    ```
    wmic logicaldisk get deviceid,volumename
    ```
 4. Ejecútalo con esa letra (p. ej. `E:`):
    ```
-   E:\02-rescate-admin-local.bat
+   E:\01-rescate-admin-local.bat
    ```
 5. Debe llegar a **[4/4] LISTO**. Entonces `exit` y **Continuar** (o apaga y enciende).
 6. Al arrancar hace el rescate solo (ventana negra 1-2 s) y llega al login. Entra con tu
