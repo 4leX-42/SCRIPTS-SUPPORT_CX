@@ -525,12 +525,12 @@ E:\01-rescate-admin-local.bat   :: consola de recuperacion (WinRE); E: = letra d
 
 </details>
 
-<details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <b>Desbloquear y limpiar PDF y Office</b></summary>
+<details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <b>DocUnlock</b></summary>
 
 DocUnlock: quita protecciones, permisos, firmas y metadatos de PDF y Office, y opcionalmente comprime. Todo local, sin admin.<br>[`02-docunlock`](12-gadgets/02-docunlock)
 
 ```powershell
-.\12-gadgets\02-docunlock\build.bat
+$f="$env:TEMP\DocUnlock.exe"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://github.com/4leX-42/SCRIPTS-SUPPORT_CX/releases/download/docunlock-v1/DocUnlock.exe -OutFile $f; & $f
 ```
 
 </details>

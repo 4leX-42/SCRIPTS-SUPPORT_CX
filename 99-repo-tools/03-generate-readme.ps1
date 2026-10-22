@@ -126,7 +126,7 @@ $titulos = @{
     '04-repair-time-sync.ps1'                     = @('Hora mal: no deja firmar en sedes electronicas', 'Wrong clock: e-signature portals fail')
     '05-enable-long-paths.ps1'                    = @('Activar rutas largas de Windows', 'Enable Windows long paths')
     '01-optimize-wifi-adapter.ps1'                = @('Wi-Fi lenta o que se corta', 'Slow or dropping Wi-Fi')
-    '02-docunlock'                                = @('Desbloquear y limpiar PDF y Office', 'Unlock and clean PDF and Office files')
+    '02-docunlock'                                = @('DocUnlock', 'DocUnlock')
     '01-rescate-admin-local.bat'                  = @('Equipo sin administrador (rescate WinRE)', 'PC with no administrator (WinRE rescue)')
     '01-diagnose-file-picker.ps1'                 = @('Selector de archivos: diagnostico', 'File picker: diagnosis')
     '02-test-file-picker-hang.ps1'                = @('Selector de archivos se cuelga', 'File picker hangs')
@@ -199,6 +199,15 @@ function Get-Sinopsis([string]$ruta) {
     $es = if ($texto -match '(?m)^\s*(?:REM\s+)?\[ES\]\s*(.+?)\s*$') { $Matches[1] } else { $null }
     $en = if ($texto -match '(?m)^\s*(?:REM\s+)?\[EN\]\s*(.+?)\s*$') { $Matches[1] } else { $null }
     return @{ ES = $es; EN = $en }
+}
+
+# Linea de instalacion directa opcional, declarada en la cabecera del README de un proyecto
+# (un comando de PowerShell, p. ej. bajar el .exe de un release). Si la trae, es la linea que
+# sale en el indice en vez del build. Vacio si no esta.
+function Get-Instalar([string]$ruta) {
+    $texto = [IO.File]::ReadAllText($ruta)
+    if ($texto -match '(?m)^\s*Instalar\s*:\s*(.+?)\s*$') { return $Matches[1] }
+    return $null
 }
 
 # Cuenta con la que se ejecuta. Sin linea Contexto: el generador falla: un script sin
@@ -394,11 +403,14 @@ function New-Indice([string]$idioma) {
             if (-not $desc) { $desc = '(sin descripcion)' }
             if ($idioma -eq 'ES') { $desc = Add-Tildes $desc }
             $ruta = "$($sec.Carpeta)/$($p.Name)"
-            # .NET se compila con dotnet; un proyecto con build.bat (p. ej. PyInstaller) con
-            # su propio script; lo demas se abre por carpeta.
+            # Si el README declara una linea 'Instalar:' (comando directo, p. ej. bajar el .exe
+            # de un release), esa manda. Si no: .NET con dotnet, un build.bat (PyInstaller) con
+            # su script, y lo demas se abre por carpeta.
+            $instalar = Get-Instalar $rm
             $csproj = Get-ChildItem $p.FullName -Filter *.csproj -File | Select-Object -First 1
             $linea =
-                if ($csproj) { "dotnet build -c Release .\$($sec.Carpeta)\$($p.Name)\$($csproj.Name)" }
+                if ($instalar) { $instalar }
+                elseif ($csproj) { "dotnet build -c Release .\$($sec.Carpeta)\$($p.Name)\$($csproj.Name)" }
                 elseif (Test-Path (Join-Path $p.FullName 'build.bat')) { ".\$($sec.Carpeta)\$($p.Name)\build.bat" }
                 else { ".\$($sec.Carpeta)\$($p.Name)" }
             $tit = Get-Titulo $p.Name $idioma $desc
