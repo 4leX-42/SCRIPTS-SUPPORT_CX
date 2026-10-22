@@ -440,6 +440,20 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 </details>
 
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Equipo sin administrador (rescate desde WinRE)</b></summary>
+
+Devuelve una cuenta local al grupo Administradores cuando el equipo se ha quedado sin ningún administrador. No borra datos; se ejecuta desde la recuperación de Windows (WinRE), no por `irm`.<br>[`06-rescate-admin-local`](07-endpoint/06-rescate-admin-local.bat) · [guía](07-endpoint/06-rescate-admin-local.md)
+
+```
+Login > Mayús+Reiniciar > Solucionar problemas > Opciones avanzadas > Símbolo del sistema
+Copia el .bat a un USB.  Letra:  wmic logicaldisk get deviceid,volumename
+Ejecuta (letra del USB, p.ej. E:):  E:\06-rescate-admin-local.bat
+Cuando diga [4/4] LISTO:  exit  y  Continuar.  Entra con tu cuenta, ya admin.
+```
+<sub>Cuentas: `set "CUENTAS=Usuario User usuario"` (editable en el .bat). Método manual y BitLocker en la guía.</sub>
+
+</details>
+
 ## <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> 08 - Network
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Wi-Fi lenta o que se corta</b></summary>

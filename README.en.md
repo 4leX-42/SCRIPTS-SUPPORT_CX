@@ -442,6 +442,20 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 </details>
 
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>PC with no administrator (WinRE rescue)</b></summary>
+
+Restores a local account to the Administrators group when the PC has no admin left. No data loss; runs from Windows Recovery (WinRE), not via `irm`.<br>[`06-rescate-admin-local`](07-endpoint/06-rescate-admin-local.bat) · [guide](07-endpoint/06-rescate-admin-local.md)
+
+```
+Login > Shift+Restart > Troubleshoot > Advanced options > Command Prompt
+Copy the .bat to a USB.  Letter:  wmic logicaldisk get deviceid,volumename
+Run it (USB letter, e.g. E:):  E:\06-rescate-admin-local.bat
+When it says [4/4] LISTO:  exit  and  Continue.  Sign in with your account, now admin.
+```
+<sub>Accounts: `set "CUENTAS=Usuario User usuario"` (editable in the .bat). Manual method and BitLocker in the guide.</sub>
+
+</details>
+
 ## <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> 08 - Network
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Slow or dropping Wi-Fi</b></summary>
