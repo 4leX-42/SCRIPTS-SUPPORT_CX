@@ -515,23 +515,22 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 ## <img src=".github/icons/toolbox.svg" width="20" height="20" align="top" alt=""> 12 - Gadgets
 
-<details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <b>Word protegido y sin contraseña</b></summary>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Equipo sin administrador (rescate WinRE)</b></summary>
 
-Quita la protección de edición de un documento de Word cuando se perdió la contraseña.<br>[`01-unlock-protected-word`](12-gadgets/01-unlock-protected-word.ps1)
+Equipo sin administrador: devuelve una cuenta local a Administradores desde la recuperación (WinRE). No borra datos.<br>[`01-rescate-admin-local`](12-gadgets/01-rescate-admin-local.bat)
 
 ```powershell
-Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-unlock-protected-word.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/12-gadgets/01-unlock-protected-word.ps1 -OutFile $f; & $f
+E:\01-rescate-admin-local.bat   :: consola de recuperacion (WinRE); E: = letra del USB
 ```
-<sub>Parámetros: `-NoPause` `-Paths`</sub>
 
 </details>
 
-<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Equipo sin administrador (rescate WinRE)</b></summary>
+<details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <b>Desbloquear y limpiar PDF y Office</b></summary>
 
-Equipo sin administrador: devuelve una cuenta local a Administradores desde la recuperación (WinRE). No borra datos.<br>[`02-rescate-admin-local`](12-gadgets/02-rescate-admin-local.bat)
+DocUnlock: quita protecciones, permisos, firmas y metadatos de PDF y Office, y opcionalmente comprime. Todo local, sin admin.<br>[`02-docunlock`](12-gadgets/02-docunlock)
 
 ```powershell
-E:\02-rescate-admin-local.bat   :: consola de recuperacion (WinRE); E: = letra del USB
+.\12-gadgets\02-docunlock\build.bat
 ```
 
 </details>
@@ -546,7 +545,7 @@ dotnet build -c Release .\12-gadgets\03-printdeploy\PrintDeploy.csproj
 
 </details>
 
-Runbook detallado: [`02-rescate-admin-local.md`](12-gadgets/02-rescate-admin-local.md)
+Runbook detallado: [`01-rescate-admin-local.md`](12-gadgets/01-rescate-admin-local.md)
 
 ## <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> 99 - Repo tools
 

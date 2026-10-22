@@ -517,23 +517,22 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 ## <img src=".github/icons/toolbox.svg" width="20" height="20" align="top" alt=""> 12 - Gadgets
 
-<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Protected Word file, password lost</b></summary>
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>PC with no administrator (WinRE rescue)</b></summary>
 
-Removes edit protection from a Word document when the password is lost.<br>[`01-unlock-protected-word`](12-gadgets/01-unlock-protected-word.ps1)
+PC with no administrator: restores a local account to Administrators from Windows Recovery (WinRE). No data loss.<br>[`01-rescate-admin-local`](12-gadgets/01-rescate-admin-local.bat)
 
 ```powershell
-Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-unlock-protected-word.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/12-gadgets/01-unlock-protected-word.ps1 -OutFile $f; & $f
+E:\01-rescate-admin-local.bat   :: recovery console (WinRE); E: = USB drive letter
 ```
-<sub>Parameters: `-NoPause` `-Paths`</sub>
 
 </details>
 
-<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>PC with no administrator (WinRE rescue)</b></summary>
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Unlock and clean PDF and Office files</b></summary>
 
-PC with no administrator: restores a local account to Administrators from Windows Recovery (WinRE). No data loss.<br>[`02-rescate-admin-local`](12-gadgets/02-rescate-admin-local.bat)
+DocUnlock: strips protections, permissions, signatures and metadata from PDF and Office files, and can compress. Local only, no admin.<br>[`02-docunlock`](12-gadgets/02-docunlock)
 
 ```powershell
-E:\02-rescate-admin-local.bat   :: recovery console (WinRE); E: = USB drive letter
+.\12-gadgets\02-docunlock\build.bat
 ```
 
 </details>
@@ -548,7 +547,7 @@ dotnet build -c Release .\12-gadgets\03-printdeploy\PrintDeploy.csproj
 
 </details>
 
-Detailed runbook: [`02-rescate-admin-local.md`](12-gadgets/02-rescate-admin-local.md)
+Detailed runbook: [`01-rescate-admin-local.md`](12-gadgets/01-rescate-admin-local.md)
 
 ## <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> 99 - Repo tools
 
