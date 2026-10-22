@@ -8,7 +8,7 @@ Endpoint remediation on the user's machine. Self-contained, no dependencies. Pow
 
 <!-- INDICE-INICIO: generado por 99-repo-tools/03-generate-readme.ps1, no editar a mano -->
 
-<img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> [Copy and paste (diagnostics)](#-00---copy-and-paste-diagnostics) | <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> [Identity cache](#-01---identity-cache) | <img src=".github/icons/mail.svg" width="20" height="20" align="top" alt=""> [Outlook](#-02---outlook) | <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> [OneDrive](#-03---onedrive) | <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> [Teams](#-04---teams) | <img src=".github/icons/apps.svg" width="20" height="20" align="top" alt=""> [Office apps](#-05---office-apps) | <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> [Corporate applications](#-06---corporate-applications) | <img src=".github/icons/laptop.svg" width="20" height="20" align="top" alt=""> [Endpoint](#-07---endpoint) | <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> [Network](#-08---network) | <img src=".github/icons/document.svg" width="20" height="20" align="top" alt=""> [Documents](#-09---documents) | <img src=".github/icons/folder_open.svg" width="20" height="20" align="top" alt=""> [File picker](#-10---file-picker) | <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> [Certificates](#-11---certificates) | <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> [Repo tools](#-99---repo-tools)
+<img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> [Copy and paste (diagnostics)](#-00---copy-and-paste-diagnostics) | <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> [Identity cache](#-01---identity-cache) | <img src=".github/icons/mail.svg" width="20" height="20" align="top" alt=""> [Outlook](#-02---outlook) | <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> [OneDrive](#-03---onedrive) | <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> [Teams](#-04---teams) | <img src=".github/icons/apps.svg" width="20" height="20" align="top" alt=""> [Office apps](#-05---office-apps) | <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> [Corporate applications](#-06---corporate-applications) | <img src=".github/icons/laptop.svg" width="20" height="20" align="top" alt=""> [Endpoint](#-07---endpoint) | <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> [Network](#-08---network) | <img src=".github/icons/folder_open.svg" width="20" height="20" align="top" alt=""> [File picker](#-10---file-picker) | <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> [Certificates](#-11---certificates) | <img src=".github/icons/toolbox.svg" width="20" height="20" align="top" alt=""> [Gadgets](#-12---gadgets) | <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> [Repo tools](#-99---repo-tools)
 
 ## <img src=".github/icons/pin.svg" width="20" height="20" align="top" alt=""> 0 - LAS MAINS
 
@@ -309,16 +309,6 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 </details>
 
-<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Install or repair Ricoh and Canon printers</b></summary>
-
-PrintDeploy: installs and repairs Ricoh and Canon printers, auto-detects the model and enables the bypass tray.<br>[`03-printdeploy`](05-office-apps/03-printdeploy)
-
-```powershell
-dotnet build -c Release .\05-office-apps\03-printdeploy\PrintDeploy.csproj
-```
-
-</details>
-
 ## <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> 06 - Corporate applications
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>ESET not installed, running or connecting</b></summary>
@@ -442,20 +432,6 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 </details>
 
-<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>PC with no administrator (WinRE rescue)</b></summary>
-
-Restores a local account to the Administrators group when the PC has no admin left. No data loss; runs from Windows Recovery (WinRE), not via `irm`.<br>[`06-rescate-admin-local`](07-endpoint/06-rescate-admin-local.bat) · [guide](07-endpoint/06-rescate-admin-local.md)
-
-```
-Login > Shift+Restart > Troubleshoot > Advanced options > Command Prompt
-Copy the .bat to a USB.  Letter:  wmic logicaldisk get deviceid,volumename
-Run it (USB letter, e.g. E:):  E:\06-rescate-admin-local.bat
-When it says [4/4] LISTO:  exit  and  Continue.  Sign in with your account, now admin.
-```
-<sub>Accounts: `set "CUENTAS=Usuario User usuario"` (editable in the .bat). Manual method and BitLocker in the guide.</sub>
-
-</details>
-
 ## <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> 08 - Network
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Slow or dropping Wi-Fi</b></summary>
@@ -466,19 +442,6 @@ Disables Wi-Fi adapter power saving and switches to the high performance power p
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-optimize-wifi-adapter.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/08-network/01-optimize-wifi-adapter.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Adaptador` `-DryRun`</sub>
-
-</details>
-
-## <img src=".github/icons/document.svg" width="20" height="20" align="top" alt=""> 09 - Documents
-
-<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Protected Word file, password lost</b></summary>
-
-Removes edit protection from a Word document when the password is lost.<br>[`01-unlock-protected-word`](09-documents/01-unlock-protected-word.ps1)
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-unlock-protected-word.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/09-documents/01-unlock-protected-word.ps1 -OutFile $f; & $f
-```
-<sub>Parameters: `-NoPause` `-Paths`</sub>
 
 </details>
 
@@ -551,6 +514,41 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 <sub>Parameters: `-Mode` `-P12` `-Password` `-Match` `-Thumbprint` `-DryRun` `-Force` `-Log`</sub>
 
 </details>
+
+## <img src=".github/icons/toolbox.svg" width="20" height="20" align="top" alt=""> 12 - Gadgets
+
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Protected Word file, password lost</b></summary>
+
+Removes edit protection from a Word document when the password is lost.<br>[`01-unlock-protected-word`](12-gadgets/01-unlock-protected-word.ps1)
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-unlock-protected-word.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/12-gadgets/01-unlock-protected-word.ps1 -OutFile $f; & $f
+```
+<sub>Parameters: `-NoPause` `-Paths`</sub>
+
+</details>
+
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>PC with no administrator (WinRE rescue)</b></summary>
+
+PC with no administrator: restores a local account to Administrators from Windows Recovery (WinRE). No data loss.<br>[`02-rescate-admin-local`](12-gadgets/02-rescate-admin-local.bat)
+
+```powershell
+E:\02-rescate-admin-local.bat   :: recovery console (WinRE); E: = USB drive letter
+```
+
+</details>
+
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Install or repair Ricoh and Canon printers</b></summary>
+
+PrintDeploy: installs and repairs Ricoh and Canon printers, auto-detects the model and enables the bypass tray.<br>[`03-printdeploy`](12-gadgets/03-printdeploy)
+
+```powershell
+dotnet build -c Release .\12-gadgets\03-printdeploy\PrintDeploy.csproj
+```
+
+</details>
+
+Detailed runbook: [`02-rescate-admin-local.md`](12-gadgets/02-rescate-admin-local.md)
 
 ## <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> 99 - Repo tools
 
