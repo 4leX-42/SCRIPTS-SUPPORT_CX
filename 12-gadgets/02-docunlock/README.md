@@ -2,6 +2,7 @@
 [ES] DocUnlock: quita protecciones, permisos, firmas y metadatos de PDF y Office, y opcionalmente comprime. Todo local, sin admin.
 [EN] DocUnlock: strips protections, permissions, signatures and metadata from PDF and Office files, and can compress. Local only, no admin.
 Contexto: usuario
+Instalar: $f="$env:TEMP\DocUnlock.exe"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://github.com/4leX-42/SCRIPTS-SUPPORT_CX/releases/download/docunlock-v1/DocUnlock.exe -OutFile $f; & $f
 -->
 # DocUnlock
 
