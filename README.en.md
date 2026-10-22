@@ -539,7 +539,7 @@ $f="$env:TEMP\DocUnlock.exe"; [Net.ServicePointManager]::SecurityProtocol=3072; 
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Install or repair Ricoh and Canon printers</b></summary>
 
-PrintDeploy: installs and repairs Ricoh and Canon printers, auto-detects the model and enables the bypass tray.<br>[`03-printdeploy`](12-gadgets/03-printdeploy)
+PrintDeploy: scans the network, shows which printers respond and installs Ricoh, Canon and server queues with the right driver.<br>[`03-printdeploy`](12-gadgets/03-printdeploy)
 
 ```powershell
 dotnet build -c Release .\12-gadgets\03-printdeploy\PrintDeploy.csproj
