@@ -2,7 +2,7 @@
 [ES] DocUnlock: quita protecciones, permisos, firmas y metadatos de PDF y Office, y opcionalmente comprime. Todo local, sin admin.
 [EN] DocUnlock: strips protections, permissions, signatures and metadata from PDF and Office files, and can compress. Local only, no admin.
 Contexto: usuario
-Instalar: $f="$env:TEMP\DocUnlock.exe"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://github.com/4leX-42/SCRIPTS-SUPPORT_CX/releases/download/docunlock-v1/DocUnlock.exe -OutFile $f; & $f
+Instalar: $f="$env:TEMP\DocUnlock.exe"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://github.com/4leX-42/SCRIPTS-SUPPORT_CX/releases/download/docunlock-v1/DocUnlock.exe -OutFile $f; explorer.exe "$f"
 -->
 # DocUnlock
 
@@ -23,6 +23,12 @@ existe, sale `doc (1).pdf`.
 es portable y lleva todo dentro. Lo que sí puede
 bloquearlo (SmartScreen, AppLocker/ASR en equipos gestionados) está en
 `docs/ESTADO-Y-PENDIENTE.md`, sección 4.
+
+**Ábrelo siempre sin elevar** (no "Ejecutar como administrador"): si la ventana
+corre como admin (integridad alta), Windows bloquea el arrastrar y soltar desde
+el Explorador (integridad media) y no podrás tirar documentos ni carpetas a la
+app. Por eso el comando de instalación lo lanza con `explorer.exe`: arranca al
+nivel del usuario aunque lo pegues en una PowerShell ya elevada.
 
 ## Qué hace por formato
 

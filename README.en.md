@@ -532,7 +532,7 @@ E:\01-rescate-admin-local.bat   :: recovery console (WinRE); E: = USB drive lett
 DocUnlock: strips protections, permissions, signatures and metadata from PDF and Office files, and can compress. Local only, no admin.<br>[`02-docunlock`](12-gadgets/02-docunlock)
 
 ```powershell
-$f="$env:TEMP\DocUnlock.exe"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://github.com/4leX-42/SCRIPTS-SUPPORT_CX/releases/download/docunlock-v1/DocUnlock.exe -OutFile $f; & $f
+$f="$env:TEMP\DocUnlock.exe"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://github.com/4leX-42/SCRIPTS-SUPPORT_CX/releases/download/docunlock-v1/DocUnlock.exe -OutFile $f; explorer.exe "$f"
 ```
 
 </details>
