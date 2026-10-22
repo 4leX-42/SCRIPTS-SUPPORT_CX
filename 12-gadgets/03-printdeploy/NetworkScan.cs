@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,6 +23,7 @@ namespace InstaladorImpresoras
         public string Brand = "";         // "Ricoh", "Canon", "Servidor" o vacio
         public string Name = "", Location = "";   // tal cual en la impresora (SNMP) o en la cola del servidor
         public List<int> Ports = new List<int>();
+        public bool Denied;               // cola compartida que rechaza al usuario actual (error 5 / 1326)
         public long? PingMs;
         /// <summary>"Procesal Dcha · Planta 3"; vacio si la impresora solo tiene el nombre de fabrica.</summary>
         public string Friendly => NetworkScan.Friendly(Name, Location, Model);
@@ -39,8 +41,13 @@ namespace InstaladorImpresoras
         public bool IsShared => Ip.StartsWith(@"\\");
         public string Brand => Result != null && Result.Brand.Length > 0 ? Result.Brand : Directory?.Brand ?? "";
         public string Friendly => Result?.Friendly ?? "";
-        public string Label => Directory != null ? Directory.Label : Friendly.Length > 0 ? Friendly : "Sin nombre";
+        /// <summary>Nombre en la lista: el del directorio, el que lleva la impresora o, sin nombre, su modelo.</summary>
+        public string Label => Directory != null ? Directory.Label : Friendly.Length > 0 ? Friendly : Result != null && Result.Model.Length > 0 && Detected ? Result.Model : "Sin nombre";
         public bool CanInstall => Detected && (Brand == "Ricoh" || Brand == "Canon" || IsShared);
+        /// <summary>Cola de servidor que pide otro usuario: Instalar pasa a pedir credenciales.</summary>
+        public bool NeedsLogin => IsShared && !Detected && Result?.Denied == true;
+        /// <summary>Servidor de una cola \\servidor\cola.</summary>
+        public string Host => IsShared ? Ip.TrimStart('\\').Split('\\')[0] : Ip;
         /// <summary>
         /// Nombre de cola al instalar: el del directorio; si no, "Marca - nombre y planta de la impresora"
         /// (como "Canon - Cultura"); si la impresora no tiene nombre, "Ricoh IM C4500" / "Ricoh 192.168.1.50".
@@ -122,8 +129,8 @@ namespace InstaladorImpresoras
         {
             r.State = alive ? ScanState.NotPrinter : ScanState.Unreachable;
             r.Model = alive ? "host · sin servicio de impresión" : "offline";
-            r.Hint = alive ? "El equipo responde pero no ofrece impresión (9100 / 631 / 515)."
-                           : "Sin respuesta: apagada, IP cambiada o sin ruta hasta esa red.";
+            r.Hint = alive ? "Host activo sin puertos de impresión (9100 / 631 / 515)."
+                           : "Sin respuesta ICMP / TCP: apagada, IP cambiada o red sin ruta.";
             return r;
         }
 
@@ -143,7 +150,7 @@ namespace InstaladorImpresoras
             {
                 r.State = ScanState.Unreachable;
                 r.Model = r.PingMs != null ? "SMB cerrado" : "servidor offline";
-                r.Hint = r.PingMs != null ? $"{host} responde pero no comparte (puerto 445 cerrado)." : $"{host} no responde.";
+                r.Hint = r.PingMs != null ? $"{host}: ICMP ok, TCP 445 (SMB) cerrado." : $"{host} no responde.";
                 return r;
             }
             r.Ports.Add(445);
@@ -152,10 +159,10 @@ namespace InstaladorImpresoras
             if (info == null)
             {
                 r.State = ScanState.NotPrinter;
-                bool denied = error == 5 || error == 1326;
+                bool denied = r.Denied = error == 5 || error == 1326;
                 r.Model = denied ? $"sin permiso · {error}" : error == 1801 ? "cola inexistente" : $"error {error}";
-                r.Hint = denied ? $"{host} no acepta este usuario: inicie sesión con un usuario del dominio."
-                       : error == 1801 ? $"No existe esa cola en {host}: revise el nombre."
+                r.Hint = denied ? $"{host} rechaza el usuario actual. Credenciales: usuario con permiso en el servidor."
+                       : error == 1801 ? $"Cola inexistente en {host} (error 1801)."
                        : $"No se pudo abrir la cola en {host} (error {error}).";
                 return r;
             }
@@ -163,7 +170,7 @@ namespace InstaladorImpresoras
             r.Description = r.Model = info.Value.driver;
             r.Name = info.Value.comment;
             r.Location = info.Value.location;
-            if (info.Value.status != 0) r.Hint = "El servidor marca la cola con error o sin conexión.";
+            r.Hint = string.Join("  ·  ", new[] { QueueKind(info.Value.port), info.Value.status != 0 ? "estado en servidor: error / offline" : "" }.Where(x => x.Length > 0));
             return r;
         }
 
@@ -181,21 +188,114 @@ namespace InstaladorImpresoras
             public uint Attributes, Priority, DefaultPriority, StartTime, UntilTime, Status, cJobs, AveragePPM;
         }
 
-        static (string driver, uint status, string location, string comment)? SharedQueueInfo(string unc, out int error)
+        /// <summary>
+        /// Que hay detras de una cola del servidor, segun su puerto: "nul" = cola de retencion (PaperCut la
+        /// libera en la impresora donde se valide el usuario); varios puertos = reparte entre varias impresoras.
+        /// </summary>
+        static string QueueKind(string port)
+        {
+            if (port.Length == 0) return "";
+            if (port.Equals("nul", StringComparison.OrdinalIgnoreCase) || port.Equals("nul:", StringComparison.OrdinalIgnoreCase))
+                return "puerto nul: retención PaperCut, liberación en dispositivo";
+            var ports = port.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+            var ips = ports.Select(x => Regex.Match(x, @"\d{1,3}(\.\d{1,3}){3}").Value).Where(x => x.Length > 0).ToList();
+            if (ports.Count > 1) return $"pool de {ports.Count} puertos" + (ips.Count > 0 ? ": " + string.Join(", ", ips) : "");
+            return ips.Count > 0 ? "puerto " + ips[0] : "";
+        }
+
+        // ---------- credenciales para servidores que no aceptan al usuario actual ----------
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        sealed class NETRESOURCE
+        {
+            public int dwScope, dwType, dwDisplayType, dwUsage;
+            public string lpLocalName, lpRemoteName, lpComment, lpProvider;
+        }
+
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+        struct CREDENTIAL
+        {
+            public uint Flags, Type;
+            public string TargetName, Comment;
+            public System.Runtime.InteropServices.ComTypes.FILETIME LastWritten;
+            public uint CredentialBlobSize;
+            public IntPtr CredentialBlob;
+            public uint Persist, AttributeCount;
+            public IntPtr Attributes;
+            public string TargetAlias, UserName;
+        }
+
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)] static extern int WNetAddConnection2(NETRESOURCE resource, string password, string user, int flags);
+        [DllImport("mpr.dll", CharSet = CharSet.Unicode)] static extern int WNetCancelConnection2(string name, int flags, bool force);
+        [DllImport("advapi32.dll", CharSet = CharSet.Unicode, SetLastError = true)] static extern bool CredWrite(ref CREDENTIAL credential, uint flags);
+
+        /// <summary>
+        /// Entra en el servidor con otro usuario. Abre la sesion IPC$ (canal administrativo) para este proceso,
+        /// lo que valida usuario y contraseña al momento, y guarda la credencial en el Administrador de
+        /// credenciales de Windows para que la impresora siga funcionando fuera de PrintDeploy.
+        /// Devuelve 0 o el error de Windows (1326 = usuario o contraseña incorrectos).
+        /// </summary>
+        public static int Login(string host, string user, string password)
+        {
+            var ipc = $@"\\{host}\IPC$";
+            var res = new NETRESOURCE { lpRemoteName = ipc };
+            int err = WNetAddConnection2(res, password, user, 0);
+            // 1219: ya habia una sesion con ese servidor con otro usuario
+            if (err == 1219) { WNetCancelConnection2(ipc, 0, true); err = WNetAddConnection2(res, password, user, 0); }
+            if (err != 0) return err;
+
+            var blob = Encoding.Unicode.GetBytes(password);
+            var ptr = Marshal.AllocHGlobal(blob.Length);
+            try
+            {
+                Marshal.Copy(blob, 0, ptr, blob.Length);
+                var cred = new CREDENTIAL
+                {
+                    Type = 2,      // CRED_TYPE_DOMAIN_PASSWORD: la usan SMB y la impresion en red
+                    Persist = 2,   // CRED_PERSIST_LOCAL_MACHINE: sobrevive a reinicios, no viaja con el perfil
+                    TargetName = host, UserName = user,
+                    CredentialBlob = ptr, CredentialBlobSize = (uint)blob.Length,
+                    Comment = "PrintDeploy",
+                };
+                CredWrite(ref cred, 0);
+            }
+            finally
+            {
+                for (int i = 0; i < blob.Length; i++) Marshal.WriteByte(ptr, i, 0);
+                Marshal.FreeHGlobal(ptr);
+                Array.Clear(blob, 0, blob.Length);
+            }
+            return 0;
+        }
+
+        /// <summary>Texto para el error de Login.</summary>
+        public static string LoginError(int err)
+        {
+            switch (err)
+            {
+                case 86: case 1326: return "Usuario o contraseña incorrectos.";
+                case 1909: return "La cuenta está bloqueada.";
+                case 1331: return "La cuenta está deshabilitada.";
+                case 1330: case 1907: return "La contraseña ha caducado o debe cambiarse.";
+                case 53: case 67: return "No se encuentra el servidor.";
+                default: return $"El servidor rechazó la conexión (error {err}).";
+            }
+        }
+
+        static (string driver, uint status, string location, string comment, string port)? SharedQueueInfo(string unc, out int error)
         {
             error = 0;
             if (!OpenPrinter(unc, out var h, IntPtr.Zero)) { error = Marshal.GetLastWin32Error(); return null; }
             try
             {
                 GetPrinter(h, 2, IntPtr.Zero, 0, out int needed);
-                if (needed <= 0) return ("driver desconocido", 0, "", "");
+                if (needed <= 0) return ("driver desconocido", 0, "", "", "");
                 var buf = Marshal.AllocHGlobal(needed);
                 try
                 {
-                    if (!GetPrinter(h, 2, buf, needed, out needed)) return ("driver desconocido", 0, "", "");
+                    if (!GetPrinter(h, 2, buf, needed, out needed)) return ("driver desconocido", 0, "", "", "");
                     var pi = (PRINTER_INFO_2)Marshal.PtrToStructure(buf, typeof(PRINTER_INFO_2));
                     // 0x2 error, 0x80 offline, 0x400000 no disponible
-                    return (pi.pDriverName ?? "driver desconocido", pi.Status & (0x2u | 0x80u | 0x400000u), (pi.pLocation ?? "").Trim(), (pi.pComment ?? "").Trim());
+                    return (pi.pDriverName ?? "driver desconocido", pi.Status & (0x2u | 0x80u | 0x400000u), (pi.pLocation ?? "").Trim(), (pi.pComment ?? "").Trim(), (pi.pPortName ?? "").Trim());
                 }
                 finally { Marshal.FreeHGlobal(buf); }
             }
@@ -320,9 +420,10 @@ namespace InstaladorImpresoras
             return list;
         }
 
-        /// <summary>Rango /24 de la red de este equipo (la interfaz con puerta de enlace primero).</summary>
-        public static string LocalRange()
+        /// <summary>IPv4 de este equipo, la interfaz con puerta de enlace primero.</summary>
+        public static List<uint> LocalAddresses()
         {
+            var list = new List<uint>();
             try
             {
                 var nics = NetworkInterface.GetAllNetworkInterfaces()
@@ -333,12 +434,67 @@ namespace InstaladorImpresoras
                     {
                         var a = ua.Address;
                         if (a.AddressFamily != AddressFamily.InterNetwork || IPAddress.IsLoopback(a) || a.ToString().StartsWith("169.254.")) continue;
-                        var b = a.GetAddressBytes();
-                        return $"{b[0]}.{b[1]}.{b[2]}.1-254";
+                        list.Add(ToUInt(a.ToString()));
                     }
             }
             catch { }
-            return "";
+            return list;
+        }
+
+        /// <summary>Rango /24 de la red de este equipo.</summary>
+        public static string LocalRange()
+        {
+            var a = LocalAddresses();
+            return a.Count == 0 ? "" : $"{a[0] >> 24}.{(a[0] >> 16) & 255}.{(a[0] >> 8) & 255}.1-254";
+        }
+
+        // ---------- ubicacion ----------
+        /// <summary>
+        /// Oficina en la que esta este equipo: la que tiene una impresora en su misma red /24 y, si ninguna,
+        /// la que coincide con el sitio de Active Directory del equipo. null si no se reconoce.
+        /// </summary>
+        public static (string office, string why)? DetectOffice(IEnumerable<OfficePrinter> directory)
+        {
+            var dir = directory.ToList();
+            foreach (var local in LocalAddresses())
+            {
+                uint net = local & 0xFFFFFF00u;
+                var hit = dir.FirstOrDefault(p => HostIp(p.Ip) is uint ip && (ip & 0xFFFFFF00u) == net);
+                if (hit != null) return (hit.Office, $"red {FromUInt(net)}/24");
+            }
+            var site = AdSite();
+            if (site != null)
+            {
+                var s = Fold(site);
+                var office = dir.Select(p => p.Office).Distinct().FirstOrDefault(o => { var f = Fold(o); return f.Length > 2 && (s.Contains(f) || f.Contains(s)); });
+                if (office != null) return (office, $"sitio AD {site}");
+            }
+            return null;
+        }
+
+        /// <summary>IP de una impresora o del servidor de una cola \\IP\cola; null si es un nombre.</summary>
+        static uint? HostIp(string ipOrUnc)
+        {
+            var h = ipOrUnc.StartsWith(@"\\") ? ipOrUnc.TrimStart('\\').Split('\\')[0] : ipOrUnc;
+            try { return ToUInt(h); } catch (FormatException) { return null; }
+        }
+
+        /// <summary>"Málaga" -> "malaga": comparar sin tildes ni mayusculas.</summary>
+        static string Fold(string s) =>
+            new string(s.Normalize(NormalizationForm.FormD).Where(c => System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) != System.Globalization.UnicodeCategory.NonSpacingMark).ToArray()).ToLowerInvariant();
+
+        [DllImport("netapi32.dll", CharSet = CharSet.Unicode)] static extern int DsGetSiteName(string computer, out IntPtr site);
+        [DllImport("netapi32.dll")] static extern int NetApiBufferFree(IntPtr buffer);
+
+        /// <summary>Sitio de Active Directory del equipo (fuera de dominio, null).</summary>
+        static string AdSite()
+        {
+            try
+            {
+                if (DsGetSiteName(null, out var p) != 0) return null;
+                try { return Marshal.PtrToStringUni(p); } finally { NetApiBufferFree(p); }
+            }
+            catch { return null; }
         }
 
         public static uint ToUInt(string s)

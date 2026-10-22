@@ -13,28 +13,28 @@ namespace InstaladorImpresoras
 {
     /// <summary>
     /// Escaner de red: comprueba el directorio de oficinas y busca impresoras en un rango de IPs.
-    /// Verde = online (impresora detectada), rojo = offline / no es impresora. Instalar = directo, con el modelo ya detectado.
+    /// La oficina donde esta el equipo va primero y abierta; el resto, plegadas al final.
+    /// Cada fila se despliega con su detalle. Instalar = directo, con el modelo ya detectado.
     /// Al cerrar se oculta: los resultados se conservan mientras la app siga abierta.
     /// </summary>
     sealed class ScannerForm : Form
     {
-        const string DirectoryGroup = "Directorio";
         const int Parallel = 128;
 
         readonly Action<ScanEntry> onInstall;
         readonly ScanList list = new ScanList { Dock = DockStyle.Fill };
-        readonly BufferedPanel head = new BufferedPanel(), toolbar = new BufferedPanel(), detail = new BufferedPanel();
-        readonly ThinProgress progress = new ThinProgress { Dock = DockStyle.Top, BarColor = Theme.Black, Visible = false };
+        readonly BufferedPanel head = new BufferedPanel(), toolbar = new BufferedPanel(), bar = new BufferedPanel();
+        readonly ThinProgress progress = new ThinProgress { Dock = DockStyle.Top, BarColor = Theme.GoldDeep, Visible = false };
         readonly LineField fRange = new LineField("Rango", mono: true);
-        readonly FlatBtn btnScan = new FlatBtn("Escanear", primary: true);
-        readonly FlatBtn btnDir = new FlatBtn("Directorio", primary: false);
+        readonly FlatBtn btnScan = new FlatBtn("Escanear", primary: true) { Eye = true, SweepOnHover = true };
+        readonly FlatBtn btnDir = new FlatBtn("Recomprobar oficinas", primary: false);
         readonly FlatBtn btnInstall = new FlatBtn("Instalar", primary: true);
         readonly FlatBtn btnRetry = new FlatBtn("Reintentar", primary: false);
         readonly FlatBtn btnWeb = new FlatBtn("Web", primary: false);
         readonly FlatBtn btnCopy = new FlatBtn("Copiar", primary: false);
         readonly System.Windows.Forms.Timer repaint = new System.Windows.Forms.Timer { Interval = 50 };
-        readonly Font fTag = Theme.Strong(8.5f), fSub = Theme.Mono(8f), fTitle = Theme.Title(11.5f), fData = Theme.Mono(8.75f),
-                      fBody = Theme.Sans(9f), fKey = Theme.Strong(7.5f), fFoot = Theme.Sans(8.25f);
+        readonly Font fTag = Theme.Strong(8.25f), fSub = Theme.Sans(8.75f), fTitle = Theme.Strong(9.75f), fBody = Theme.Sans(9f), fFoot = Theme.Sans(8.25f);
+        readonly string here, hereWhy;
         CancellationTokenSource rangeCts;
         bool checkingDirectory, dirty;
         string dirStatus = "", rangeStatus = "", note = "";
@@ -55,31 +55,43 @@ namespace InstaladorImpresoras
             BackColor = Theme.Paper;
             Font = Theme.Sans(9.5f);
             Padding = new Padding(1);
-            ClientSize = new Size(S(820), S(720));
+            // grande, pero sin salirse de pantallas pequeñas (portatiles)
+            var area = Screen.PrimaryScreen.WorkingArea;
+            ClientSize = new Size(Math.Min(S(960), area.Width * 92 / 100), Math.Min(S(840), area.Height * 92 / 100));
             KeyPreview = true;
-            KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape) Hide(); };
+            // Esc = ocultar · F5 = escanear el rango otra vez
+            KeyDown += (s, e) =>
+            {
+                if (e.KeyCode == Keys.Escape) Hide();
+                else if (e.KeyCode == Keys.F5 && rangeCts == null) { e.Handled = true; ScanRange(); }
+            };
             FormClosing += (s, e) => { if (e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); } };
 
+            // donde esta este equipo: su oficina arriba y abierta, las demas plegadas al final
+            var loc = NetworkScan.DetectOffice(directory);
+            here = loc?.office;
+            hereWhy = loc?.why;
+            list.Here = here;
             foreach (var p in directory)
-                list.Items.Add(new ScanEntry { Ip = p.Ip, Group = DirectoryGroup, Directory = p });
+                list.Items.Add(new ScanEntry { Ip = p.Ip, Group = p.Office, Directory = p });
 
             BuildHead();
             BuildToolbar();
-            BuildDetail();
-            list.SelectionChanged += e => UpdateDetail();
-            list.Activated += e => { if (e.CanInstall) onInstall(e); };
-            list.EmptyText = "Sin directorio (oficinas.txt). Escanee un rango para buscar impresoras.";
+            BuildBar();
+            list.SelectionChanged += e => UpdateBar();
+            list.Activated += Install;
+            list.EmptyText = "Sin oficinas.txt. Escanear un rango.";
 
             Controls.Add(list);
-            Controls.Add(detail);
+            Controls.Add(bar);
             Controls.Add(progress);
             Controls.Add(toolbar);
             Controls.Add(head);
 
             // repintado agrupado: un escaneo de 254 IPs no repinta 254 veces
-            repaint.Tick += (s, e) => { if (!dirty) return; dirty = false; list.Invalidate(); UpdateDetail(); };
+            repaint.Tick += (s, e) => { if (!dirty) return; dirty = false; list.Invalidate(); UpdateBar(); };
             repaint.Start();
-            UpdateDetail();
+            UpdateBar();
 
             bool first = true;
             Shown += (s, e) =>
@@ -109,16 +121,17 @@ namespace InstaladorImpresoras
         void BuildHead()
         {
             head.Dock = DockStyle.Top;
-            head.Height = S(52);
+            head.Height = S(58);
             head.BackColor = Theme.Black;
             head.MouseDown += (s, e) => { if (e.Button == MouseButtons.Left) { ReleaseCapture(); SendMessage(Handle, 0xA1, 2, 0); } };
             head.Paint += (s, e) =>
             {
                 var g = e.Graphics;
                 int x = S(24);
-                using (var b = new SolidBrush(Theme.Red)) g.FillRectangle(b, x, S(12), S(3), S(13));
-                Theme.DrawGradientText(g, Theme.Caps("Escáner"), fTag, new Point(x + S(10), S(12)), Theme.RedOnDark, Theme.Paper);
-                TextRenderer.DrawText(g, "ICMP · TCP 9100 / 631 / 515 · SNMP · SMB", fSub, new Point(x + S(10), S(30)), Color.FromArgb(150, 150, 152), TextFormatFlags.NoPadding);
+                Theme.DrawMark(g, "Escáner", fTag, new Point(x, S(13)), S);
+                var where = here != null ? $"{here}   ·   {hereWhy}" : "Ubicación no reconocida";
+                TextRenderer.DrawText(g, where, fSub, new Point(x + S(16), S(33)), Theme.HeadSub, TextFormatFlags.NoPadding);
+                using (var b = new SolidBrush(Color.FromArgb(56, 56, 58))) g.FillRectangle(b, 0, head.Height - 1, head.Width, 1);
             };
             var close = new IconBtn("✕", null, 10f, icon: false) { Size = new Size(S(46), S(34)), HoverBack = Theme.Red };
             close.Click += (s, e) => Hide();
@@ -132,7 +145,7 @@ namespace InstaladorImpresoras
         void BuildToolbar()
         {
             toolbar.Dock = DockStyle.Top;
-            toolbar.Height = S(74);
+            toolbar.Height = S(72);
             toolbar.BackColor = Theme.Paper;
             fRange.Box.Text = NetworkScan.LocalRange();
             fRange.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; if (rangeCts == null) ScanRange(); } };
@@ -143,78 +156,66 @@ namespace InstaladorImpresoras
             toolbar.Controls.Add(btnDir);
             toolbar.Layout += (s, e) =>
             {
-                int pad = S(24), y = S(14);
-                fRange.SetBounds(pad, y, S(230), S(52));
-                btnScan.SetBounds(fRange.Right + S(16), y + S(14), S(130), S(36));
-                btnDir.SetBounds(toolbar.Width - pad - S(130), y + S(14), S(130), S(36));
+                int pad = S(24), y = S(12);
+                fRange.SetBounds(pad, y, S(220), S(52));
+                btnScan.SetBounds(fRange.Right + S(16), y + S(14), S(120), S(34));
+                btnDir.SetBounds(toolbar.Width - pad - S(200), y + S(14), S(200), S(34));
             };
         }
 
-        void BuildDetail()
+        void BuildBar()
         {
-            detail.Dock = DockStyle.Bottom;
-            detail.Height = S(176);
-            detail.BackColor = Theme.Paper;
-            detail.Paint += PaintDetail;
-            btnInstall.Click += (s, e) => { var sel = list.Selected; if (sel != null && sel.CanInstall) onInstall(sel); };
+            bar.Dock = DockStyle.Bottom;
+            bar.Height = S(96);
+            bar.BackColor = Theme.Paper;
+            bar.Paint += PaintBar;
+            btnInstall.Click += (s, e) => { if (list.Selected != null) Install(list.Selected); };
             btnRetry.Click += async (s, e) => { var sel = list.Selected; if (sel != null) await CheckOne(sel, quick: false); };
             btnWeb.Click += (s, e) => { var sel = list.Selected; if (sel != null) try { Process.Start("http://" + sel.Ip); } catch { } };
-            btnCopy.Click += (s, e) => { var sel = list.Selected; if (sel != null) try { Clipboard.SetText(sel.Ip); note = "copiado " + sel.Ip; detail.Invalidate(); } catch { } };
-            var buttons = new[] { (btnInstall, 120), (btnRetry, 120), (btnWeb, 80), (btnCopy, 100) };
-            foreach (var (b, _) in buttons) detail.Controls.Add(b);
-            detail.Layout += (s, e) =>
+            btnCopy.Click += (s, e) => { var sel = list.Selected; if (sel != null) try { Clipboard.SetText(sel.Ip); note = "copiado " + sel.Ip; bar.Invalidate(); } catch { } };
+            var buttons = new[] { (btnInstall, 136), (btnRetry, 112), (btnWeb, 72), (btnCopy, 88) };
+            foreach (var (b, _) in buttons) detailButtons.Add(b);
+            foreach (var (b, _) in buttons) bar.Controls.Add(b);
+            bar.Layout += (s, e) =>
             {
-                int x = detail.Width - S(24);
-                foreach (var (b, w) in buttons) { x -= S(w); b.SetBounds(x, S(100), S(w), S(34)); x -= S(8); }
+                int x = bar.Width - S(24);
+                foreach (var (b, w) in buttons) { x -= S(w); b.SetBounds(x, S(16), S(w), S(34)); x -= S(8); }
             };
         }
 
-        void PaintDetail(object sender, PaintEventArgs e)
+        readonly List<FlatBtn> detailButtons = new List<FlatBtn>();
+
+        void PaintBar(object sender, PaintEventArgs e)
         {
             var g = e.Graphics;
-            int pad = S(24), w = detail.Width, tx = pad + S(20), tw = w - tx - pad;
+            int pad = S(24), w = bar.Width;
             using (var b = new SolidBrush(Theme.Line)) g.FillRectangle(b, 0, 0, w, 1);
-            var flags = TextFormatFlags.Left | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis;
+            var flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis;
+            int textW = detailButtons.Min(b => b.Left) - pad - S(16);
             var sel = list.Selected;
+            var row = new Rectangle(pad, S(16), textW, S(34));
             if (sel == null)
-                TextRenderer.DrawText(g, "Seleccione un equipo.  Doble clic / Enter en uno online = instalar.", fBody, new Rectangle(pad, S(16), w - 2 * pad, S(20)), Theme.Muted, flags);
+                TextRenderer.DrawText(g, "Sin selección.", fBody, row, Theme.Muted, flags);
             else
-            {
-                var r = sel.Result;
-                DrawDot(g, sel.State, new Rectangle(pad, S(17), S(12), S(12)));
-                var title = sel.Directory != null ? $"{sel.Directory.Office} · {sel.Label}" : sel.Friendly.Length > 0 ? sel.Friendly : r?.Model ?? sel.Ip;
-                TextRenderer.DrawText(g, title, fTitle, new Rectangle(tx, S(12), tw, S(24)), Theme.Black, flags);
-
-                var data = sel.Ip + (r?.PingMs != null ? $"  ·  {r.PingMs} ms" : "") + (r != null && r.Ports.Count > 0 ? "  ·  tcp " + string.Join(" ", r.Ports) : "");
-                TextRenderer.DrawText(g, data, fData, new Rectangle(tx, S(40), tw, S(16)), Theme.Muted, flags);
-
-                // lo que el propio equipo dice de si mismo
-                var id = r == null ? "" : string.Join("  ·  ", new[] { r.Name, r.Location }.Where(x => x.Length > 0));
-                var key = sel.IsShared ? "COLA" : "SNMP";
-                int kw = TextRenderer.MeasureText(key, fKey).Width + S(8);
-                TextRenderer.DrawText(g, key, fKey, new Rectangle(tx, S(59), kw, S(16)), Theme.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
-                TextRenderer.DrawText(g, id.Length > 0 ? id : "sin nombre ni ubicación", fBody, new Rectangle(tx + kw, S(59), tw - kw, S(16)), Theme.Muted, flags | TextFormatFlags.VerticalCenter);
-
-                TextRenderer.DrawText(g, ActionText(sel), fBody, new Rectangle(tx, S(78), tw, S(16)), sel.Failed ? Theme.Red : sel.Detected ? Theme.Black : Theme.Muted, flags);
-            }
+                TextRenderer.DrawText(g, sel.Directory != null ? $"{sel.Directory.Office} · {sel.Label}" : sel.Label, fTitle, row, Theme.Black, flags);
 
             // pie: recuento + estado
             int ok = list.Items.Count(x => x.Detected), bad = list.Items.Count(x => x.Failed);
-            int y = detail.Height - S(26);
-            using (var b = new SolidBrush(Theme.Line)) g.FillRectangle(b, pad, y - S(8), w - 2 * pad, 1);
+            int y = bar.Height - S(30);
+            using (var b = new SolidBrush(Theme.Line)) g.FillRectangle(b, pad, y - S(6), w - 2 * pad, 1);
             int fx = pad;
             foreach (var (st, text) in new[] { (ScanState.Printer, $"{ok} online"), (ScanState.Unreachable, $"{bad} offline") })
             {
-                DrawDot(g, st, new Rectangle(fx, y + S(3), S(10), S(10)));
-                fx += S(16);
-                TextRenderer.DrawText(g, text, fFoot, new Point(fx, y + S(1)), Theme.Black, TextFormatFlags.NoPadding);
-                fx += TextRenderer.MeasureText(text, fFoot).Width + S(16);
+                DrawState(g, st, new Rectangle(fx, y + S(4), S(12), S(12)));
+                fx += S(18);
+                TextRenderer.DrawText(g, text, fFoot, new Rectangle(fx, y, S(90), S(20)), Theme.Black, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                fx += TextRenderer.MeasureText(text, fFoot).Width + S(18);
             }
-            TextRenderer.DrawText(g, Status, fFoot, new Rectangle(fx + S(4), y + S(1), w - pad - fx - S(4), S(16)), Theme.Muted, flags);
+            TextRenderer.DrawText(g, Status, fFoot, new Rectangle(fx + S(4), y, w - pad - fx - S(4), S(20)), Theme.Muted, flags);
         }
 
         /// <summary>Que hara INSTALAR o, si no se detecta, por que.</summary>
-        static string ActionText(ScanEntry e)
+        internal static string ActionText(ScanEntry e)
         {
             var r = e.Result;
             switch (e.State)
@@ -223,59 +224,82 @@ namespace InstaladorImpresoras
                 case ScanState.Checking: return "Comprobando…";
                 case ScanState.Printer:
                     var extra = r.Hint.Length > 0 ? "  ·  " + r.Hint : "";
-                    if (e.IsShared) return "Instalar: conectar cola compartida (driver del servidor)" + extra;
+                    if (e.IsShared) return "Instalar: Add-Printer -ConnectionName (driver del servidor)" + extra;
                     if (e.Brand == "Ricoh") return $"Instalar: {(RicohModels.Detect(r.Description) ?? RicohModels.Universal).DriverName}  →  «{e.QueueName}»";
-                    if (e.Brand == "Canon") return "Instalar: asistente Canon Generic Plus PCL6  ·  IP al portapapeles";
+                    if (e.Brand == "Canon") return $"Instalar: Canon Generic Plus PCL6  →  «{e.QueueName}»  ·  puerto TCP/IP";
                     return "Marca no soportada (solo Ricoh / Canon)";
                 default: return r?.Hint ?? "";
             }
         }
 
         /// <summary>Texto corto de la columna modelo / estado.</summary>
-        internal static string StateText(ScanEntry e) =>
-            e.State == ScanState.Checking ? "…" : e.State == ScanState.Pending ? "" : e.Result.Model.Length > 0 ? e.Result.Model : "impresora";
-
-        /// <summary>Estado como esfera: degradado con la luz arriba a la izquierda, borde oscuro y brillo pequeño.</summary>
-        internal static void DrawDot(Graphics g, ScanState st, Rectangle dot)
+        internal static string StateText(ScanEntry e)
         {
-            var old = g.SmoothingMode;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            if (st == ScanState.Printer || st == ScanState.Unreachable || st == ScanState.NotPrinter)
-            {
-                var c = st == ScanState.Printer ? Theme.Green : Theme.Red;
-                using (var b = new SolidBrush(Color.FromArgb(24, 0, 0, 0))) g.FillEllipse(b, dot.X + dot.Width * .14f, dot.Bottom - dot.Height * .1f, dot.Width * .72f, dot.Height * .2f);
-                using (var path = new GraphicsPath())
-                {
-                    path.AddEllipse(dot);
-                    using (var b = new PathGradientBrush(path))
-                    {
-                        b.CenterPoint = new PointF(dot.X + dot.Width * .36f, dot.Y + dot.Height * .32f);
-                        b.CenterColor = Mix(c, Color.White, .45f);
-                        b.SurroundColors = new[] { Mix(c, Color.Black, .22f) };
-                        g.FillPath(b, path);
-                    }
-                }
-                using (var b = new SolidBrush(Color.FromArgb(170, 255, 255, 255)))
-                    g.FillEllipse(b, dot.X + dot.Width * .24f, dot.Y + dot.Height * .16f, dot.Width * .30f, dot.Height * .22f);
-            }
-            else using (var p = new Pen(st == ScanState.Checking ? Theme.Muted : Theme.Line, Math.Max(1, dot.Width / 6))) g.DrawEllipse(p, dot);
-            g.SmoothingMode = old;
+            if (e.State == ScanState.Checking) return "comprobando…";
+            if (e.State == ScanState.Pending) return "";
+            var text = e.Result.Model.Length > 0 ? e.Result.Model : "impresora";
+            // offline: la marca del directorio, para saber que es sin desplegar
+            return e.Failed && e.Directory != null && e.Directory.Brand.Length > 0 ? $"{e.Directory.Brand} · {text}" : text;
         }
 
-        static Color Mix(Color a, Color b, float t) =>
-            Color.FromArgb((int)(a.R + (b.R - a.R) * t), (int)(a.G + (b.G - a.G) * t), (int)(a.B + (b.B - a.B) * t));
+        /// <summary>Columna de direccion: la IP, o solo el servidor si es una cola compartida (la cola ya va en el nombre).</summary>
+        internal static string Address(ScanEntry e) => e.IsShared ? @"\\" + e.Ip.TrimStart('\\').Split('\\')[0] : e.Ip;
 
-        void UpdateDetail()
+        /// <summary>Indicador: esfera negra con nucleo verde (online), rojo (offline / no identificada) o apagado.</summary>
+        internal static void DrawState(Graphics g, ScanState st, Rectangle r)
+        {
+            switch (st)
+            {
+                case ScanState.Printer: Theme.DrawOrb(g, r, Theme.Green); break;
+                case ScanState.Unreachable: case ScanState.NotPrinter: Theme.DrawOrb(g, r, Theme.Red); break;
+                case ScanState.Checking: Theme.DrawOrb(g, r, Theme.Gold, dim: true); break;
+                default: Theme.DrawOrb(g, r, null); break;
+            }
+        }
+
+        void UpdateBar()
         {
             var sel = list.Selected;
-            btnInstall.Enabled = sel != null && sel.CanInstall;
+            btnInstall.Enabled = sel != null && (sel.CanInstall || sel.NeedsLogin);
+            var label = sel?.NeedsLogin == true ? "Credenciales" : "Instalar";
+            if (btnInstall.Text != label) { btnInstall.Text = label; btnInstall.Invalidate(); }
             btnRetry.Enabled = sel != null && sel.State != ScanState.Checking;
             btnWeb.Enabled = sel?.Result != null && sel.Result.Ports.Contains(80);
             btnCopy.Enabled = sel != null;
-            detail.Invalidate();
+            bar.Invalidate();
         }
 
         void Redraw() => dirty = true;
+
+        /// <summary>Instalar; si es una cola de servidor que no acepta este usuario, antes pide credenciales.</summary>
+        async void Install(ScanEntry e)
+        {
+            if (e.NeedsLogin && !await Login(e)) return;
+            if (e.CanInstall) onInstall(e);
+        }
+
+        /// <summary>
+        /// Entra en el servidor con un usuario con permiso y vuelve a comprobar sus colas.
+        /// La credencial queda en el Administrador de credenciales de Windows.
+        /// </summary>
+        async Task<bool> Login(ScanEntry e)
+        {
+            var host = e.Host;
+            var text = $"{host} rechaza el usuario actual (error 5 / 1326). Usuario con permiso en el servidor: DOMINIO\\usuario.\n\n" +
+                       "Sesión IPC$ + credencial en el Administrador de credenciales de Windows.";
+            bool ok = ThemedDialog.Credentials(this, host, text, async (user, pass) =>
+            {
+                int err = await Task.Run(() => NetworkScan.Login(host, user, pass));
+                return err == 0 ? null : NetworkScan.LoginError(err);
+            });
+            if (!ok) return false;
+            note = "credenciales guardadas · " + host;
+            // todas las colas de ese servidor, no solo la elegida
+            await Task.WhenAll(list.Items.Where(x => x.IsShared && x.Host.Equals(host, StringComparison.OrdinalIgnoreCase)).Select(x => CheckOne(x, quick: false)));
+            if (e.Detected) return true;
+            ThemedDialog.Info(this, "Servidor", e.Label, $"Sesión con {host} abierta; la cola no abre.\n\n{e.Result?.Hint}");
+            return false;
+        }
 
         async Task CheckOne(ScanEntry e, bool quick)
         {
@@ -293,13 +317,14 @@ namespace InstaladorImpresoras
         async void CheckDirectory()
         {
             if (checkingDirectory) return;
-            var entries = list.Items.Where(x => x.Group == DirectoryGroup).ToList();
+            var entries = list.Items.Where(x => x.Directory != null).ToList();
             if (entries.Count == 0) return;
             checkingDirectory = true;
-            btnDir.Enabled = false;
+            btnDir.Scanning = true;
             dirStatus = "directorio…";
-            await Task.WhenAll(entries.Select(x => CheckOne(x, quick: false)));
-            btnDir.Enabled = true;
+            // la oficina de este equipo primero: sus resultados llegan antes
+            await Task.WhenAll(entries.OrderBy(x => x.Group == here ? 0 : 1).Select(x => CheckOne(x, quick: false)));
+            btnDir.Scanning = false;
             checkingDirectory = false;
             dirStatus = $"directorio {entries.Count(x => x.Detected)}/{entries.Count}";
             Redraw();
@@ -310,21 +335,23 @@ namespace InstaladorImpresoras
             if (rangeCts != null) { rangeCts.Cancel(); return; }
             List<string> ips;
             try { ips = NetworkScan.ParseRange(fRange.Box.Text); }
-            catch (FormatException ex) { MessageBox.Show(this, ex.Message + "\n\nEjemplos: 192.168.4.1-254 · 192.168.4.0/24 · 192.168.4.10-192.168.4.80", Text, MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+            catch (FormatException ex) { ThemedDialog.Info(this, "Escáner", "Rango no válido", ex.Message + "\n\nEjemplos: 192.168.4.1-254 · 192.168.4.0/24 · 192.168.4.10-192.168.4.80"); return; }
 
-            string group = fRange.Box.Text.Trim();
+            string group = ScanList.RangePrefix + fRange.Box.Text.Trim();
             list.Items.RemoveAll(x => x.Group == group);
             if (list.Selected != null && !list.Items.Contains(list.Selected)) list.Select(null);
             rangeCts = new CancellationTokenSource();
             var ct = rangeCts.Token;
             btnScan.Text = "Detener";
+            btnScan.Scanning = true;
             btnScan.Invalidate();
             progress.Value = 0;
             progress.Visible = true;
             int done = 0, alive = 0, found = 0;
             var gate = new SemaphoreSlim(Parallel);
             var sw = Stopwatch.StartNew();
-            var byIp = list.Items.Where(x => x.Group == DirectoryGroup).GroupBy(x => x.Ip).ToDictionary(x => x.Key, x => x.First());
+            // las del directorio no se repiten en el rango: se actualiza su fila
+            var byIp = list.Items.Where(x => x.Directory != null).GroupBy(x => x.Ip).ToDictionary(x => x.Key, x => x.First());
 
             async Task one(string ip)
             {
@@ -338,10 +365,8 @@ namespace InstaladorImpresoras
                         if (r.State == ScanState.Printer)
                         {
                             found++;
-                            byIp.TryGetValue(ip, out var dir);
-                            Insert(new ScanEntry { Ip = ip, Group = group, Directory = dir?.Directory, Result = r, State = r.State });
-                            // la del directorio tambien queda en verde sin esperar a su comprobacion
-                            if (dir != null && dir.State != ScanState.Printer) { dir.Result = r; dir.State = r.State; }
+                            if (byIp.TryGetValue(ip, out var dir)) { if (dir.State != ScanState.Printer) { dir.Result = r; dir.State = r.State; } }
+                            else Insert(new ScanEntry { Ip = ip, Group = group, Result = r, State = r.State });
                         }
                     }
                     finally { gate.Release(); }
@@ -359,11 +384,12 @@ namespace InstaladorImpresoras
             progress.Visible = false;
             rangeCts = null;
             btnScan.Text = "Escanear";
+            btnScan.Scanning = false;
             btnScan.Invalidate();
             Redraw();
         }
 
-        /// <summary>Inserta en su sitio: directorio primero (orden del fichero), luego cada rango ordenado por IP.</summary>
+        /// <summary>Inserta en su sitio: cada rango ordenado por IP.</summary>
         void Insert(ScanEntry e)
         {
             uint ip = NetworkScan.ToUInt(e.Ip);
@@ -377,51 +403,78 @@ namespace InstaladorImpresoras
         }
     }
 
-    /// <summary>Lista pintada a mano: cabecera de columnas fija, grupos (oficina / rango) y filas con estado.</summary>
+    /// <summary>
+    /// Lista pintada a mano: grupos plegables (oficina / rango) y filas que se despliegan con su detalle.
+    /// Orden: la oficina de este equipo, los rangos escaneados y el resto de oficinas (plegadas).
+    /// </summary>
     sealed class ScanList : Painted
     {
+        public const string RangePrefix = "Red ";
         public readonly List<ScanEntry> Items = new List<ScanEntry>();
         public ScanEntry Selected { get; private set; }
         public event Action<ScanEntry> SelectionChanged, Activated;
         public string EmptyText = "";
+        /// <summary>Oficina de este equipo (null = no reconocida: todo abierto).</summary>
+        public string Here;
+        readonly Dictionary<string, bool> collapsed = new Dictionary<string, bool>();
         ScanEntry hoverItem;
+        string hoverGroup;
         int scrollY, contentHeight;
         readonly List<(Rectangle rect, ScanEntry e)> hits = new List<(Rectangle, ScanEntry)>();
-        readonly Font fGroup = Theme.Strong(8.25f), fCol = Theme.Strong(7.5f), fRow = Theme.Sans(9.25f), fModel = Theme.Sans(8.5f), fIp = Theme.Mono(8.75f), fEmpty = Theme.Sans(9.5f);
-        int RowH => S(32);
-        int ColH => S(26);
-        int MaxScroll => Math.Max(0, contentHeight - (Height - ColH));
+        readonly List<(Rectangle rect, string key)> groupHits = new List<(Rectangle, string)>();
+        Rectangle detailRect;
+        readonly Font fGroup = Theme.Strong(8.25f), fHere = Theme.Strong(7.5f), fRow = Theme.Sans(9.5f), fModel = Theme.Sans(8.75f),
+                      fIp = Theme.Mono(8.75f), fData = Theme.Mono(8.25f), fBody = Theme.Sans(8.75f), fKey = Theme.Strong(7.5f), fEmpty = Theme.Sans(9.5f);
+        int RowH => S(36);
+        int DetailH => S(78);
+        int GroupH => S(34);
+        int MaxScroll => Math.Max(0, contentHeight - Height);
 
         public ScanList() { TabStop = true; }
+
+        static bool IsRange(string key) => key.StartsWith(RangePrefix);
+        int Rank(string key) => Here != null && key == Here ? 0 : IsRange(key) ? 1 : 2;
+        bool IsCollapsed(string key) => collapsed.TryGetValue(key, out var v) ? v : Here != null && !IsRange(key) && key != Here;
+
+        IEnumerable<IGrouping<string, ScanEntry>> Groups() => Items.GroupBy(i => i.Group).OrderBy(g => Rank(g.Key));
+        List<ScanEntry> VisibleItems() => Groups().Where(g => !IsCollapsed(g.Key)).SelectMany(g => g).ToList();
 
         public void Select(ScanEntry e)
         {
             if (e == Selected) return;
             Selected = e;
+            Walk();
             EnsureVisible(e);
             Invalidate();
             SelectionChanged?.Invoke(e);
         }
 
-        void EnsureVisible(ScanEntry e)
+        /// <summary>Posicion de cada cabecera (e = null) y fila en el contenido, sin scroll.</summary>
+        List<(int y, IGrouping<string, ScanEntry> grp, ScanEntry e)> Walk()
         {
-            var hit = hits.FirstOrDefault(h => h.e == e);
-            if (hit.e == null) return;
-            if (hit.rect.Top < ColH) scrollY -= ColH - hit.rect.Top;
-            else if (hit.rect.Bottom > Height) scrollY += hit.rect.Bottom - Height;
-            scrollY = Math.Max(0, Math.Min(MaxScroll, scrollY));
+            var rows = new List<(int, IGrouping<string, ScanEntry>, ScanEntry)>();
+            int y = S(4);
+            foreach (var grp in Groups())
+            {
+                rows.Add((y, grp, null));
+                y += GroupH;
+                if (!IsCollapsed(grp.Key))
+                    foreach (var it in grp) { rows.Add((y, grp, it)); y += RowH + (it == Selected ? DetailH : 0); }
+                y += S(6);
+            }
+            contentHeight = y;
+            return rows;
         }
 
-        // agrupado: directorio por oficina, rangos por rango
-        IEnumerable<IGrouping<string, ScanEntry>> Groups() =>
-            Items.GroupBy(i => i.Group == "Directorio" && i.Directory != null ? i.Directory.Office : "Red " + i.Group);
-
-        // columnas: equipo | modelo / estado | latencia | direccion
-        (int name, int model, int lat, int ip) Columns(int x, int w)
+        void EnsureVisible(ScanEntry e)
         {
-            int ipW = S(170), latW = S(52), avail = w - x - ipW - latW;
-            int nameW = (int)(avail * .44);
-            return (x, x + nameW, x + avail, w - ipW);
+            if (e == null) return;
+            var row = Walk().FirstOrDefault(r => r.e == e);
+            if (row.e == null) return;
+            int top = row.y, bottom = row.y + RowH + DetailH;
+            if (top < scrollY) scrollY = top;
+            else if (bottom > scrollY + Height) scrollY = bottom - Height;
+            scrollY = Math.Max(0, Math.Min(MaxScroll, scrollY));
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -429,74 +482,131 @@ namespace InstaladorImpresoras
             var g = e.Graphics;
             g.Clear(Theme.Paper);
             hits.Clear();
-            int pad = S(24), w = Width - S(8) - pad;
-            var c = Columns(pad + S(22), w);
+            groupHits.Clear();
+            detailRect = Rectangle.Empty;
+            int pad = S(24), right = Width - S(8) - pad;
             if (Items.Count == 0)
             {
                 TextRenderer.DrawText(g, EmptyText, fEmpty, new Rectangle(pad, S(20), Width - 2 * pad, S(40)), Theme.Muted, TextFormatFlags.Left | TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
                 return;
             }
-            var flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding;
-            var right = TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding;
-
-            g.SetClip(new Rectangle(0, ColH, Width, Height - ColH));
-            int y = ColH + S(6) - scrollY;
-            foreach (var grp in Groups())
+            var rows = Walk();
+            scrollY = Math.Max(0, Math.Min(MaxScroll, scrollY));
+            foreach (var (y0, grp, it) in rows)
             {
-                var gr = new Rectangle(pad, y, w - pad, S(30));
-                TextRenderer.DrawText(g, Theme.Caps(grp.Key), fGroup, gr, Theme.Black, flags);
-                TextRenderer.DrawText(g, $"{grp.Count(x => x.Detected)}/{grp.Count()}", fGroup, gr, Theme.Muted, right);
-                using (var p = new Pen(Theme.Black)) g.DrawLine(p, pad, y + S(29), w, y + S(29));
-                y += S(30);
-                foreach (var it in grp)
+                int y = y0 - scrollY;
+                if (it == null)
                 {
-                    var r = new Rectangle(0, y, w + S(8), RowH);
-                    if (r.Bottom > ColH) hits.Add((r, it));
-                    if (r.Bottom >= ColH && r.Top <= Height) PaintRow(g, it, r, pad, w, c, flags, right);
-                    y += RowH;
+                    var gr = new Rectangle(0, y, Width - S(8), GroupH);
+                    groupHits.Add((gr, grp.Key));
+                    if (gr.Bottom >= 0 && gr.Top <= Height) PaintGroup(g, grp, gr, pad, right);
+                    continue;
                 }
-                y += S(12);
+                var r = new Rectangle(0, y, Width - S(8), RowH);
+                hits.Add((r, it));
+                if (it == Selected) detailRect = new Rectangle(0, r.Bottom, r.Width, DetailH);
+                if (r.Bottom >= 0 && r.Top <= Height) PaintRow(g, it, r, pad, right);
             }
-            contentHeight = y + scrollY - ColH;
-            g.ResetClip();
-            if (scrollY > MaxScroll) { scrollY = MaxScroll; Invalidate(); }
-
-            // cabecera de columnas fija
-            using (var b = new SolidBrush(Theme.Paper)) g.FillRectangle(b, 0, 0, Width, ColH);
-            using (var b = new SolidBrush(Theme.Line)) g.FillRectangle(b, pad, ColH - 1, w - pad, 1);
-            var muted = Theme.Muted;
-            TextRenderer.DrawText(g, "EQUIPO", fCol, new Rectangle(c.name, 0, c.model - c.name, ColH), muted, flags);
-            TextRenderer.DrawText(g, "MODELO / ESTADO", fCol, new Rectangle(c.model, 0, c.lat - c.model, ColH), muted, flags);
-            TextRenderer.DrawText(g, "LAT.", fCol, new Rectangle(c.lat, 0, c.ip - c.lat, ColH), muted, right);
-            TextRenderer.DrawText(g, "DIRECCIÓN", fCol, new Rectangle(c.ip, 0, w - c.ip, ColH), muted, right);
 
             if (MaxScroll > 0)
             {
-                int view = Height - ColH;
-                int barH = Math.Max(S(24), view * view / (contentHeight + 1));
-                int barY = ColH + (view - barH) * scrollY / MaxScroll;
-                using (var b = new SolidBrush(Theme.Line)) g.FillRectangle(b, Width - S(5), ColH, S(2), view);
-                using (var b = new SolidBrush(Theme.Muted)) g.FillRectangle(b, Width - S(5), barY, S(2), barH);
+                int barH = Math.Max(S(24), Height * Height / (contentHeight + 1));
+                int barY = (Height - barH) * scrollY / MaxScroll;
+                using (var b = new SolidBrush(Theme.Hover)) g.FillRectangle(b, Width - S(5), 0, S(2), Height);
+                using (var b = new SolidBrush(Color.FromArgb(180, 180, 182))) g.FillRectangle(b, Width - S(5), barY, S(2), barH);
             }
         }
 
-        void PaintRow(Graphics g, ScanEntry it, Rectangle r, int pad, int w, (int name, int model, int lat, int ip) c, TextFormatFlags flags, TextFormatFlags right)
+        void PaintGroup(Graphics g, IGrouping<string, ScanEntry> grp, Rectangle r, int pad, int right)
         {
-            bool sel = it == Selected;
-            if (sel || it == hoverItem) using (var b = new SolidBrush(sel ? Color.FromArgb(240, 240, 240) : Theme.Hover)) g.FillRectangle(b, r);
-            if (sel) using (var b = new SolidBrush(Theme.Black)) g.FillRectangle(b, 0, r.Y, S(3), r.Height);
-            using (var p = new Pen(Color.FromArgb(236, 236, 236))) g.DrawLine(p, pad, r.Bottom - 1, w, r.Bottom - 1);
+            bool closed = IsCollapsed(grp.Key);
+            if (grp.Key == hoverGroup) using (var b = new SolidBrush(Theme.Hover)) g.FillRectangle(b, r);
+            var flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis;
 
-            ScannerForm.DrawDot(g, it.State, new Rectangle(pad + S(1), r.Y + r.Height / 2 - S(5), S(11), S(11)));
-            var label = it.Label;
-            TextRenderer.DrawText(g, label, fRow, new Rectangle(c.name, r.Y, c.model - c.name - S(10), r.Height), label == "Sin nombre" ? Theme.Muted : Theme.Black, flags);
-            TextRenderer.DrawText(g, ScannerForm.StateText(it), fModel, new Rectangle(c.model, r.Y, c.lat - c.model - S(6), r.Height), it.Failed ? Theme.Red : Theme.Muted, flags);
-            if (it.Result?.PingMs != null)
-                TextRenderer.DrawText(g, it.Result.PingMs + " ms", fModel, new Rectangle(c.lat, r.Y, c.ip - c.lat, r.Height), Theme.Muted, right);
-            TextRenderer.DrawText(g, it.Ip, fIp, new Rectangle(c.ip, r.Y, w - c.ip, r.Height), it.Failed ? Theme.Red : it.Detected ? Theme.Black : Theme.Muted, right | TextFormatFlags.EndEllipsis);
+            // flecha de plegado
+            var old = g.SmoothingMode;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            int cx = pad + S(4), cy = r.Y + r.Height / 2, a = S(4);
+            var arrow = closed
+                ? new[] { new Point(cx - a / 2, cy - a), new Point(cx + a / 2 + 1, cy), new Point(cx - a / 2, cy + a) }
+                : new[] { new Point(cx - a, cy - a / 2), new Point(cx + a, cy - a / 2), new Point(cx, cy + a / 2 + 1) };
+            using (var b = new SolidBrush(Theme.Muted)) g.FillPolygon(b, arrow);
+            g.SmoothingMode = old;
+
+            int x = pad + S(20);
+            string title = IsRange(grp.Key) ? "RED" : Theme.Caps(grp.Key);
+            TextRenderer.DrawText(g, title, fGroup, new Rectangle(x, r.Y, right - x, r.Height), Theme.Black, flags);
+            x += TextRenderer.MeasureText(title, fGroup).Width + S(10);
+            if (IsRange(grp.Key))
+            {
+                var range = grp.Key.Substring(RangePrefix.Length);
+                TextRenderer.DrawText(g, range, fData, new Rectangle(x, r.Y, right - x, r.Height), Theme.Muted, flags);
+                x += TextRenderer.MeasureText(range, fData).Width + S(10);
+            }
+            if (grp.Key == Here)
+                TextRenderer.DrawText(g, "·  TU UBICACIÓN", fHere, new Rectangle(x, r.Y, right - x, r.Height), Theme.GoldDeep, flags);
+
+            // recuento: online / total, y cuantas fallan si las hay
+            int ok = grp.Count(i => i.Detected), bad = grp.Count(i => i.Failed);
+            var count = $"{ok}/{grp.Count()}";
+            int cw = TextRenderer.MeasureText(count, fGroup).Width;
+            TextRenderer.DrawText(g, count, fGroup, new Rectangle(right - cw, r.Y, cw, r.Height), Theme.Muted, flags);
+            if (bad > 0 && closed)
+            {
+                var miss = $"{bad} offline";
+                int mw = TextRenderer.MeasureText(miss, fModel).Width;
+                TextRenderer.DrawText(g, miss, fModel, new Rectangle(right - cw - S(14) - mw, r.Y, mw, r.Height), Theme.Red, flags);
+            }
+            using (var b = new SolidBrush(closed ? Color.FromArgb(236, 236, 236) : Theme.Line)) g.FillRectangle(b, pad, r.Bottom - 1, right - pad, 1);
         }
 
-        ScanEntry HitTest(Point p) => p.Y < ColH ? null : hits.FirstOrDefault(h => h.rect.Contains(p)).e;
+        void PaintRow(Graphics g, ScanEntry it, Rectangle r, int pad, int right)
+        {
+            bool sel = it == Selected;
+            var back = sel ? Color.FromArgb(244, 244, 244) : it == hoverItem ? Theme.Hover : Theme.Paper;
+            if (back != Theme.Paper) using (var b = new SolidBrush(back)) g.FillRectangle(b, sel ? new Rectangle(r.X, r.Y, r.Width, r.Height + DetailH) : r);
+            if (sel) using (var b = new SolidBrush(Theme.GoldDeep)) g.FillRectangle(b, 0, r.Y, S(2), r.Height + DetailH);
+
+            var flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding;
+            int orb = S(14), nameX = pad + S(28), ipW = S(140);
+            int nameW = (int)((right - ipW - nameX) * .5);
+            ScannerForm.DrawState(g, it.State, new Rectangle(pad + S(1), r.Y + (r.Height - orb) / 2, orb, orb));
+
+            var label = it.Label;
+            TextRenderer.DrawText(g, label, fRow, new Rectangle(nameX, r.Y, nameW - S(12), r.Height), label == "Sin nombre" ? Theme.Muted : Theme.Black, flags);
+            var state = ScannerForm.StateText(it);
+            if (state == label) state = "";
+            TextRenderer.DrawText(g, state, fModel, new Rectangle(nameX + nameW, r.Y, right - ipW - nameX - nameW - S(8), r.Height), it.Failed ? Theme.Red : Theme.Muted, flags);
+            TextRenderer.DrawText(g, ScannerForm.Address(it), fIp, new Rectangle(right - ipW, r.Y, ipW, r.Height), it.Detected ? Theme.Black : Theme.Muted, TextFormatFlags.Right | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis);
+
+            if (sel) PaintDetail(g, it, new Rectangle(nameX, r.Bottom, right - nameX, DetailH));
+            int bottom = sel ? r.Bottom + DetailH : r.Bottom;
+            using (var p = new Pen(Color.FromArgb(238, 238, 238))) g.DrawLine(p, pad, bottom - 1, right, bottom - 1);
+        }
+
+        /// <summary>Detalle desplegado: datos de red, lo que dice el equipo de si mismo y que hara Instalar (o por que no).</summary>
+        void PaintDetail(Graphics g, ScanEntry it, Rectangle d)
+        {
+            var flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding;
+            var r = it.Result;
+            int y = d.Y + S(2);
+
+            var data = it.Ip + (r?.PingMs != null ? $"   ·   {r.PingMs} ms" : "") + (r != null && r.Ports.Count > 0 ? "   ·   tcp " + string.Join(" ", r.Ports) : "");
+            TextRenderer.DrawText(g, data, fData, new Rectangle(d.X, y, d.Width, S(20)), Theme.Muted, flags);
+            y += S(22);
+
+            var key = it.IsShared ? "COLA" : "SNMP";
+            int kw = TextRenderer.MeasureText(key, fKey).Width + S(10);
+            var id = r == null ? "" : string.Join("  ·  ", new[] { r.Name, r.Location }.Where(x => x.Length > 0));
+            TextRenderer.DrawText(g, key, fKey, new Rectangle(d.X, y, kw, S(20)), Theme.GoldDeep, flags);
+            TextRenderer.DrawText(g, id.Length > 0 ? id : "sin nombre ni ubicación", fBody, new Rectangle(d.X + kw, y, d.Width - kw, S(20)), Theme.Muted, flags);
+            y += S(22);
+
+            TextRenderer.DrawText(g, ScannerForm.ActionText(it), fBody, new Rectangle(d.X, y, d.Width, S(20)), it.Failed ? Theme.Red : it.Detected ? Theme.Black : Theme.Muted, flags);
+        }
+
+        ScanEntry HitTest(Point p) => detailRect.Contains(p) ? null : hits.FirstOrDefault(h => h.rect.Contains(p)).e;
+        string GroupAt(Point p) => groupHits.FirstOrDefault(h => h.rect.Contains(p)).key;
 
         protected override void OnMouseWheel(MouseEventArgs e)
         {
@@ -508,24 +618,43 @@ namespace InstaladorImpresoras
         protected override void OnMouseMove(MouseEventArgs e)
         {
             var h = HitTest(e.Location);
-            if (h != hoverItem) { hoverItem = h; Cursor = h != null ? Cursors.Hand : Cursors.Default; Invalidate(); }
+            var grp = h == null ? GroupAt(e.Location) : null;
+            if (h != hoverItem || grp != hoverGroup)
+            {
+                hoverItem = h;
+                hoverGroup = grp;
+                Cursor = h != null || grp != null ? Cursors.Hand : Cursors.Default;
+                Invalidate();
+            }
             base.OnMouseMove(e);
         }
 
-        protected override void OnMouseLeave(EventArgs e) { hoverItem = null; base.OnMouseLeave(e); }
+        protected override void OnMouseLeave(EventArgs e) { hoverItem = null; hoverGroup = null; base.OnMouseLeave(e); }
 
         protected override void OnMouseDown(MouseEventArgs e)
         {
             Focus();
-            var h = HitTest(e.Location);
-            if (h != null) Select(h);
+            if (e.Button == MouseButtons.Left && e.Clicks == 1)
+            {
+                var h = HitTest(e.Location);
+                var grp = h == null && !detailRect.Contains(e.Location) ? GroupAt(e.Location) : null;
+                if (h != null) Select(h == Selected ? null : h);   // segundo clic: plegar
+                else if (grp != null) Toggle(grp);
+            }
             base.OnMouseDown(e);
+        }
+
+        void Toggle(string key)
+        {
+            collapsed[key] = !IsCollapsed(key);
+            if (collapsed[key] && Selected?.Group == key) Select(null);
+            Invalidate();
         }
 
         protected override void OnMouseDoubleClick(MouseEventArgs e)
         {
             var h = HitTest(e.Location);
-            if (h != null) Activated?.Invoke(h);
+            if (h != null) { Select(h); Activated?.Invoke(h); }
             base.OnMouseDoubleClick(e);
         }
 
@@ -533,7 +662,7 @@ namespace InstaladorImpresoras
 
         protected override void OnKeyDown(KeyEventArgs e)
         {
-            var order = Groups().SelectMany(x => x).ToList();
+            var order = VisibleItems();
             if (order.Count == 0) return;
             int i = Selected == null ? -1 : order.IndexOf(Selected);
             if (e.KeyCode == Keys.Down) Select(order[Math.Min(order.Count - 1, i + 1)]);

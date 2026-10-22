@@ -13,7 +13,8 @@ namespace InstaladorImpresoras
         public bool IsShared => Ip.StartsWith(@"\\");
         /// <summary>"Marca - Ubicación" (p. ej. "Canon - Cultura"); sin ubicación, la oficina.</summary>
         public string QueueName => $"{(Brand.Length > 0 ? Brand : "Impresora")} - {(Location.Length > 0 ? Location : Office)}";
-        public string Label => Location.Length > 0 || Brand.Length > 0 ? QueueName : "Impresora";
+        /// <summary>Nombre en el escaner: la ubicación ("Cultura"); la marca va en la columna del modelo.</summary>
+        public string Label => Location.Length > 0 ? Location : Brand.Length > 0 ? Brand : "Impresora";
     }
 
     /// <summary>
