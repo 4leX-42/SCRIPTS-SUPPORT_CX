@@ -19,7 +19,18 @@ Aplicación Windows (WinForms, .NET Framework 4.8) para desplegar y reparar driv
 
 **Canon**: lanza el asistente oficial Canon Generic Plus PCL6 sin modificarlo.
 
-**Directorio de oficinas**: botón `IMPRESORAS ▾` en la cabecera con las impresoras de cada oficina, su IP y si responden. Clic en una = copia la IP y, en la pantalla Ricoh, la rellena y la comprueba.
+**Escáner** (tarjeta 01 o botón `ESCÁNER` en la cabecera): el camino más rápido para instalar.
+
+- Comprueba el directorio de oficinas y escanea un rango (por defecto el /24 del equipo; acepta `192.168.4.1-254`, `192.168.4.0/24` o `IP-IP`, máx. 1024). Una red /24: ~2 s.
+- Por IP: ping (ICMP) + puertos TCP 9100 (RAW), 631 (IPP) y 515 (LPD; solo cuenta si además se identifica como impresora, porque los servidores Windows también lo abren). Sin ping ni puertos no pregunta nada más.
+- Identificación en cascada: una consulta SNMP (v2c, con v1 de reserva) trae modelo (`hrDeviceDescr` / `sysDescr`), nombre (`sysName`) y ubicación (`sysLocation`); IPP y web solo si SNMP no basta. El modelo se limpia de firmware y sufijos.
+- Colas compartidas `\\servidor\cola`: puerto 445 (SMB) del servidor y apertura real de la cola (winspool): driver, estado, ubicación y comentario. Distingue servidor caído, SMB cerrado, cola inexistente y falta de permisos.
+- Nombre legible: `PROCESAL_DCH` + `C/ Mayor 1 Plt3 Derecha` → *Procesal Dcha · P3*. Ignora los nombres de fábrica (el modelo o derivados de la MAC). Al instalar una impresora que no está en el directorio, la cola se llama `Marca - nombre` (p. ej. *Canon - Procesal Dcha · P3*).
+- **Verde** = online (impresora detectada) · **rojo** = offline / no es impresora / cola inaccesible.
+- **Instalar** (doble clic o Enter) con el modelo ya detectado, sin volver a comprobarlo. Ricoh: driver del modelo o universal; si ya hay una cola en esa IP se reinstala, si no se crea. Canon: asistente oficial con la IP en el portapapeles. Cola compartida: `Add-Printer -ConnectionName` para el usuario actual y `printui /ga` para todos los usuarios.
+- Al cerrarlo se oculta: los resultados se conservan mientras la app siga abierta.
+
+**Dispositivos e impresoras**: icono de impresora junto a minimizar / cerrar (ventana principal y escáner) → `shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}`.
 
 Registro de cada ejecución en `%ProgramData%\PrintDeploy\Logs\`.
 
@@ -48,7 +59,9 @@ Sin ellos compila igualmente: el `.exe` avisa del paquete que falta y el directo
 | `MainForm.cs` | Interfaz y flujo: elegir fabricante, colas, IP nueva, progreso |
 | `PrinterProbe.cs` | Detección del dispositivo y modelo (SNMP, IPP, HTTP) |
 | `RicohModels.cs` | Modelos soportados, su driver y su paquete; driver universal de reserva |
-| `PrinterDirectory.cs` | Directorio de oficinas y su desplegable |
+| `PrinterDirectory.cs` | Lectura del directorio de oficinas (`oficinas.txt`) |
+| `NetworkScan.cs` | Escáner: ping, puertos, identificación, colas compartidas y rangos |
+| `ScannerForm.cs` | Ventana del escáner (lista verde / rojo, detalle, instalar) |
 | `Theme.cs` | Estilo (negro, blanco y rojo) y controles dibujados |
 | `engine.ps1` | Motor que desinstala, limpia drivers e instala; lo lanza el `.exe` |
 

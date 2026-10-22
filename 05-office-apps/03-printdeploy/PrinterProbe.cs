@@ -69,7 +69,7 @@ namespace InstaladorImpresoras
         static string Short(string s) => s.Length > 160 ? s.Substring(0, 160) + "…" : s;
 
         // ---- IPP Get-Printer-Attributes (printer-make-and-model), activo por defecto en Ricoh ----
-        static string IppMakeAndModel(string ip)
+        internal static string IppMakeAndModel(string ip)
         {
             foreach (var path in new[] { "/printer", "/ipp/print", "/ipp", "/" })
             {
@@ -148,32 +148,53 @@ namespace InstaladorImpresoras
             catch { return false; }
         }
 
-        // ---- SNMP v1 GET minimo (community "public") ----
+        // ---- SNMP GET minimo (community "public"): v2c y, si no responde, v1 ----
         static readonly byte[] OidSysDescr = { 0x2B, 6, 1, 2, 1, 1, 1, 0 };
+        static readonly byte[] OidSysName = { 0x2B, 6, 1, 2, 1, 1, 5, 0 };
+        static readonly byte[] OidSysLocation = { 0x2B, 6, 1, 2, 1, 1, 6, 0 };
         static readonly byte[] OidHrDeviceDescr = { 0x2B, 6, 1, 2, 1, 25, 3, 2, 1, 3, 1 };
 
-        static string SnmpDescription(string ip)
+        internal static string SnmpDescription(string ip) => SnmpInfo(ip, 2000)?.descr;
+
+        /// <summary>
+        /// Una sola consulta: descripcion (sysDescr + hrDeviceDescr), nombre (sysName) y ubicacion (sysLocation).
+        /// null si no hay SNMP.
+        /// </summary>
+        internal static (string descr, string model, string name, string location)? SnmpInfo(string ip, int timeoutMs, int attempts = 2)
+        {
+            // v2c devuelve "no existe" por cada OID que falte; v1 rechaza la consulta entera, asi que en v1 solo los obligatorios
+            var v = SnmpGet(ip, 1, timeoutMs, attempts, OidSysDescr, OidSysName, OidSysLocation, OidHrDeviceDescr);
+            if (v == null)
+            {
+                v = SnmpGet(ip, 0, timeoutMs, attempts, OidSysDescr, OidSysName, OidSysLocation);
+                if (v == null) return null;
+                v.Add("");
+            }
+            var descr = string.Join(" | ", new[] { v[0], v[3] }.Select(s => s.Trim()).Where(s => s.Length > 0).Distinct());
+            // modelo: hrDeviceDescr describe el aparato; sysDescr a veces es la tarjeta de red ("JETDIRECT") o lleva el firmware
+            var model = v[3].Trim().Length > 0 ? v[3].Trim() : v[0].Trim();
+            return (descr.Length > 0 ? descr : null, model, v[1].Trim(), v[2].Trim());
+        }
+
+        /// <summary>GET de los OID pedidos (version 0 = v1, 1 = v2c): un texto por OID, en orden ("" si no es texto). null si no responde.</summary>
+        static List<string> SnmpGet(string ip, int version, int timeoutMs, int attempts, params byte[][] oids)
         {
             try
             {
-                var req = BuildGet("public", OidSysDescr, OidHrDeviceDescr);
+                var req = BuildGet("public", version, oids);
                 using (var udp = new UdpClient())
                 {
-                    udp.Client.ReceiveTimeout = 2000;
+                    udp.Client.ReceiveTimeout = timeoutMs;
                     var ep = new IPEndPoint(IPAddress.Parse(ip), 161);
-                    for (int attempt = 0; attempt < 2; attempt++)
+                    for (int attempt = 0; attempt < attempts; attempt++)
                     {
                         udp.Send(req, req.Length, ep);
                         try
                         {
                             var remote = new IPEndPoint(IPAddress.Any, 0);
-                            var resp = udp.Receive(ref remote);
-                            var strings = new List<string>();
-                            CollectStrings(resp, 0, resp.Length, strings);
-                            // strings[0] = community; el resto son los valores pedidos
-                            var vals = strings.Count > 1 ? strings.GetRange(1, strings.Count - 1) : new List<string>();
-                            var joined = string.Join(" | ", vals.FindAll(v => v.Trim().Length > 0));
-                            return joined.Length > 0 ? joined : null;
+                            var vals = ParseResponse(udp.Receive(ref remote));
+                            if (vals != null && vals.Count == oids.Length) return vals;
+                            return null;   // respuesta de error (v1: algun OID no existe)
                         }
                         catch (SocketException) { }
                     }
@@ -183,13 +204,13 @@ namespace InstaladorImpresoras
             return null;
         }
 
-        static byte[] BuildGet(string community, params byte[][] oids)
+        static byte[] BuildGet(string community, int version, params byte[][] oids)
         {
             var varbinds = new List<byte>();
             foreach (var oid in oids)
                 varbinds.AddRange(Tlv(0x30, Concat(Tlv(0x06, oid), new byte[] { 0x05, 0x00 })));
             var pdu = Tlv(0xA0, Concat(Int(new Random().Next(1, 0x7FFF)), Int(0), Int(0), Tlv(0x30, varbinds.ToArray())));
-            return Tlv(0x30, Concat(Int(0), Tlv(0x04, Encoding.ASCII.GetBytes(community)), pdu));
+            return Tlv(0x30, Concat(Int(version), Tlv(0x04, Encoding.ASCII.GetBytes(community)), pdu));
         }
 
         static byte[] Int(int v)
@@ -218,27 +239,69 @@ namespace InstaladorImpresoras
             return r.ToArray();
         }
 
-        static void CollectStrings(byte[] d, int pos, int end, List<string> output)
+        // muchas impresoras guardan el texto en Latin-1 ("8ª PLANTA"): UTF-8 si es valido, si no Windows-1252
+        static readonly Encoding StrictUtf8 = new UTF8Encoding(false, true);
+        static string Decode(byte[] d, int pos, int len)
         {
-            while (pos < end)
+            try { return StrictUtf8.GetString(d, pos, len); }
+            catch (DecoderFallbackException) { return Encoding.GetEncoding(1252).GetString(d, pos, len); }
+        }
+
+        /// <summary>
+        /// GetResponse: SEQ { version, community, A2 { request-id, error-status, error-index, SEQ { SEQ { OID, valor } ... } } }.
+        /// Devuelve el valor de cada varbind en orden; null si hay error-status o el paquete no cuadra.
+        /// </summary>
+        static List<string> ParseResponse(byte[] d)
+        {
+            int p = 0;
+            if (!Header(d, ref p, out var tag, out _) || tag != 0x30) return null;
+            Skip(d, ref p); Skip(d, ref p);                                       // version, community
+            if (!Header(d, ref p, out tag, out _) || tag != 0xA2) return null;
+            Skip(d, ref p);                                                       // request-id
+            if (!Header(d, ref p, out tag, out var len) || tag != 0x02) return null;
+            int status = 0;
+            for (int i = 0; i < len; i++) status = (status << 8) | d[p + i];
+            p += len;
+            if (status != 0) return null;
+            Skip(d, ref p);                                                       // error-index
+            if (!Header(d, ref p, out tag, out len) || tag != 0x30) return null;
+            int end = p + len;
+            var vals = new List<string>();
+            while (p < end && Header(d, ref p, out tag, out len))
             {
-                byte tag = d[pos++];
-                if (pos >= end) return;
-                int len = d[pos++];
-                if ((len & 0x80) != 0)
-                {
-                    int n = len & 0x7F; len = 0;
-                    for (int i = 0; i < n && pos < end; i++) len = (len << 8) | d[pos++];
-                }
-                if (len < 0 || pos + len > end) return;
-                if (tag == 0x04) output.Add(Encoding.UTF8.GetString(d, pos, len));
-                else if ((tag & 0x20) != 0) CollectStrings(d, pos, pos + len, output);
-                pos += len;
+                int next = p + len;
+                Skip(d, ref p);                                                   // OID
+                vals.Add(Header(d, ref p, out tag, out len) && tag == 0x04 ? Decode(d, p, len) : "");
+                p = next;
             }
+            return vals;
+        }
+
+        /// <summary>Lee etiqueta y longitud (BER); deja p al inicio del valor.</summary>
+        static bool Header(byte[] d, ref int p, out byte tag, out int len)
+        {
+            tag = 0; len = 0;
+            if (p + 2 > d.Length) return false;
+            tag = d[p++];
+            len = d[p++];
+            if ((len & 0x80) != 0)
+            {
+                int n = len & 0x7F;
+                if (n > 3 || p + n > d.Length) return false;
+                len = 0;
+                for (int i = 0; i < n; i++) len = (len << 8) | d[p++];
+            }
+            return p + len <= d.Length;
+        }
+
+        static void Skip(byte[] d, ref int p)
+        {
+            if (Header(d, ref p, out _, out var len)) p += len;
+            else p = d.Length;
         }
 
         // ---- Web de la impresora (alternativa si SNMP no responde) ----
-        static string HttpDescription(string ip)
+        internal static string HttpDescription(string ip)
         {
             foreach (var path in new[] { "/", "/web/guest/es/websys/webArch/mainFrame.cgi" })
             {

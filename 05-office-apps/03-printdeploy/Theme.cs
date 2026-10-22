@@ -7,7 +7,7 @@ using System.Windows.Forms;
 
 namespace InstaladorImpresoras
 {
-    /// <summary>Paleta del despacho: blanco, negro y rojo. Serif para titulos, mono para datos.</summary>
+    /// <summary>Paleta del despacho: blanco, negro y rojo. Segoe UI para todo; mono solo para datos (IP, drivers, registro).</summary>
     static class Theme
     {
         public static readonly Color Black = Color.FromArgb(30, 30, 32);   // carbon, no negro puro (legibilidad)
@@ -19,14 +19,37 @@ namespace InstaladorImpresoras
         public static readonly Color Muted = Color.FromArgb(100, 100, 102);
         public static readonly Color Line = Color.FromArgb(222, 222, 222);
         public static readonly Color Hover = Color.FromArgb(247, 247, 247);
+        public static readonly Color Green = Color.FromArgb(22, 150, 72);   // impresora detectada en el escaner
         public static readonly Color Amber = Color.FromArgb(214, 150, 40);
 
-        static readonly string MonoFamily = new InstalledFontCollection().Families
-            .Select(f => f.Name).FirstOrDefault(n => n == "Cascadia Mono" || n == "Cascadia Code") ?? "Consolas";
+        static readonly string[] Installed = new InstalledFontCollection().Families.Select(f => f.Name).ToArray();
+        static string Pick(params string[] names) => names.FirstOrDefault(n => Installed.Contains(n)) ?? names.Last();
 
-        public static Font Serif(float size, FontStyle style = FontStyle.Regular) => new Font("Georgia", size, style);
+        // Windows 11 trae Segoe UI Variable (optica de titulo y de texto); Windows 10, Segoe UI.
+        static readonly string DisplayFamily = Pick("Segoe UI Variable Display Semib", "Segoe UI Semibold");
+        static readonly string TextFamily = Pick("Segoe UI Variable Text", "Segoe UI");
+        static readonly string StrongFamily = Pick("Segoe UI Variable Text Semibold", "Segoe UI Semibold");
+        static readonly string MonoFamily = Pick("Cascadia Mono", "Cascadia Code", "Consolas");
+        static readonly string IconFamily = Pick("Segoe Fluent Icons", "Segoe MDL2 Assets");
+
+        /// <summary>Iconos del sistema (Segoe Fluent Icons en Windows 11, MDL2 en Windows 10).</summary>
+        public static Font Icon(float size) => new Font(IconFamily, size);
+        public const string GlyphPrinter = "";
+
+        /// <summary>Panel clasico "Dispositivos e impresoras".</summary>
+        public static void OpenPrintersPanel()
+        {
+            try { System.Diagnostics.Process.Start("explorer.exe", "shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}"); } catch { }
+        }
+
+        /// <summary>Titulos (cabecera, tarjetas, paso actual).</summary>
+        public static Font Title(float size) => new Font(DisplayFamily, size);
+        /// <summary>Texto normal.</summary>
+        public static Font Sans(float size, FontStyle style = FontStyle.Regular) => new Font(TextFamily, size, style);
+        /// <summary>Etiquetas, botones, encabezados de tabla.</summary>
+        public static Font Strong(float size) => new Font(StrongFamily, size);
+        /// <summary>Solo datos: IP, nombres de driver, registro.</summary>
         public static Font Mono(float size, FontStyle style = FontStyle.Regular) => new Font(MonoFamily, size, style);
-        public static Font Sans(float size, FontStyle style = FontStyle.Regular) => new Font("Segoe UI", size, style);
 
         /// <summary>Texto con degradado horizontal (p.ej. rojo -> blanco) para que se lea sobre fondo oscuro.</summary>
         public static void DrawGradientText(Graphics g, string text, Font font, Point at, Color from, Color to)
@@ -42,8 +65,8 @@ namespace InstaladorImpresoras
             g.TextRenderingHint = old;
         }
 
-        /// <summary>Texto en mayusculas espaciado (estilo etiqueta tecnica).</summary>
-        public static string Caps(string s) => string.Join(" ", s.ToUpperInvariant().ToCharArray()).Replace("   ", "  ");
+        /// <summary>Etiqueta en mayusculas (sin espaciado artificial entre letras).</summary>
+        public static string Caps(string s) => s.ToUpperInvariant();
     }
 
     /// <summary>Base de controles pintados a mano con escalado DPI.</summary>
@@ -63,13 +86,38 @@ namespace InstaladorImpresoras
             => TextRenderer.DrawText(g, s, f, r, c, flags);
     }
 
+    /// <summary>Panel con doble bufer (sin parpadeo al repintar).</summary>
+    class BufferedPanel : Panel
+    {
+        public BufferedPanel() { DoubleBuffered = true; ResizeRedraw = true; }
+    }
+
+    /// <summary>Boton de icono para cabeceras oscuras: gris claro, fondo al pasar, con tooltip.</summary>
+    sealed class IconBtn : Label
+    {
+        static readonly ToolTip tips = new ToolTip { InitialDelay = 300 };
+        public Color HoverBack = Color.FromArgb(56, 56, 58);
+        public IconBtn(string glyph, string tip, float size = 10f, bool icon = true)
+        {
+            Text = glyph;
+            Font = icon ? Theme.Icon(size) : Theme.Sans(size);
+            ForeColor = Color.FromArgb(205, 205, 207);
+            BackColor = Theme.Black;
+            TextAlign = ContentAlignment.MiddleCenter;
+            Cursor = Cursors.Hand;
+            if (tip != null) tips.SetToolTip(this, tip);
+            MouseEnter += (s, e) => { BackColor = HoverBack; ForeColor = Theme.Paper; };
+            MouseLeave += (s, e) => { BackColor = Theme.Black; ForeColor = Color.FromArgb(205, 205, 207); };
+        }
+    }
+
     /// <summary>Boton plano. Primario: negro -> rojo al pasar. Secundario: contorno.</summary>
     sealed class FlatBtn : Painted
     {
         public bool Primary { get; set; }
         /// <summary>Variante para la cabecera oscura: contorno gris claro, rojo al pasar.</summary>
         public bool OnDark { get; set; }
-        readonly Font font = Theme.Mono(9f, FontStyle.Bold);
+        readonly Font font = Theme.Strong(9.5f);
         public FlatBtn(string text, bool primary) { Text = text; Primary = primary; Cursor = Cursors.Hand; Height = 40; Width = 150; TabStop = true; }
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -95,7 +143,7 @@ namespace InstaladorImpresoras
     sealed class Card : Painted
     {
         readonly string index, title, desc;
-        readonly Font fIndex = Theme.Mono(8.5f, FontStyle.Bold), fTitle = Theme.Serif(17f), fDesc = Theme.Sans(9.5f), fArrow = Theme.Mono(16f);
+        readonly Font fIndex = Theme.Strong(8.5f), fTitle = Theme.Title(17f), fDesc = Theme.Sans(9.5f), fArrow = Theme.Sans(16f);
         public Card(string index, string title, string desc) { this.index = index; this.title = title; this.desc = desc; Cursor = Cursors.Hand; }
         protected override void OnPaint(PaintEventArgs e)
         {
@@ -109,10 +157,19 @@ namespace InstaladorImpresoras
             using (var p = new Pen(hover ? Theme.Black : Theme.Line)) g.DrawPolygon(p, shape);
             using (var b = new SolidBrush(hover ? Theme.Red : Theme.Black)) g.FillRectangle(b, 0, 0, S(4), Height);
 
-            int x = S(28);
-            Draw(g, index, fIndex, new Rectangle(x, S(18), S(200), S(18)), Theme.Red);
-            Draw(g, title, fTitle, new Rectangle(x, S(40), Width - S(110), S(34)), Theme.Black);
-            Draw(g, desc, fDesc, new Rectangle(x, S(78), Width - S(120), Height - S(86)), Theme.Muted, TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
+            // bloque indice + titulo + descripcion centrado en vertical: mismo aire arriba y abajo
+            int x = S(28), textW = Width - S(120);
+            var wrap = TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPadding;
+            int hIndex = TextRenderer.MeasureText(index, fIndex).Height;
+            int hTitle = TextRenderer.MeasureText(title, fTitle).Height;
+            int hDesc = TextRenderer.MeasureText(g, desc, fDesc, new Size(textW, int.MaxValue), wrap).Height;
+            int gap1 = S(6), gap2 = S(8);
+            int y = Math.Max(S(12), (Height - (hIndex + gap1 + hTitle + gap2 + hDesc)) / 2);
+            Draw(g, index, fIndex, new Rectangle(x, y, textW, hIndex), Theme.Red);
+            y += hIndex + gap1;
+            Draw(g, title, fTitle, new Rectangle(x, y, textW, hTitle), Theme.Black);
+            y += hTitle + gap2;
+            Draw(g, desc, fDesc, new Rectangle(x, y, textW, hDesc), Theme.Muted, wrap);
             Draw(g, "→", fArrow, new Rectangle(Width - S(60), 0, S(40), Height), hover ? Theme.Red : Theme.Black, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
         }
     }
@@ -126,7 +183,7 @@ namespace InstaladorImpresoras
         public string[] Columns = new string[0];
         public float[] Widths = { 1f };
         public bool Header;
-        readonly Font fMain = Theme.Sans(9.75f), fMono = Theme.Mono(8.75f), fHead = Theme.Mono(7.5f, FontStyle.Bold);
+        readonly Font fMain = Theme.Sans(9.75f), fMono = Theme.Mono(8.75f), fHead = Theme.Strong(8f);
         public CheckRow() { Cursor = Cursors.Hand; Height = 40; }
         protected override void OnClick(EventArgs e) { if (!Header && Enabled) Checked = !Checked; base.OnClick(e); }
         protected override void OnPaint(PaintEventArgs e)
@@ -159,7 +216,7 @@ namespace InstaladorImpresoras
     {
         public readonly TextBox Box = new TextBox();
         readonly string label;
-        readonly Font fLabel = Theme.Mono(7.5f, FontStyle.Bold);
+        readonly Font fLabel = Theme.Strong(8f);
         public LineField(string label, bool mono)
         {
             this.label = label;

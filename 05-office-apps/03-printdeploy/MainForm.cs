@@ -105,8 +105,8 @@ namespace InstaladorImpresoras
                 var g = e.Graphics;
                 int x = S(36);
                 using (var b = new SolidBrush(Theme.Red)) g.FillRectangle(b, x - S(2), S(20), S(3), S(14));
-                Theme.DrawGradientText(g, Theme.Caps("IT // " + hTag), Theme.Mono(8f, FontStyle.Bold), new Point(x + S(8), S(21)), Theme.RedOnDark, Theme.Paper);
-                TextRenderer.DrawText(g, hTitle, Theme.Serif(20f), new Point(x - S(2), S(42)), Theme.Paper, TextFormatFlags.NoPadding);
+                Theme.DrawGradientText(g, Theme.Caps("IT // " + hTag), Theme.Strong(8.5f), new Point(x + S(8), S(21)), Theme.RedOnDark, Theme.Paper);
+                TextRenderer.DrawText(g, hTitle, Theme.Title(20f), new Point(x - S(2), S(42)), Theme.Paper, TextFormatFlags.NoPadding);
                 TextRenderer.DrawText(g, hSub, Theme.Sans(9.5f), new Point(x, S(82)), Color.FromArgb(205, 205, 207), TextFormatFlags.NoPadding);
                 using (var b = new SolidBrush(Theme.Red)) g.FillRectangle(b, 0, header.Height - S(3), S(120), S(3));
                 using (var b = new SolidBrush(Color.FromArgb(62, 62, 64))) g.FillRectangle(b, S(120), header.Height - 1, header.Width, 1);
@@ -115,7 +115,7 @@ namespace InstaladorImpresoras
             foreach (var (lbl, text, act) in new[] { (lblClose, "✕", (Action)(() => Close())), (lblMin, "—", (Action)(() => WindowState = FormWindowState.Minimized)) })
             {
                 lbl.Text = text;
-                lbl.Font = Theme.Mono(10f);
+                lbl.Font = Theme.Sans(10f);
                 lbl.ForeColor = Color.FromArgb(205, 205, 207);
                 lbl.BackColor = Theme.Black;
                 lbl.TextAlign = ContentAlignment.MiddleCenter;
@@ -126,53 +126,89 @@ namespace InstaladorImpresoras
                 lbl.Click += (s, e) => act();
                 header.Controls.Add(lbl);
             }
-            // boton del directorio de impresoras por oficina
-            var btnDir = new FlatBtn("Impresoras ▾", primary: false) { Size = new Size(S(170), S(34)), OnDark = true, TabStop = false };
-            btnDir.Click += (s, e) => ShowDirectory(btnDir);
+            // acceso directo a "Dispositivos e impresoras"
+            var lblPanel = new IconBtn(Theme.GlyphPrinter, "Dispositivos e impresoras") { Size = new Size(S(40), S(34)) };
+            lblPanel.Click += (s, e) => Theme.OpenPrintersPanel();
+            header.Controls.Add(lblPanel);
+            // escaner de red: directorio de oficinas + busqueda por rango
+            var btnDir = new FlatBtn("Escáner", primary: false) { Size = new Size(S(130), S(34)), OnDark = true, TabStop = false };
+            btnDir.Click += (s, e) => ShowScanner();
             header.Controls.Add(btnDir);
 
             header.Resize += (s, e) =>
             {
                 lblClose.Location = new Point(header.Width - lblClose.Width - 1, 1);
                 lblMin.Location = new Point(lblClose.Left - lblMin.Width, 1);
+                lblPanel.Location = new Point(lblMin.Left - lblPanel.Width, 1);
                 btnDir.Location = new Point(header.Width - btnDir.Width - S(36), S(58));
             };
         }
 
-        void ShowDirectory(Control anchor)
+        ScannerForm scanner;
+
+        void ShowScanner()
         {
-            List<OfficePrinter> items;
-            try { items = PrinterDirectory.Load(); }
-            catch (Exception ex) { Warn("No se pudo leer el directorio de impresoras:\n" + ex.Message); return; }
-            if (items.Count == 0)
+            if (scanner == null)
             {
-                Warn("No hay directorio de impresoras.\n\nCree un fichero oficinas.txt (formato: Oficina | Ubicación | Marca | IP) en:\n\n· " +
-                     string.Join("\n· ", PrinterDirectory.ExternalPaths));
-                return;
+                List<OfficePrinter> items;
+                try { items = PrinterDirectory.Load(); }
+                catch (Exception ex) { Warn("No se pudo leer el directorio de impresoras (se puede escanear igualmente):\n" + ex.Message); items = new List<OfficePrinter>(); }
+                scanner = new ScannerForm(items, InstallFromScan);
             }
-            var popup = new DirectoryPopup(items, UseDirectoryPrinter);
-            var pt = anchor.PointToScreen(new Point(anchor.Width, anchor.Height + S(6)));
-            popup.Location = new Point(pt.X - popup.Width, pt.Y);
-            popup.Show(this);
+            if (!scanner.Visible)
+            {
+                scanner.Location = new Point(Left + (Width - scanner.Width) / 2, Math.Max(Screen.FromControl(this).WorkingArea.Top, Top + (Height - scanner.Height) / 2));
+                scanner.Show(this);
+            }
+            scanner.Activate();
         }
 
-        /// <summary>Clic en el directorio: copia la IP y, en la pantalla Ricoh, la rellena y la comprueba.</summary>
-        async void UseDirectoryPrinter(OfficePrinter p)
+        /// <summary>
+        /// Instalar desde el escaner: IP y modelo ya detectados, sin volver a sondear.
+        /// Ricoh: si ya hay una cola en esa IP se reinstala (conserva su configuracion); si no, cola nueva.
+        /// Canon: asistente oficial con la IP en el portapapeles.
+        /// </summary>
+        async void InstallFromScan(ScanEntry e)
         {
-            try { Clipboard.SetText(p.Ip); } catch { }
-            bool onRicohPage = fIp != null && !fIp.IsDisposed && fIp.FindForm() == this;
-            if (onRicohPage && !p.Brand.Equals("Canon", StringComparison.OrdinalIgnoreCase))
+            if (!closeAllowed) { Warn("Hay una instalación en curso. Espere a que termine."); return; }
+            try { Clipboard.SetText(e.Ip); } catch { }
+            if (e.Directory?.IsShared == true)
             {
-                chkNew.Checked = true;
-                fIp.Box.Text = p.Ip;
-                var name = "Ricoh " + p.Office + (p.Location.Length > 0 ? " " + p.Location : "");
-                fName.Box.Text = name.Length > 60 ? name.Substring(0, 60) : name;
-                await ProbeNewIp(interactive: false);
+                if (MessageBox.Show(scanner, $"{e.Label}\n{e.Result.Model}\n\n· Conectar la cola compartida {e.Ip}\n· Para este usuario al momento y para todos los usuarios del equipo al iniciar sesión\n\nSi ya estaba conectada se quita y se vuelve a conectar.", Text, MessageBoxButtons.OKCancel, MessageBoxIcon.Information) != DialogResult.OK) return;
+                scanner.Hide();
+                await RunShared(e.Ip);
+                return;
+            }
+            if (e.Brand == "Canon")
+            {
+                if (MessageBox.Show(scanner, $"{e.Label} · {e.Ip}\n{e.Result.Model}\n\nSe abrirá el asistente Canon Generic Plus PCL6.\nLa IP {e.Ip} está copiada: péguela si el asistente la pide.", Text, MessageBoxButtons.OKCancel, MessageBoxIcon.Information) != DialogResult.OK) return;
+                scanner.Hide();
+                await RunCanon();
+                return;
+            }
+
+            var model = RicohModels.Detect(e.Result.Description) ?? RicohModels.Universal;
+            var printers = GetPrinters();
+            var existing = printers.FirstOrDefault(p => p.Host == e.Ip);
+            RicohJob job;
+            string action;
+            if (existing != null)
+            {
+                job = new RicohJob { Name = existing.Name, Model = model };
+                action = $"Reinstalar \"{existing.Name}\" (ya apunta a {e.Ip})";
             }
             else
             {
-                MessageBox.Show(this, $"{p.Office} · {p.Label}\n\nIP {p.Ip} copiada al portapapeles.", Text, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                var name = e.QueueName;
+                if (printers.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) name = $"{name} ({e.Ip})";
+                job = new RicohJob { IsNew = true, Name = name, Ip = e.Ip, Model = model };
+                action = $"Agregar \"{name}\" en {e.Ip}";
             }
+            var msg = $"{e.Result.Model}\n\n· {action}\n· Driver: {model.DriverName}\n\nLos drivers antiguos que no utilice ninguna otra impresora se eliminarán.";
+            if (MessageBox.Show(scanner, msg, Text, MessageBoxButtons.OKCancel, MessageBoxIcon.Information) != DialogResult.OK) return;
+            scanner.Hide();
+            ShowProgress("Ricoh", "Instalando", "No cierre esta ventana hasta que finalice el proceso.");
+            await RunRicoh(new List<RicohJob> { job });
         }
 
         void SetHeader(string tag, string title, string sub)
@@ -181,11 +217,23 @@ namespace InstaladorImpresoras
             header.Invalidate();
         }
 
-        Label Caption(string text, Color? color = null) => new Label
+        // Ritmo vertical unico para todas las pantallas:
+        //   titulo de seccion (texto + filete) -> SectionGap -> contenido -> BlockGap -> siguiente seccion
+        const int SectionGap = 12, BlockGap = 28;
+
+        /// <summary>Titulo de seccion: etiqueta en mayusculas con un filete debajo y separacion fija con el contenido.</summary>
+        Panel Section(string text)
         {
-            Text = Theme.Caps(text), Font = Theme.Mono(7.5f, FontStyle.Bold), ForeColor = color ?? Theme.Muted,
-            AutoSize = false, Dock = DockStyle.Top, Height = S(24), TextAlign = ContentAlignment.BottomLeft,
-        };
+            var p = new Panel { Dock = DockStyle.Top, Height = S(26 + SectionGap), BackColor = Theme.Paper };
+            var font = Theme.Strong(8.25f);
+            p.Paint += (s, e) =>
+            {
+                TextRenderer.DrawText(e.Graphics, Theme.Caps(text), font, new Point(0, 0), Theme.Muted, TextFormatFlags.NoPadding);
+                using (var b = new SolidBrush(Theme.Line)) e.Graphics.FillRectangle(b, 0, S(24), p.Width, 1);
+                using (var b = new SolidBrush(Theme.Red)) e.Graphics.FillRectangle(b, 0, S(23), S(24), S(2));
+            };
+            return p;
+        }
 
         Panel Gap(int h) => new Panel { Dock = DockStyle.Top, Height = S(h), BackColor = Theme.Paper };
 
@@ -209,7 +257,7 @@ namespace InstaladorImpresoras
 
         Label Footer(string text) => new Label
         {
-            Text = text, Font = Theme.Mono(7.5f), ForeColor = Color.FromArgb(130, 130, 132),
+            Text = text, Font = Theme.Sans(8f), ForeColor = Color.FromArgb(130, 130, 132),
             Dock = DockStyle.Bottom, Height = S(22), TextAlign = ContentAlignment.BottomLeft, AutoEllipsis = true,
         };
 
@@ -220,20 +268,25 @@ namespace InstaladorImpresoras
             AcceptButton = null;
             SetHeader("Print Deployment", "PrintDeploy", "Despliegue y reparación de drivers de impresión. Seleccione el fabricante.");
 
-            var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, BackColor = Theme.Paper, Margin = Padding.Empty };
-            grid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
-            grid.RowStyles.Add(new RowStyle(SizeType.Percent, 50));
+            var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = Theme.Paper, Margin = Padding.Empty };
+            for (int i = 0; i < 3; i++) grid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
 
-            var ricoh = new Card("01 — RICOH", "Ricoh · " + RicohModels.Names,
+            var scan = new Card("01 — ESCÁNER", "Escanear e instalar",
+                "Directorio de oficinas + rango de red. Online → instalar con el driver correcto, sin teclear la IP.")
+            { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, S(16)) };
+            scan.Click += (s, e) => ShowScanner();
+
+            var ricoh = new Card("02 — RICOH", "Ricoh · " + RicohModels.Names,
                 "Detecta el modelo automáticamente e instala su driver oficial. Limpia controladores erróneos, reinstala las colas existentes y habilita la bandeja bypass.")
             { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, S(16)) };
-            var canon = new Card("02 — CANON", "Canon · todas las multifunción",
+            var canon = new Card("03 — CANON", "Canon · todas las multifunción",
                 "Asistente oficial Canon Generic Plus PCL6. Si indica que ya existe una versión posterior, acepte y continúe.")
             { Dock = DockStyle.Fill, Margin = new Padding(0) };
             ricoh.Click += (s, e) => ShowRicoh();
             canon.Click += async (s, e) => await RunCanon();
-            grid.Controls.Add(ricoh, 0, 0);
-            grid.Controls.Add(canon, 0, 1);
+            grid.Controls.Add(scan, 0, 0);
+            grid.Controls.Add(ricoh, 0, 1);
+            grid.Controls.Add(canon, 0, 2);
 
             body.Controls.Add(grid);
             body.Controls.Add(Footer($"v{version}  ·  registro: {logPath}"));
@@ -247,7 +300,9 @@ namespace InstaladorImpresoras
             SetHeader("Ricoh", "Configuración", "Las colas marcadas se desinstalan, se limpian y se recrean con el mismo nombre e IP.");
 
             // lista de impresoras instaladas
-            var list = new Panel { Dock = DockStyle.Top, Height = S(32 + 4 * 40), AutoScroll = true, BackColor = Theme.Paper };
+            // alto ajustado a las filas reales (max. 4 visibles, el resto con scroll): sin huecos vacios
+            int visibles = Math.Max(1, Math.Min(4, GetPrinters().Count));
+            var list = new Panel { Dock = DockStyle.Top, Height = S(32 + visibles * 40), AutoScroll = true, BackColor = Theme.Paper };
             var rows = new List<Control>();
             var head = new CheckRow { Header = true, Columns = new[] { "Impresora", "Driver actual", "Puerto / IP" }, Widths = new[] { .36f, .38f, .26f }, Dock = DockStyle.Top, Height = S(32) };
             foreach (var p in GetPrinters())
@@ -267,7 +322,7 @@ namespace InstaladorImpresoras
 
             // nueva por IP
             chkNew = new CheckRow { Columns = new[] { "Agregar una Ricoh nueva por IP  ·  modelo autodetectado" }, Dock = DockStyle.Top, Height = S(40), Checked = printerRows.Count == 0 };
-            var fields = new TableLayoutPanel { Dock = DockStyle.Top, Height = S(56), ColumnCount = 4, BackColor = Theme.Paper, Padding = new Padding(S(42), 0, 0, 0) };
+            var fields = new TableLayoutPanel { Dock = DockStyle.Top, Height = S(68), ColumnCount = 4, BackColor = Theme.Paper, Padding = new Padding(S(42), S(12), 0, 0) };
             fields.RowCount = 1;
             fields.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
             fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, S(180)));
@@ -282,7 +337,7 @@ namespace InstaladorImpresoras
             fields.Controls.Add(new Panel { BackColor = Theme.Paper }, 1, 0);
             fields.Controls.Add(fName, 2, 0);
             fields.Controls.Add(btnProbe, 3, 0);
-            lblProbe = new Label { Dock = DockStyle.Top, Height = S(26), Font = Theme.Mono(8.5f), ForeColor = Theme.Muted, Padding = new Padding(S(42), S(6), 0, 0) };
+            lblProbe = new Label { Dock = DockStyle.Top, Height = S(26), Font = Theme.Sans(9f), ForeColor = Theme.Muted, Padding = new Padding(S(42), S(6), 0, 0) };
 
             EventHandler toggle = (s, e) => { fIp.Box.Enabled = fName.Box.Enabled = btnProbe.Enabled = chkNew.Checked; if (!chkNew.Checked) SetProbe("", Theme.Muted); };
             chkNew.CheckedChanged += toggle;
@@ -295,13 +350,14 @@ namespace InstaladorImpresoras
             btnInstall.Click += async (s, e) => await StartRicoh();
             btnBack.Click += (s, e) => ShowChooser();
 
+            // Dock=Top apila en orden inverso: el ultimo anadido queda arriba
             body.Controls.Add(lblProbe);
             body.Controls.Add(fields);
             body.Controls.Add(chkNew);
-            body.Controls.Add(Caption("Nueva impresora"));
-            body.Controls.Add(Gap(14));
+            body.Controls.Add(Section("Nueva impresora"));
+            body.Controls.Add(Gap(BlockGap));
             body.Controls.Add(list);
-            body.Controls.Add(Caption("Impresoras en este equipo"));
+            body.Controls.Add(Section("Impresoras en este equipo"));
             body.Controls.Add(ButtonBar(btnInstall, btnBack));
         }
 
@@ -439,8 +495,8 @@ namespace InstaladorImpresoras
             lblClose.Visible = false;
 
             var top = new Panel { Dock = DockStyle.Top, Height = S(34), BackColor = Theme.Paper };
-            lblStep = new Label { Dock = DockStyle.Fill, Font = Theme.Serif(12f), ForeColor = Theme.Black, Text = "Preparando…", TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true };
-            lblPct = new Label { Dock = DockStyle.Right, Width = S(70), Font = Theme.Mono(11f, FontStyle.Bold), ForeColor = Theme.Red, Text = "000%", TextAlign = ContentAlignment.MiddleRight };
+            lblStep = new Label { Dock = DockStyle.Fill, Font = Theme.Title(12.5f), ForeColor = Theme.Black, Text = "Preparando…", TextAlign = ContentAlignment.MiddleLeft, AutoEllipsis = true };
+            lblPct = new Label { Dock = DockStyle.Right, Width = S(70), Font = Theme.Title(12.5f), ForeColor = Theme.Red, Text = "000%", TextAlign = ContentAlignment.MiddleRight };
             top.Controls.Add(lblStep);
             top.Controls.Add(lblPct);
             progress = new ThinProgress { Dock = DockStyle.Top, Height = S(6) };
@@ -459,13 +515,12 @@ namespace InstaladorImpresoras
             btnLog.Click += (s, e) => { if (File.Exists(logPath)) Process.Start("notepad.exe", logPath); };
 
             body.Controls.Add(logFrame);
-            body.Controls.Add(Gap(18));
-            body.Controls.Add(Caption("Registro"));
-            body.Controls.Add(Gap(6));
+            body.Controls.Add(Section("Registro"));
+            body.Controls.Add(Gap(BlockGap));
             body.Controls.Add(progress);
-            body.Controls.Add(Gap(10));
+            body.Controls.Add(Gap(SectionGap));
             body.Controls.Add(top);
-            var spacer = Gap(16); spacer.Dock = DockStyle.Bottom;
+            var spacer = Gap(BlockGap - 8); spacer.Dock = DockStyle.Bottom;
             body.Controls.Add(spacer);
             body.Controls.Add(ButtonBar(btnClose, btnLog));
         }
@@ -624,6 +679,30 @@ namespace InstaladorImpresoras
                     Log("LOG", line);
                     break;
             }
+        }
+
+        // ================= cola compartida en servidor =================
+        /// <summary>Conecta \\servidor\cola: Add-Printer para el usuario actual y printui /ga para todos los usuarios.</summary>
+        async Task RunShared(string unc)
+        {
+            ShowProgress("Servidor", "Conectando impresora", unc);
+            var q = unc.Replace("'", "''");
+            var script = string.Join("\n",
+                "$ErrorActionPreference = 'Stop'",
+                $"$c = '{q}'",
+                "Write-Output 'STEP|15|Comprobando conexiones existentes'",
+                "if (Get-Printer -Name $c -ErrorAction SilentlyContinue) { Remove-Printer -Name $c; Write-Output \"OK|Conexion anterior eliminada: $c\" }",
+                "Write-Output 'STEP|40|Conectando y descargando el driver del servidor'",
+                "Add-Printer -ConnectionName $c",
+                "Write-Output \"OK|Conectada para este usuario: $c\"",
+                "Write-Output 'STEP|80|Conexion para todos los usuarios del equipo'",
+                "$p = Start-Process rundll32.exe -ArgumentList \"printui.dll,PrintUIEntry /ga /n`\"$c`\"\" -Wait -PassThru",
+                "if ($p.ExitCode -eq 0) { Write-Output 'OK|Conexion global registrada (resto de usuarios al iniciar sesion)' } else { Write-Output \"WARN|printui /ga devolvio $($p.ExitCode)\" }",
+                "Write-Output \"SUMMARY|Conectada $c\"",
+                "Write-Output 'STEP|100|Finalizado'");
+            var b64 = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
+            int exit = await Task.Run(() => RunEngine($"-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {b64}"));
+            Finish(exit == 0, exit == 0 ? "La impresora aparece como \"" + unc.TrimStart('\\').Split('\\').Last() + " en " + unc.TrimStart('\\').Split('\\')[0] + "\"." : null);
         }
 
         // ================= Canon =================
