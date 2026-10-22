@@ -1,0 +1,4 @@
+# .bat/.cmd: CRLF siempre (en el repo y en el raw de GitHub). cmd.exe en WinRE
+# puede fallar con labels/goto si el fichero viene en LF; y el raw sirve el blob tal cual.
+*.bat -text
+*.cmd -text

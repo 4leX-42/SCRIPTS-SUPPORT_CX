@@ -15,11 +15,23 @@ de los fabricantes). Esa orden mete a la cuenta en Administradores y luego deja 
 normal. **No usa el truco de `utilman.exe`**: en Windows 11 recientes lo bloquea un parche de
 seguridad y lo detecta Defender.
 
+## Preparar el USB (en un PC que funcione, antes de ir al equipo roto)
+
+Dentro de WinRE no hay internet, así que el `.bat` se baja **antes** a la raíz del USB.
+En PowerShell, con el USB como `E:` (cámbialo por su letra):
+
+```powershell
+$f="E:\01-rescate-admin-local.bat"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/12-gadgets/01-rescate-admin-local.bat -OutFile $f
+```
+
+(O descárgalo a mano desde GitHub y cópialo al USB.) El fichero va en CRLF a
+propósito: en LF el `cmd` de la recuperación puede fallar con los `goto`.
+
 ## Uso (método automático)
 
-1. En la pantalla de inicio de sesión: con **Mayús** pulsada, **Encendido → Reiniciar**.
+1. En la pantalla de inicio de sesión del equipo roto: con **Mayús** pulsada, **Encendido → Reiniciar**.
 2. **Solucionar problemas → Opciones avanzadas → Símbolo del sistema**.
-3. Copia `01-rescate-admin-local.bat` a un USB. Enchúfalo y mira su letra:
+3. Enchufa el USB ya preparado y mira su letra:
    ```
    wmic logicaldisk get deviceid,volumename
    ```
