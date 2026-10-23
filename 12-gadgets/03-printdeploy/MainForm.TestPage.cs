@@ -15,8 +15,10 @@ namespace InstaladorImpresoras
 
         /// <summary>
         /// Pagina de prueba con seguimiento propio: la envia (printui /k) y sigue el trabajo en la cola de Windows
-        /// (Win32_PrintJob) y los contadores de la cola (trabajos impresos / errores) hasta que se completa o falla.
-        /// El resultado va al registro y a la linea de estado.
+        /// (Win32_PrintJob) y los contadores de la cola (trabajos impresos / errores) hasta que se entrega o falla.
+        /// Despues lo confirma en la propia impresora por SNMP: su contador de paginas tiene que subir (hasta 25 s
+        /// desde el envio); si no sube, lee sus averias (sin papel, atasco...). El resultado va al registro y a la
+        /// linea de estado.
         /// </summary>
         async void SendTestPage()
         {
@@ -29,6 +31,13 @@ namespace InstaladorImpresoras
                 Log("STEP", "PÁGINA DE PRUEBA");
                 var before = await Task.Run(() => Jobs(name).Select(j => j.Id).ToList());
                 var countersBefore = await Task.Run(() => Counters(name));
+                // la impresora en si: IP del puerto (las conexiones \\servidor\cola no tienen) y su contador de paginas
+                var host = await Task.Run(() => GetPrinters().FirstOrDefault(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))?.Host);
+                var device = host != null ? await Task.Run(() => PrinterProbe.PrinterCounters(host, 700)) : null;
+                long? pagesBefore = device?.pages;
+                if (pagesBefore != null) Log("LOG", $"Contador de la impresora ({host}): {pagesBefore:N0} páginas");
+                if (!string.IsNullOrEmpty(device?.errors)) Log("WARN", "La impresora avisa: " + device?.errors);
+                var sent = Stopwatch.StartNew();
                 PrintUi("/k", name);
                 Log("OK", $"Enviada a «{name}»");
                 Status("esperando el trabajo en la cola…", false);
@@ -61,27 +70,63 @@ namespace InstaladorImpresoras
                 }
 
                 var countersAfter = await Task.Run(() => Counters(name));
-                bool printed = countersAfter.printed > countersBefore.printed;
-                bool errors = countersAfter.errors > countersBefore.errors;
-                if (errors || (failed && !printed))
+                bool delivered = countersAfter.printed > countersBefore.printed || (seen != null && last != null && !failed && sw.Elapsed.TotalSeconds < 90);
+                if (countersAfter.errors > countersBefore.errors || (failed && !delivered))
                 {
-                    Log("ERR", "La impresora no ha completado el trabajo. Revise papel, conexión o la cola en «Impresoras y escáneres».");
-                    Status("error al imprimir", true);
+                    Log("ERR", "Windows no ha podido entregarla a la impresora. Revise conexión o la cola en «Impresoras y escáneres».");
+                    Status("error al enviar", true);
+                    return;
                 }
-                else if (printed || (seen != null && last != null && !failed && sw.Elapsed.TotalSeconds < 90))
+                if (!delivered)
                 {
-                    Log("OK", "Trabajo completado: entregado a la impresora" + (printed ? $" (cola: {countersAfter.printed} impresos)" : ""));
-                    Status("enviada correctamente", false);
+                    Log("WARN", seen == null ? "No se ha visto el trabajo en la cola de Windows." : "Sin confirmación en 90 s: el trabajo sigue en la cola.");
                 }
-                else if (seen == null)
+                else Log("OK", "Entregada a la impresora por Windows");
+
+                // confirmacion fisica: el contador de paginas de la impresora
+                if (host == null)
                 {
-                    Log("WARN", "No se ha visto el trabajo en la cola. Compruebe la salida en la impresora o en «Impresoras y escáneres».");
-                    Status("sin confirmación", true);
+                    if (name.StartsWith(@"\\"))
+                        Log("LOG", "Cola de servidor: la impresión depende del servidor (PaperCut la retiene hasta validarse en la impresora).");
+                    else
+                        Log("LOG", "Cola sin IP (USB, WSD o archivo): solo se puede confirmar la entrega.");
+                    Status(delivered ? "entregada" : "sin confirmación", !delivered);
+                    return;
+                }
+                if (pagesBefore == null)
+                {
+                    Log("WARN", "La impresora no responde a SNMP: no se puede comprobar si ha salido la hoja.");
+                    Status(delivered ? "entregada (sin confirmar en la impresora)" : "sin confirmación", true);
+                    return;
+                }
+                Status("esperando a que la impresora la imprima…", false);
+                (long? pages, int? status, string errors)? now = null;
+                while (sent.Elapsed.TotalSeconds < 25)
+                {
+                    now = await Task.Run(() => PrinterProbe.PrinterCounters(host, 700));
+                    if (now?.pages > pagesBefore)
+                    {
+                        Log("OK", $"Página impresa: contador {pagesBefore:N0} → {now?.pages:N0} ({sent.Elapsed.TotalSeconds:N0} s desde el envío)");
+                        Status("impresa correctamente", false);
+                        return;
+                    }
+                    await Task.Delay(1000);
+                }
+                var why = now?.errors;
+                if (!string.IsNullOrEmpty(why))
+                {
+                    Log("ERR", "No ha salido la hoja. La impresora avisa: " + why);
+                    Status("no impresa · " + why, true);
+                }
+                else if (now?.status == 5)
+                {
+                    Log("WARN", "La impresora sigue calentando: compruebe la salida en un momento.");
+                    Status("calentando", true);
                 }
                 else
                 {
-                    Log("WARN", "Sin confirmación en 90 s: el trabajo sigue en la cola.");
-                    Status("en cola sin confirmar", true);
+                    Log("WARN", "Entregada, pero el contador no ha cambiado en 25 s: puede estar retenida en la impresora (ID de departamento, impresión segura) o en espera.");
+                    Status("entregada, sin imprimir aún", true);
                 }
             }
             catch (Exception ex) { Log("ERR", ex.Message); }

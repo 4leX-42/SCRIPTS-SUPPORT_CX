@@ -50,7 +50,7 @@ Aplicación Windows (WinForms, .NET Framework 4.8) para desplegar y reparar impr
 - Portátil: un solo `PrintDeploy.exe` (drivers y directorio embebidos; .NET Framework 4.8 incluido en Windows 10/11). Funciona desde USB o carpeta de red.
 - Escala: toda la interfaz (medidas y fuentes) sigue el escalado de Windows con la misma proporción; se reduce si la pantalla es pequeña. `PRINTDEPLOY_SCALE` la fuerza.
 - Teclas: `1` scanner · `2` instalar · `3` colas · `F5` reescanear · `Esc` volver / salir.
-- Tras instalar una impresora: **Impresoras y escáneres** (Configuración de Windows, con el historial) y **Página de prueba** con seguimiento propio del trabajo (cola de Windows + contadores de la cola: en cola, imprimiendo, completado o error), en el registro y la línea de estado.
+- Tras instalar una impresora: **Impresoras y escáneres** (Configuración de Windows, con el historial) y **Página de prueba** con seguimiento: entrega por Windows (cola y contadores del spooler) y confirmación física por SNMP en la impresora (su contador de páginas sube; si no, sus avisos: sin papel, atasco, tapa abierta…). Canon responde solo SNMP v1; se recuerda la versión por IP.
 - Al terminar una instalación, **Volver** regresa al inicio o al scanner; la app no se cierra.
 - Icono de abrir junto al de impresora: menú con las impresoras instaladas; clic = su cola de impresión, submenú = propiedades / preferencias (`printui`).
 - Icono de impresora en las cabeceras → *Dispositivos e impresoras* (`shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}`).
