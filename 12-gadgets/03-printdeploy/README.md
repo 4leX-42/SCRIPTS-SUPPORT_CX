@@ -18,7 +18,7 @@ Aplicación Windows (WinForms, .NET Framework 4.8) para desplegar y reparar impr
 - Sin permiso: **Instalar** pasa a **Credenciales**. Sesión `IPC$` con usuario del servidor (valida al momento) + credencial en el Administrador de credenciales de Windows; recomprueba las colas de ese servidor.
 - Nombre legible: `PROCESAL_DCH` + `C/ Mayor 1 Plt3 Derecha` → *Procesal Dcha · P3*. Nombres de fábrica (modelo, derivados de la MAC) ignorados.
 - Ubicación: oficina con una impresora en el mismo /24 que el equipo; si no, la del sitio de Active Directory. Esa oficina arriba y abierta; el resto plegadas al final.
-- Indicador: ojo de fuego (estilo Ojo de Sauron) generado por píxel con ruido fractal 3D: verde = online, rojo = offline / sin impresión / cola inaccesible, dorado = comprobando, brasa gris = pendiente. Cada ojo aviva sus llamas cada 8-16 s al azar (llamarada de 1,2 s); fotogramas en caché, un solo temporizador.
+- Indicador: ojo de fuego (estilo Ojo de Sauron) generado por píxel con ruido fractal 3D: azul = ya instalada en este equipo (con «Instalada · cola» y botón Reinstalar), verde = online, rojo = offline / sin impresión / cola inaccesible, dorado = comprobando, brasa gris = pendiente. Cada ojo aviva sus llamas cada 8-16 s al azar (llamarada de 1,2 s); fotogramas en caché, un solo temporizador.
 - **Instalar** (doble clic / Enter) cualquier impresora detectada, con el driver de *Elección de driver*. Si ya hay cola en esa IP, se reinstala. Cola de servidor: `Add-Printer -ConnectionName` (usuario actual) + `printui /ga` (todos los usuarios).
 - **Escanear** / `F5`: rango. **Recomprobar oficinas**: directorio. Botón en relieve con el ojo del logo de Nmap en dorado (iris con retícula que gira, mira en cruz) y haz de faro de izquierda a derecha.
 
@@ -90,6 +90,7 @@ Sin ellos compila igualmente: el `.exe` avisa del paquete que falta y el directo
 | `ThemedDialog.cs` | Avisos, confirmaciones y credenciales con el estilo de la app |
 | `Theme.cs` | Estilo (carbón, blanco, dorado; rojo solo para errores), escala única de interfaz y controles dibujados |
 | `NmapEye.cs` | Ojo del botón Escáner calcado del logo de Nmap (dorado): párpados rayados, iris con retícula que gira, mira |
+| `Logo.cs` | Logo (ojo dorado incandescente): emblema de la cabecera y generador de `app.ico` |
 | `Organic.cs` | Ojos de fuego de estado (shader por píxel, caché de fotogramas, llamaradas al azar) |
 | `TentacleLink.cs` | Tentáculo cyberpunk (metal negro, vértebras y núcleo de energía dorados) que une la ventana principal y el escáner, abierto a su derecha (ventana por capas, sin clics) |
 | `engine.ps1` | Motor: instala, reinstala y quita colas de cualquier marca; lo lanza el `.exe` |

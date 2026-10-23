@@ -44,6 +44,22 @@ namespace InstaladorImpresoras
             return list.OrderBy(p => p.IsConnection).ThenBy(p => p.Name).ToList();
         }
 
+        /// <summary>Impresoras instaladas en el equipo: IP del puerto o nombre de la conexion \\servidor\cola -> nombre de la cola.</summary>
+        internal static Dictionary<string, string> InstalledMap()
+        {
+            var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            try
+            {
+                foreach (var p in GetPrinters(connections: true))
+                {
+                    if (p.IsConnection) map[p.Name] = p.Name;
+                    else if (p.Host != null && !map.ContainsKey(p.Host)) map[p.Host] = p.Name;
+                }
+            }
+            catch { }
+            return map;
+        }
+
         /// <summary>
         /// Verde / rojo en las colas instaladas: la IP de su puerto responde como impresora (o la cola del
         /// servidor se abre). En paralelo; colas sin IP (USB, WSD) quedan con el indicador apagado.

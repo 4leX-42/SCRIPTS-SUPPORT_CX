@@ -11,7 +11,7 @@ namespace InstaladorImpresoras
 {
     /// <summary>
     /// Indicadores de estado como ojos de fuego (estilo Ojo de Sauron): ovalo vertical de fibras de fuego, hendidura negra
-    /// con filo incandescente y nubes de fuego, generado por pixel con ruido fractal 3D. Fuego verde = online, rojo = offline, dorado tenue = comprobando, brasa apagada = pendiente.
+    /// con filo incandescente y nubes de fuego, generado por pixel con ruido fractal 3D. Fuego azul = instalada en este equipo y online, verde = online, rojo = offline, dorado tenue = comprobando, brasa apagada = pendiente.
     /// Se encienden al aparecer; despues cada ojo aviva sus llamas por su cuenta cada 8-16 s (al azar), nunca dos
     /// arrancando a la vez. Fotogramas pintados una vez y guardados en cache; un unico temporizador para toda la app,
     /// que entre llamaradas no repinta nada.
@@ -97,12 +97,12 @@ namespace InstaladorImpresoras
         }
 
         /// <summary>Ojo de estado en r. 'id' identifica el ojo para su ritmo propio (sin id: su posicion).</summary>
-        public static void Draw(Graphics g, ScanState st, Rectangle r, object id = null)
+        public static void Draw(Graphics g, ScanState st, Rectangle r, object id = null, bool installed = false)
         {
             id = id ?? (r.X << 16 ^ r.Y);
             switch (st)
             {
-                case ScanState.Printer: Draw(g, r, Fire.Green, Frame(id)); break;
+                case ScanState.Printer: Draw(g, r, installed ? Fire.Blue : Fire.Green, Frame(id)); break;
                 case ScanState.Unreachable: case ScanState.NotPrinter: Draw(g, r, Fire.Red, Frame(id)); break;
                 case ScanState.Checking: Draw(g, r, Fire.Gold, -1); break;
                 default: Draw(g, r, Fire.Ember, -1); break;
@@ -115,6 +115,7 @@ namespace InstaladorImpresoras
             public Color[] Ramp; public float Power;
             public static readonly Fire Red = new Fire { Power = 1, Ramp = new[] { Color.FromArgb(20, 0, 0), Color.FromArgb(110, 8, 0), Color.FromArgb(196, 36, 4), Color.FromArgb(244, 104, 14), Color.FromArgb(255, 176, 40), Color.FromArgb(255, 226, 120), Color.FromArgb(255, 252, 228) } };
             public static readonly Fire Green = new Fire { Power = 1, Ramp = new[] { Color.FromArgb(0, 16, 6), Color.FromArgb(0, 74, 30), Color.FromArgb(10, 140, 50), Color.FromArgb(40, 200, 80), Color.FromArgb(120, 236, 96), Color.FromArgb(200, 255, 150), Color.FromArgb(240, 255, 226) } };
+            public static readonly Fire Blue = new Fire { Power = 1, Ramp = new[] { Color.FromArgb(0, 4, 22), Color.FromArgb(0, 22, 96), Color.FromArgb(10, 72, 196), Color.FromArgb(40, 142, 255), Color.FromArgb(112, 200, 255), Color.FromArgb(192, 236, 255), Color.FromArgb(242, 250, 255) } };
             public static readonly Fire Gold = new Fire { Power = .7f, Ramp = new[] { Color.FromArgb(24, 16, 4), Color.FromArgb(90, 62, 18), Color.FromArgb(146, 114, 56), Color.FromArgb(201, 169, 110), Color.FromArgb(230, 204, 150), Color.FromArgb(248, 232, 196), Color.FromArgb(255, 250, 236) } };
             public static readonly Fire Ember = new Fire { Power = .45f, Ramp = new[] { Color.FromArgb(14, 14, 16), Color.FromArgb(40, 40, 44), Color.FromArgb(70, 70, 74), Color.FromArgb(100, 100, 104), Color.FromArgb(130, 130, 134), Color.FromArgb(160, 160, 164), Color.FromArgb(190, 190, 194) } };
 

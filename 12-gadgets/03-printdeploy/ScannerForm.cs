@@ -66,6 +66,8 @@ namespace InstaladorImpresoras
                 else if (e.KeyCode == Keys.F5 && rangeCts == null) { e.Handled = true; ScanRange(); }
             };
             FormClosing += (s, e) => { if (e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); } };
+            // al mostrarse (tambien al volver de instalar): que impresoras tiene ya este equipo -> ojo azul
+            VisibleChanged += (s, e) => { if (Visible) RefreshInstalled(); };
 
             // donde esta este equipo: su oficina arriba y abierta, las demas plegadas al final
             var loc = NetworkScan.DetectOffice(directory);
@@ -204,14 +206,14 @@ namespace InstaladorImpresoras
                 TextRenderer.DrawText(g, sel.Directory != null ? $"{sel.Directory.Office} · {sel.Label}" : sel.Label, fTitle, row, Theme.Black, flags);
 
             // pie: recuento + estado
-            int ok = list.Items.Count(x => x.Detected), bad = list.Items.Count(x => x.Failed);
+            int ok = list.Items.Count(x => x.Detected), bad = list.Items.Count(x => x.Failed), mine = list.Items.Count(x => x.Detected && x.Installed);
             int y = bar.Height - S(30);
             using (var b = new SolidBrush(Theme.Line)) g.FillRectangle(b, pad, y - S(6), w - 2 * pad, 1);
             int fx = pad;
-            foreach (var (st, text) in new[] { (ScanState.Printer, $"{ok} online"), (ScanState.Unreachable, $"{bad} offline") })
+            foreach (var (st, text, inst) in new[] { (ScanState.Printer, $"{ok} online", false), (ScanState.Printer, $"{mine} instaladas", true), (ScanState.Unreachable, $"{bad} offline", false) })
             {
-                DrawState(g, st, new Rectangle(fx, y + S(4), S(12), S(12)), st);
-                fx += S(18);
+                DrawState(g, st, new Rectangle(fx, y + S(4), S(12), S(12)), text, inst);
+                fx += S(22);
                 TextRenderer.DrawText(g, text, fFoot, new Rectangle(fx, y, S(90), S(20)), Theme.Black, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
                 fx += TextRenderer.MeasureText(text, fFoot).Width + S(18);
             }
@@ -228,7 +230,8 @@ namespace InstaladorImpresoras
                 case ScanState.Checking: return "Comprobando…";
                 case ScanState.Printer:
                     var extra = r.Hint.Length > 0 ? "  ·  " + r.Hint : "";
-                    if (e.IsShared) return "Instalar: Add-Printer -ConnectionName (driver del servidor)" + extra;
+                    if (e.IsShared) return (e.Installed ? "Conectada en este equipo · reconectar: " : "Instalar: ") + "Add-Printer -ConnectionName (driver del servidor)" + extra;
+                    if (e.Installed) return $"Instalada como «{e.InstalledAs}» · reinstalar: {DriverCatalog.Resolve(e.Brand, r.Description).Text}";
                     return $"Instalar: {DriverCatalog.Resolve(e.Brand, r.Description).Text}  →  «{e.QueueName}»";
                 default: return r?.Hint ?? "";
             }
@@ -240,6 +243,7 @@ namespace InstaladorImpresoras
             if (e.State == ScanState.Checking) return "comprobando…";
             if (e.State == ScanState.Pending) return "";
             var text = e.Result.Model.Length > 0 ? e.Result.Model : "impresora";
+            if (e.Installed && e.Detected) return "Instalada · " + text;
             // offline: la marca del directorio, para saber que es sin desplegar
             return e.Failed && e.Directory != null && e.Directory.Brand.Length > 0 ? $"{e.Directory.Brand} · {text}" : text;
         }
@@ -247,17 +251,31 @@ namespace InstaladorImpresoras
         /// <summary>Columna de direccion: la IP, o solo el servidor si es una cola compartida (la cola ya va en el nombre).</summary>
         internal static string Address(ScanEntry e) => e.IsShared ? @"\\" + e.Ip.TrimStart('\\').Split('\\')[0] : e.Ip;
 
-        /// <summary>Indicador: ojo con iris verde (online), rojo (offline / no identificada), dorado entornado (comprobando) o cerrado.</summary>
-        internal static void DrawState(Graphics g, ScanState st, Rectangle r, object id = null)
+        Dictionary<string, string> installed = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        string InstalledName(string ip) => installed.TryGetValue(ip, out var q) ? q : null;
+
+        /// <summary>Relee las impresoras instaladas en el equipo y marca las entradas (por IP o por \servidor\cola).</summary>
+        async void RefreshInstalled()
         {
-            Eyes.Draw(g, st, r, id);
+            installed = await Task.Run(() => MainForm.InstalledMap());
+            foreach (var e in list.Items) e.InstalledAs = InstalledName(e.Ip);
+            list.Invalidate();
+            bar.Invalidate();
+            UpdateBar();
+        }
+
+        /// <summary>Indicador: ojo con iris verde (online), rojo (offline / no identificada), dorado entornado (comprobando) o cerrado.</summary>
+        internal static void DrawState(Graphics g, ScanState st, Rectangle r, object id = null, bool installed = false)
+        {
+            Eyes.Draw(g, st, r, id, installed);
         }
 
         void UpdateBar()
         {
             var sel = list.Selected;
             btnInstall.Enabled = sel != null && (sel.CanInstall || sel.NeedsLogin);
-            var label = sel?.NeedsLogin == true ? "Credenciales" : "Instalar";
+            var label = sel?.NeedsLogin == true ? "Credenciales" : sel?.Installed == true ? "Reinstalar" : "Instalar";
             if (btnInstall.Text != label) { btnInstall.Text = label; btnInstall.Invalidate(); }
             btnRetry.Enabled = sel != null && sel.State != ScanState.Checking;
             btnWeb.Enabled = sel?.Result != null && sel.Result.Ports.Contains(80);
@@ -362,7 +380,7 @@ namespace InstaladorImpresoras
                         {
                             found++;
                             if (byIp.TryGetValue(ip, out var dir)) { if (dir.State != ScanState.Printer) { dir.Result = r; dir.State = r.State; } }
-                            else Insert(new ScanEntry { Ip = ip, Group = group, Result = r, State = r.State });
+                            else Insert(new ScanEntry { Ip = ip, Group = group, Result = r, State = r.State, InstalledAs = InstalledName(ip) });
                         }
                     }
                     finally { gate.Release(); }
@@ -566,7 +584,7 @@ namespace InstaladorImpresoras
             var flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding;
             int orb = S(14), nameX = pad + S(28), ipW = S(140);
             int nameW = (int)((right - ipW - nameX) * .5);
-            ScannerForm.DrawState(g, it.State, new Rectangle(pad + S(1), r.Y + (r.Height - orb) / 2, orb, orb), it);
+            ScannerForm.DrawState(g, it.State, new Rectangle(pad + S(1), r.Y + (r.Height - orb) / 2, orb, orb), it, it.Installed);
 
             var label = it.Label;
             TextRenderer.DrawText(g, label, fRow, new Rectangle(nameX, r.Y, nameW - S(12), r.Height), label == "Sin nombre" ? Theme.Muted : Theme.Black, flags);
