@@ -219,6 +219,7 @@ namespace InstaladorImpresoras
             {
                 if (!ThemedDialog.Confirm(scanner, "Servidor", e.Label, $"{e.Result.Model}\n\n· Add-Printer -ConnectionName {e.Ip} (usuario actual)\n· printui /ga (todos los usuarios, al iniciar sesión)\n· Conexión previa: se elimina y se recrea", "Conectar")) return;
                 scanner.Hide();
+                Present();
                 await RunShared(e.Ip);
                 return;
             }
@@ -230,7 +231,44 @@ namespace InstaladorImpresoras
             var action = existing != null ? $"Reinstalar «{existing.Name}» (puerto {e.Ip})" : $"Nueva cola «{e.QueueName}» · {e.Ip}";
             if (!ThemedDialog.Confirm(scanner, plan.Brand.Length > 0 ? plan.Brand : "Impresora", e.Label, $"{e.Result.Model}\n\n· {action}\n· Driver: {plan.Text}")) return;
             scanner.Hide();
+            Present();
             await RunJobs(new List<InstallJob> { job }, plan.Brand);
+        }
+
+        Timer presentAnim;
+
+        /// <summary>
+        /// Trae la ventana al centro de la pantalla y al frente con un deslizamiento suave (salida del escaner al instalar).
+        /// Queda por encima de todo mientras se mueve; al llegar se activa y deja de estar fija encima.
+        /// </summary>
+        void Present()
+        {
+            if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+            var area = Screen.FromControl(this).WorkingArea;
+            var from = Location;
+            var to = new Point(area.Left + (area.Width - Width) / 2, area.Top + (area.Height - Height) / 2);
+            presentAnim?.Stop();
+            TopMost = true;
+            Activate();
+            var clock = Stopwatch.StartNew();
+            const double ms = 380;
+            presentAnim = new Timer { Interval = 15 };
+            presentAnim.Tick += (s, e) =>
+            {
+                double t = Math.Min(1, clock.ElapsedMilliseconds / ms), k = 1 - Math.Pow(1 - t, 3);   // sale rapido y frena
+                Location = new Point((int)(from.X + (to.X - from.X) * k), (int)(from.Y + (to.Y - from.Y) * k));
+                Opacity = .82 + .18 * k;
+                if (t < 1) return;
+                presentAnim.Stop();
+                presentAnim.Dispose();
+                presentAnim = null;
+                Opacity = 1;
+                TopMost = false;
+                Activate();
+                BringToFront();
+            };
+            Opacity = .82;
+            presentAnim.Start();
         }
 
         void SetHeader(string tag, string title, string sub)
