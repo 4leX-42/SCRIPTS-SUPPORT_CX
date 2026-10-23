@@ -39,7 +39,7 @@ namespace InstaladorImpresoras
         bool checkingDirectory, dirty;
         string dirStatus = "", rangeStatus = "", note = "";
         string Status => string.Join("   ·   ", new[] { rangeStatus, dirStatus, note }.Where(x => x.Length > 0));
-        int S(int px) => (int)Math.Round(px * DeviceDpi / 96.0);
+        int S(int px) => Theme.S(px);
 
         public ScannerForm(List<OfficePrinter> directory, Action<ScanEntry> onInstall)
         {
@@ -126,7 +126,7 @@ namespace InstaladorImpresoras
             head.MouseDown += (s, e) => { if (e.Button == MouseButtons.Left) { ReleaseCapture(); SendMessage(Handle, 0xA1, 2, 0); } };
             head.Paint += (s, e) =>
             {
-                var g = e.Graphics;
+                var g = Theme.Crisp(e.Graphics);
                 int x = S(24);
                 Theme.DrawMark(g, "Escáner", fTag, new Point(x, S(13)), S);
                 var where = here != null ? $"{here}   ·   {hereWhy}" : "Ubicación no reconocida";
@@ -139,7 +139,10 @@ namespace InstaladorImpresoras
             panel.Click += (s, e) => Theme.OpenPrintersPanel();
             head.Controls.Add(close);
             head.Controls.Add(panel);
-            head.Resize += (s, e) => { close.Location = new Point(head.Width - close.Width, 0); panel.Location = new Point(close.Left - panel.Width, 0); };
+            var open = new IconBtn(PrinterMenu.Glyph, "Abrir una impresora instalada") { Size = new Size(S(40), S(34)) };
+            open.Click += (s, e) => PrinterMenu.Show(open);
+            head.Controls.Add(open);
+            head.Resize += (s, e) => { close.Location = new Point(head.Width - close.Width, 0); panel.Location = new Point(close.Left - panel.Width, 0); open.Location = new Point(panel.Left - open.Width, 0); };
         }
 
         void BuildToolbar()
@@ -169,6 +172,7 @@ namespace InstaladorImpresoras
             bar.Height = S(96);
             bar.BackColor = Theme.Paper;
             bar.Paint += PaintBar;
+            Eyes.Attach(bar);
             btnInstall.Click += (s, e) => { if (list.Selected != null) Install(list.Selected); };
             btnRetry.Click += async (s, e) => { var sel = list.Selected; if (sel != null) await CheckOne(sel, quick: false); };
             btnWeb.Click += (s, e) => { var sel = list.Selected; if (sel != null) try { Process.Start("http://" + sel.Ip); } catch { } };
@@ -187,7 +191,7 @@ namespace InstaladorImpresoras
 
         void PaintBar(object sender, PaintEventArgs e)
         {
-            var g = e.Graphics;
+            var g = Theme.Crisp(e.Graphics);
             int pad = S(24), w = bar.Width;
             using (var b = new SolidBrush(Theme.Line)) g.FillRectangle(b, 0, 0, w, 1);
             var flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis;
@@ -206,7 +210,7 @@ namespace InstaladorImpresoras
             int fx = pad;
             foreach (var (st, text) in new[] { (ScanState.Printer, $"{ok} online"), (ScanState.Unreachable, $"{bad} offline") })
             {
-                DrawState(g, st, new Rectangle(fx, y + S(4), S(12), S(12)));
+                DrawState(g, st, new Rectangle(fx, y + S(4), S(12), S(12)), st);
                 fx += S(18);
                 TextRenderer.DrawText(g, text, fFoot, new Rectangle(fx, y, S(90), S(20)), Theme.Black, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
                 fx += TextRenderer.MeasureText(text, fFoot).Width + S(18);
@@ -243,16 +247,10 @@ namespace InstaladorImpresoras
         /// <summary>Columna de direccion: la IP, o solo el servidor si es una cola compartida (la cola ya va en el nombre).</summary>
         internal static string Address(ScanEntry e) => e.IsShared ? @"\\" + e.Ip.TrimStart('\\').Split('\\')[0] : e.Ip;
 
-        /// <summary>Indicador: esfera negra con nucleo verde (online), rojo (offline / no identificada) o apagado.</summary>
-        internal static void DrawState(Graphics g, ScanState st, Rectangle r)
+        /// <summary>Indicador: ojo con iris verde (online), rojo (offline / no identificada), dorado entornado (comprobando) o cerrado.</summary>
+        internal static void DrawState(Graphics g, ScanState st, Rectangle r, object id = null)
         {
-            switch (st)
-            {
-                case ScanState.Printer: Theme.DrawOrb(g, r, Theme.Green); break;
-                case ScanState.Unreachable: case ScanState.NotPrinter: Theme.DrawOrb(g, r, Theme.Red); break;
-                case ScanState.Checking: Theme.DrawOrb(g, r, Theme.Gold, dim: true); break;
-                default: Theme.DrawOrb(g, r, null); break;
-            }
+            Eyes.Draw(g, st, r, id);
         }
 
         void UpdateBar()
@@ -428,7 +426,7 @@ namespace InstaladorImpresoras
         int GroupH => S(34);
         int MaxScroll => Math.Max(0, contentHeight - Height);
 
-        public ScanList() { TabStop = true; }
+        public ScanList() { TabStop = true; Eyes.Attach(this); }
 
         static bool IsRange(string key) => key.StartsWith(RangePrefix);
         int Rank(string key) => Here != null && key == Here ? 0 : IsRange(key) ? 1 : 2;
@@ -477,7 +475,7 @@ namespace InstaladorImpresoras
 
         protected override void OnPaint(PaintEventArgs e)
         {
-            var g = e.Graphics;
+            var g = Theme.Crisp(e.Graphics);
             g.Clear(Theme.Paper);
             hits.Clear();
             groupHits.Clear();
@@ -568,7 +566,7 @@ namespace InstaladorImpresoras
             var flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding;
             int orb = S(14), nameX = pad + S(28), ipW = S(140);
             int nameW = (int)((right - ipW - nameX) * .5);
-            ScannerForm.DrawState(g, it.State, new Rectangle(pad + S(1), r.Y + (r.Height - orb) / 2, orb, orb));
+            ScannerForm.DrawState(g, it.State, new Rectangle(pad + S(1), r.Y + (r.Height - orb) / 2, orb, orb), it);
 
             var label = it.Label;
             TextRenderer.DrawText(g, label, fRow, new Rectangle(nameX, r.Y, nameW - S(12), r.Height), label == "Sin nombre" ? Theme.Muted : Theme.Black, flags);

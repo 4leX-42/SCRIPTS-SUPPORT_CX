@@ -21,7 +21,7 @@ namespace InstaladorImpresoras
         string note = "";
         bool noteIsError;
         Func<string, string, Task<string>> login;
-        int S(int px) => (int)Math.Round(px * DeviceDpi / 96.0);
+        int S(int px) => Theme.S(px);
 
         ThemedDialog(string tag, string title, string text, string okText, string cancelText, bool credentials)
         {
@@ -42,8 +42,8 @@ namespace InstaladorImpresoras
             head.BackColor = Theme.Black;
             head.Paint += (s, e) =>
             {
-                Theme.DrawMark(e.Graphics, tag, fMark, new Point(pad, S(16)), S);
-                TextRenderer.DrawText(e.Graphics, title, fTitle, new Rectangle(pad, S(36), inner, S(26)), Theme.Paper, TextFormatFlags.Left | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis);
+                Theme.DrawMark(Theme.Crisp(e.Graphics), tag, fMark, new Point(pad, S(16)), S);
+                TextRenderer.DrawText(Theme.Crisp(e.Graphics), title, fTitle, new Rectangle(pad, S(36), inner, S(26)), Theme.Paper, TextFormatFlags.Left | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis);
             };
             head.MouseDown += (s, e) => { if (e.Button == MouseButtons.Left) { ReleaseCapture(); SendMessage(Handle, 0xA1, 2, 0); } };
             Controls.Add(head);
@@ -101,7 +101,7 @@ namespace InstaladorImpresoras
         protected override void OnPaint(PaintEventArgs e)
         {
             base.OnPaint(e);
-            var g = e.Graphics;
+            var g = Theme.Crisp(e.Graphics);
             TextRenderer.DrawText(g, text, fText, textRect, Theme.Black, TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
             if (note.Length > 0)
                 TextRenderer.DrawText(g, note, fNote, noteRect, noteIsError ? Theme.Red : Theme.Muted, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis);

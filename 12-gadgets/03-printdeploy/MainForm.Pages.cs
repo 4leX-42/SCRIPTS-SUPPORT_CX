@@ -95,15 +95,16 @@ namespace InstaladorImpresoras
             // tarjeta de deteccion
             var card = new BufferedPanel { Dock = DockStyle.Top, Height = S(150), BackColor = Theme.Paper };
             var fTitle = Theme.Title(12f); var fData = Theme.Mono(8.75f); var fText = Theme.Sans(9.25f); var fKey = Theme.Strong(7.5f);
+            Eyes.Attach(card);
             card.Paint += (s, e) =>
             {
-                var g = e.Graphics;
+                var g = Theme.Crisp(e.Graphics);
                 var flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.EndEllipsis;
                 int x = S(30), w = card.Width - x, y = S(18);
                 using (var b = new SolidBrush(Theme.Line)) g.FillRectangle(b, 0, S(6), card.Width, 1);
-                if (busy) { ScannerForm.DrawState(g, ScanState.Checking, new Rectangle(0, y + S(3), S(16), S(16))); TextRenderer.DrawText(g, "Comprobando " + ip.Box.Text.Trim() + "…", fText, new Rectangle(x, y, w, S(22)), Theme.Muted, flags); return; }
+                if (busy) { ScannerForm.DrawState(g, ScanState.Checking, new Rectangle(S(5), y + S(3), S(16), S(16)), card); TextRenderer.DrawText(g, "Comprobando " + ip.Box.Text.Trim() + "…", fText, new Rectangle(x, y, w, S(22)), Theme.Muted, flags); return; }
                 if (res == null) { TextRenderer.DrawText(g, "Escriba la IP: la detección empieza sola.", fText, new Rectangle(0, y, card.Width, S(22)), Theme.Muted, flags); return; }
-                ScannerForm.DrawState(g, res.State, new Rectangle(0, y + S(4), S(16), S(16)));
+                ScannerForm.DrawState(g, res.State, new Rectangle(S(5), y + S(4), S(16), S(16)), card);
                 if (res.State != ScanState.Printer)
                 {
                     TextRenderer.DrawText(g, res.Model, fTitle, new Rectangle(x, y, w, S(24)), Theme.Red, flags);
@@ -193,7 +194,7 @@ namespace InstaladorImpresoras
             body.Controls.Clear();
             onChooser = false;
             AcceptButton = null;
-            SetHeader("Colas", "Colas instaladas", "Marcadas: reinstalar con el driver óptimo o quitar (cola, puerto y driver sin uso).");
+            SetHeader("Impresoras", "Impresoras instaladas", "Marcadas: reinstalar con el driver óptimo o quitar (cola, puerto y driver sin uso).");
 
             var printers = GetPrinters(connections: true);
             var rowsList = new List<CheckRow>();
@@ -303,6 +304,9 @@ namespace InstaladorImpresoras
             }
             DriverCatalog.Installed(refresh: true);
             bool ok = exit == 0;
+            // una sola impresora instalada: su nombre real (si la IP ya tenia cola, el motor reinstala esa)
+            if (ok && !removing && jobs.Count == 1)
+                installedPrinter = GetPrinters().FirstOrDefault(p => p.Host == jobs[0].Ip)?.Name ?? jobs[0].Name;
             Finish(ok, ok && jobs.Any(j => j.Plan?.Brand == "Ricoh") ? "Bandeja bypass: Imprimir > Preferencias > Bandeja de entrada > \"Bandeja bypass\"." : null);
         }
     }
