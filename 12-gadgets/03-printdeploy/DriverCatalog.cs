@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Management;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace InstaladorImpresoras
 {
@@ -54,29 +55,55 @@ namespace InstaladorImpresoras
             string.IsNullOrEmpty(text) ? "" : Brands.FirstOrDefault(b => b.match.IsMatch(text)).brand ?? "";
 
         // ---------- drivers instalados ----------
-        static Dictionary<string, Version> installedCache;
+        static volatile Dictionary<string, Version> installedCache;
         static DateTime installedAt;
 
-        /// <summary>Drivers de impresora instalados (nombre -> version). Cache de 20 s: el escaner consulta muchas veces.</summary>
+        static volatile bool refreshing;
+
+        /// <summary>
+        /// Drivers de impresora instalados (nombre -> version). La primera vez (o con refresh) consulta WMI; despues
+        /// devuelve la cache al momento y, si tiene mas de 20 s, la renueva en segundo plano: se llama al pintar el
+        /// escaner y no debe bloquear la interfaz.
+        /// </summary>
         public static Dictionary<string, Version> Installed(bool refresh = false)
         {
-            if (!refresh && installedCache != null && (DateTime.Now - installedAt).TotalSeconds < 20) return installedCache;
+            var cache = installedCache;
+            if (refresh || cache == null) return Load();
+            if ((DateTime.Now - installedAt).TotalSeconds >= 20 && !refreshing)
+            {
+                refreshing = true;
+                Task.Run(() => { try { Load(); } finally { refreshing = false; } });
+            }
+            return cache;
+        }
+
+        static Dictionary<string, Version> Load()
+        {
             var map = new Dictionary<string, Version>(StringComparer.OrdinalIgnoreCase);
             try
             {
                 using (var q = new ManagementObjectSearcher(@"root\StandardCimv2", "SELECT Name, DriverVersion FROM MSFT_PrinterDriver"))
                     foreach (ManagementObject o in q.Get())
-                    {
-                        var name = (string)o["Name"];
-                        if (name == null) continue;
-                        var v = ToVersion(Convert.ToUInt64(o["DriverVersion"] ?? 0UL));
-                        if (!map.TryGetValue(name, out var have) || v > have) map[name] = v;
-                    }
+                        using (o)
+                        {
+                            var name = (string)o["Name"];
+                            if (name == null) continue;
+                            var v = ToVersion(Convert.ToUInt64(o["DriverVersion"] ?? 0UL));
+                            if (!map.TryGetValue(name, out var have) || v > have) map[name] = v;
+                        }
             }
             catch { }
             installedAt = DateTime.Now;
-            return installedCache = map;
+            return installedCache = map;   // asignacion atomica: los lectores ven la cache vieja o la nueva entera
         }
+
+        /// <summary>Precarga en segundo plano (al arrancar): drivers instalados y versiones de los paquetes embebidos.</summary>
+        public static void Warm() => Task.Run(() =>
+        {
+            Installed();
+            foreach (var (brand, model) in new[] { ("Ricoh", "RICOH IM C4500"), ("Ricoh", "RICOH IM C4510A"), ("Ricoh", "RICOH"), ("Canon", "Canon"), ("HP", "HP") })
+                try { Resolve(brand, model); } catch { }
+        });
 
         /// <summary>DriverVersion de Windows: cuatro campos de 16 bits en un entero de 64.</summary>
         static Version ToVersion(ulong v) =>

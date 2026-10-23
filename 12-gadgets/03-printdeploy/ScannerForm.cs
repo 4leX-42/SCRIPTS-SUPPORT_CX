@@ -70,7 +70,9 @@ namespace InstaladorImpresoras
             VisibleChanged += (s, e) => { if (Visible) RefreshInstalled(); };
 
             // donde esta este equipo: su oficina arriba y abierta, las demas plegadas al final
-            var loc = NetworkScan.DetectOffice(directory);
+            // con tope de espera: fuera de la red de la empresa, la consulta del sitio de AD puede tardar en fallar
+            var detect = Task.Run(() => NetworkScan.DetectOffice(directory));
+            var loc = detect.Wait(1200) ? detect.Result : null;
             here = loc?.office;
             hereWhy = loc?.why;
             list.Here = here;
@@ -444,7 +446,7 @@ namespace InstaladorImpresoras
         int GroupH => S(34);
         int MaxScroll => Math.Max(0, contentHeight - Height);
 
-        public ScanList() { TabStop = true; Eyes.Attach(this); }
+        public ScanList() { TabStop = true; Eyes.Attach(this, S(60)); }
 
         static bool IsRange(string key) => key.StartsWith(RangePrefix);
         int Rank(string key) => Here != null && key == Here ? 0 : IsRange(key) ? 1 : 2;
@@ -495,6 +497,7 @@ namespace InstaladorImpresoras
         {
             var g = Theme.Crisp(e.Graphics);
             g.Clear(Theme.Paper);
+            paintClip = e.ClipRectangle;
             hits.Clear();
             groupHits.Clear();
             detailRect = Rectangle.Empty;
@@ -513,13 +516,14 @@ namespace InstaladorImpresoras
                 {
                     var gr = new Rectangle(0, y, Width - S(8), GroupH);
                     groupHits.Add((gr, grp.Key));
-                    if (gr.Bottom >= 0 && gr.Top <= Height) PaintGroup(g, grp, gr, pad, right);
+                    if (gr.Bottom >= 0 && gr.Top <= Height && gr.IntersectsWith(paintClip)) PaintGroup(g, grp, gr, pad, right);
                     continue;
                 }
                 var r = new Rectangle(0, y, Width - S(8), RowH);
                 hits.Add((r, it));
                 if (it == Selected) detailRect = new Rectangle(0, r.Bottom, r.Width, DetailH);
-                if (r.Bottom >= 0 && r.Top <= Height) PaintRow(g, it, r, pad, right);
+                var full = it == Selected ? new Rectangle(r.X, r.Y, r.Width, r.Height + DetailH) : r;
+                if (r.Bottom >= 0 && r.Top <= Height && full.IntersectsWith(paintClip)) PaintRow(g, it, r, pad, right);
             }
 
             if (MaxScroll > 0)
@@ -574,6 +578,8 @@ namespace InstaladorImpresoras
             using (var b = new SolidBrush(closed ? Color.FromArgb(236, 236, 236) : Theme.Line)) g.FillRectangle(b, pad, r.Bottom - 1, right - pad, 1);
         }
 
+        Rectangle paintClip;
+
         void PaintRow(Graphics g, ScanEntry it, Rectangle r, int pad, int right)
         {
             bool sel = it == Selected;
@@ -585,6 +591,7 @@ namespace InstaladorImpresoras
             int orb = S(14), nameX = pad + S(28), ipW = S(140);
             int nameW = (int)((right - ipW - nameX) * .5);
             ScannerForm.DrawState(g, it.State, new Rectangle(pad + S(1), r.Y + (r.Height - orb) / 2, orb, orb), it, it.Installed);
+            if (paintClip.Right <= nameX) return;   // repintado solo de la columna de ojos (llamaradas)
 
             var label = it.Label;
             TextRenderer.DrawText(g, label, fRow, new Rectangle(nameX, r.Y, nameW - S(12), r.Height), label == "Sin nombre" ? Theme.Muted : Theme.Black, flags);

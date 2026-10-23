@@ -278,16 +278,6 @@ namespace InstaladorImpresoras
             return poly;
         }
 
-        /// <summary>Linea paralela al eje a 'side' radios (positivo = lado de la luz), entre las fracciones from..to.</summary>
-        PointF[] Line(float side, float from, float to)
-        {
-            int i0 = (int)(from * (Samples - 1)), i1 = (int)(to * (Samples - 1));
-            var line = new PointF[i1 - i0 + 1];
-            for (int i = i0; i <= i1; i++)
-                line[i - i0] = new PointF(pts[i].X + nrm[i].X * rad[i] * side, pts[i].Y + nrm[i].Y * rad[i] * side);
-            return line;
-        }
-
         // ---------- superficie: DIB premultiplicado reutilizado entre fotogramas ----------
         void Canvas(Size size)
         {

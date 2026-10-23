@@ -18,8 +18,11 @@ namespace InstaladorImpresoras
         /// <summary>Logo de 'size' px; plate = con placa carbon (icono) o sin ella (sobre la cabecera oscura).</summary>
         public static Bitmap Get(int size, bool plate)
         {
-            if (!cache.TryGetValue((size, plate), out var bmp)) cache[(size, plate)] = bmp = Render(size, plate);
-            return bmp;
+            lock (cache)   // tambien se precarga en segundo plano al arrancar
+            {
+                if (!cache.TryGetValue((size, plate), out var bmp)) cache[(size, plate)] = bmp = Render(size, plate);
+                return bmp;
+            }
         }
 
         static Bitmap Render(int size, bool plate)

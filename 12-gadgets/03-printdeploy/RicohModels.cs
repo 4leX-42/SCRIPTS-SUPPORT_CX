@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Text.RegularExpressions;
 
@@ -42,7 +41,6 @@ namespace InstaladorImpresoras
             Match = new Regex(@"UniversalDriver", RegexOptions.IgnoreCase),
         };
 
-        public static string Names => string.Join(" / ", All.Select(m => m.Display));
 
         /// <summary>Modelo a partir de un texto (descripcion SNMP, driver instalado...). null si no coincide ninguno.</summary>
         public static RicohModel Detect(string text) =>

@@ -8,67 +8,12 @@ using System.Text.RegularExpressions;
 
 namespace InstaladorImpresoras
 {
-    public enum ProbeStatus { Unreachable, NotPrinter, OtherBrand, RicohOtherModel, RicohTarget }
-
-    public sealed class ProbeResult
-    {
-        public ProbeStatus Status;
-        public string Description = "";
-        public string Message = "";
-        public RicohModel Model;   // modelo soportado detectado (null si no)
-    }
-
     /// <summary>
-    /// Comprueba que en una IP hay una impresora y cual es: SNMP (sysDescr / hrDeviceDescr),
-    /// con la web de la impresora como alternativa.
+    /// Consultas a una impresora: SNMP (sysDescr / hrDeviceDescr, nombre, ubicacion), IPP y web.
+    /// Las usa NetworkScan.Check.
     /// </summary>
     public static class PrinterProbe
     {
-        public static ProbeResult Probe(string ip)
-        {
-            var result = new ProbeResult();
-            var tRaw = System.Threading.Tasks.Task.Run(() => TcpOpen(ip, 9100, 1500));
-            var tHttp = System.Threading.Tasks.Task.Run(() => TcpOpen(ip, 80, 1500));
-            var tSnmp = System.Threading.Tasks.Task.Run(() => SnmpDescription(ip));
-            var tIpp = System.Threading.Tasks.Task.Run(() => IppMakeAndModel(ip));
-            bool raw = tRaw.Result, http = tHttp.Result;
-            string snmp = tSnmp.Result, ipp = tIpp.Result;
-            // la web solo si SNMP e IPP no han identificado un modelo soportado
-            string web = (RicohModels.Detect(snmp) == null && RicohModels.Detect(ipp) == null && http) ? HttpDescription(ip) : null;
-            string desc = string.Join(" | ", new[] { snmp, ipp, web }.Where(s => !string.IsNullOrWhiteSpace(s)).Distinct());
-            result.Description = desc.Trim();
-
-            if (snmp == null && ipp == null && !raw && !http)
-            {
-                result.Status = ProbeStatus.Unreachable;
-                result.Message = $"No hay ningún dispositivo respondiendo en {ip}.\n\nRevisa la IP en la pantalla de la impresora (Configuración > Info. sistema / Red).";
-                return result;
-            }
-            if (Regex.IsMatch(desc, "ricoh|savin|lanier|gestetner|nashuatec|nrg|rex-rotary|infotec", RegexOptions.IgnoreCase))
-            {
-                result.Model = RicohModels.Detect(desc);
-                result.Status = result.Model != null ? ProbeStatus.RicohTarget : ProbeStatus.RicohOtherModel;
-                result.Message = result.Model != null
-                    ? $"Detectada: {Short(desc)}"
-                    : $"En {ip} hay una Ricoh de un modelo sin driver incluido ({RicohModels.Names}):\n\n{Short(desc)}";
-                return result;
-            }
-            if (desc.Length > 0)
-            {
-                result.Status = ProbeStatus.OtherBrand;
-                result.Message = $"En {ip} hay otro dispositivo, no una Ricoh:\n\n{Short(desc)}";
-                return result;
-            }
-            result.Status = ProbeStatus.NotPrinter;
-            result.Message = raw
-                ? $"En {ip} responde una impresora, pero no se ha podido identificar el modelo (SNMP desactivado)."
-                : $"En {ip} responde un dispositivo, pero no parece una impresora.";
-            return result;
-        }
-
-        static string Short(string s) => s.Length > 160 ? s.Substring(0, 160) + "…" : s;
-
-        // ---- IPP Get-Printer-Attributes (printer-make-and-model), activo por defecto en Ricoh ----
         internal static string IppMakeAndModel(string ip)
         {
             foreach (var path in new[] { "/printer", "/ipp/print", "/ipp", "/" })
@@ -133,28 +78,11 @@ namespace InstaladorImpresoras
             return null;
         }
 
-        internal static bool TcpOpen(string ip, int port, int timeoutMs)
-        {
-            try
-            {
-                using (var c = new TcpClient())
-                {
-                    var ar = c.BeginConnect(ip, port, null, null);
-                    if (!ar.AsyncWaitHandle.WaitOne(timeoutMs)) return false;
-                    c.EndConnect(ar);
-                    return true;
-                }
-            }
-            catch { return false; }
-        }
-
         // ---- SNMP GET minimo (community "public"): v2c y, si no responde, v1 ----
         static readonly byte[] OidSysDescr = { 0x2B, 6, 1, 2, 1, 1, 1, 0 };
         static readonly byte[] OidSysName = { 0x2B, 6, 1, 2, 1, 1, 5, 0 };
         static readonly byte[] OidSysLocation = { 0x2B, 6, 1, 2, 1, 1, 6, 0 };
         static readonly byte[] OidHrDeviceDescr = { 0x2B, 6, 1, 2, 1, 25, 3, 2, 1, 3, 1 };
-
-        internal static string SnmpDescription(string ip) => SnmpInfo(ip, 2000)?.descr;
 
         /// <summary>
         /// Una sola consulta: descripcion (sysDescr + hrDeviceDescr), nombre (sysName) y ubicacion (sysLocation).
