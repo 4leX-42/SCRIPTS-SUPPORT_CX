@@ -215,7 +215,7 @@ namespace InstaladorImpresoras
             CheckInstalled(rowsList);
 
             var note = new Label { Dock = DockStyle.Top, Height = S(30), Font = Theme.Sans(9f), ForeColor = Theme.Muted, Padding = new Padding(0, S(10), 0, 0),
-                Text = "Colas de servidor (\\\\servidor\\cola): solo quitar; para reconectar, escáner." };
+                Text = "Colas de servidor (\\\\servidor\\cola): solo quitar; para reconectar, scanner." };
 
             var btnReinstall = new FlatBtn("Reinstalar", primary: true);
             var btnRemove = new FlatBtn("Quitar", primary: false);

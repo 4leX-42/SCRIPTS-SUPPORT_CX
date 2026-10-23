@@ -149,7 +149,7 @@ namespace InstaladorImpresoras
             lblOpen.Click += (s, e) => PrinterMenu.Show(lblOpen);
             header.Controls.Add(lblOpen);
             // escaner de red: directorio de oficinas + busqueda por rango
-            var btnDir = new FlatBtn("Escáner", primary: false) { Size = new Size(S(150), S(34)), OnDark = true, TabStop = false, Eye = true, SweepOnHover = true };
+            var btnDir = new FlatBtn("Scanner", primary: false) { Size = new Size(S(150), S(34)), OnDark = true, TabStop = false, Eye = true, SweepOnHover = true };
             Shown += (s, e) => btnDir.StartSweep();   // una pasada al abrir
             btnDir.Click += (s, e) => ShowScanner();
             header.Controls.Add(btnDir);
@@ -292,7 +292,7 @@ namespace InstaladorImpresoras
             onChooser = true;
             SetHeader("", "", "Instalación de impresoras de red");
 
-            var scan = new Card("01", "Escáner", "Oficinas y red local: estado de cada impresora e instalación directa.");
+            var scan = new Card("01", "Scanner", "Oficinas y red local: estado de cada impresora e instalación directa.");
             var install = new Card("02", "Instalar por IP", "Cualquier marca. Modelo y driver detectados automáticamente.");
             var queues = new Card("03", "Impresoras instaladas", "Estado, reinstalación y desinstalación.");
             scan.Click += (s, e) => ShowScanner();

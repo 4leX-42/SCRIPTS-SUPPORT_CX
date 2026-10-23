@@ -47,7 +47,7 @@ namespace InstaladorImpresoras
             // SNMP, IPP y winspool son llamadas bloqueantes: hilos de sobra para que no hagan cola
             ThreadPool.GetMinThreads(out var workers, out var io);
             ThreadPool.SetMinThreads(Math.Max(workers, 64), Math.Max(io, 64));
-            Text = "PrintDeploy · Escáner";
+            Text = "PrintDeploy · Scanner";
             FormBorderStyle = FormBorderStyle.None;
             AutoScaleMode = AutoScaleMode.None;
             ShowInTaskbar = false;
@@ -128,7 +128,7 @@ namespace InstaladorImpresoras
             {
                 var g = Theme.Crisp(e.Graphics);
                 int x = S(24);
-                Theme.DrawMark(g, "Escáner", fTag, new Point(x, S(13)), S);
+                Theme.DrawMark(g, "Scanner", fTag, new Point(x, S(13)), S);
                 var where = here != null ? $"{here}   ·   {hereWhy}" : "Ubicación no reconocida";
                 TextRenderer.DrawText(g, where, fSub, new Point(x + S(16), S(33)), Theme.HeadSub, TextFormatFlags.NoPadding);
                 using (var b = new SolidBrush(Color.FromArgb(56, 56, 58))) g.FillRectangle(b, 0, head.Height - 1, head.Width, 1);
@@ -331,7 +331,7 @@ namespace InstaladorImpresoras
             if (rangeCts != null) { rangeCts.Cancel(); return; }
             List<string> ips;
             try { ips = NetworkScan.ParseRange(fRange.Box.Text); }
-            catch (FormatException ex) { ThemedDialog.Info(this, "Escáner", "Rango no válido", ex.Message + "\n\nEjemplos: 192.168.4.1-254 · 192.168.4.0/24 · 192.168.4.10-192.168.4.80"); return; }
+            catch (FormatException ex) { ThemedDialog.Info(this, "Scanner", "Rango no válido", ex.Message + "\n\nEjemplos: 192.168.4.1-254 · 192.168.4.0/24 · 192.168.4.10-192.168.4.80"); return; }
 
             string group = ScanList.RangePrefix + fRange.Box.Text.Trim();
             list.Items.RemoveAll(x => x.Group == group);
