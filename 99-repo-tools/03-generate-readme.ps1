@@ -74,7 +74,6 @@ $secciones = @(
     @{ Carpeta = '08-network';      ES = '08 - Red';                          EN = '08 - Network'; Icono = 'router' }
     @{ Carpeta = '10-file-picker'; ES = '10 - Selector de archivos';         EN = '10 - File picker'; Icono = 'folder_open' }
     @{ Carpeta = '11-certificates'; ES = '11 - Certificados';                EN = '11 - Certificates'; Icono = 'certificate' }
-    @{ Carpeta = '12-gadgets';      ES = '12 - Gadgets';                      EN = '12 - Gadgets'; Icono = 'toolbox' }
     @{ Carpeta = '99-repo-tools';   ES = '99 - Herramientas del repo';        EN = '99 - Repo tools'; Icono = 'wrench' }
 )
 
@@ -127,7 +126,7 @@ $titulos = @{
     '05-enable-long-paths.ps1'                    = @('Activar rutas largas de Windows', 'Enable Windows long paths')
     '01-optimize-wifi-adapter.ps1'                = @('Wi-Fi lenta o que se corta', 'Slow or dropping Wi-Fi')
     '02-docunlock'                                = @('DocUnlock', 'DocUnlock')
-    '01-rescate-admin-local'                  = @('Equipo sin administrador (rescate WinRE)', 'PC with no administrator (WinRE rescue)')
+    '06-rescate-admin-local'                  = @('Equipo sin administrador (rescate WinRE)', 'PC with no administrator (WinRE rescue)')
     '01-diagnose-file-picker.ps1'                 = @('Selector de archivos: diagnostico', 'File picker: diagnosis')
     '02-test-file-picker-hang.ps1'                = @('Selector de archivos se cuelga', 'File picker hangs')
     '03-reset-file-picker-mru.ps1'                = @('Limpiar carpetas recientes del selector', 'Clear file picker recent folders')
