@@ -21,7 +21,7 @@ Dentro de WinRE no hay internet, así que el `.bat` se baja **antes** a la raíz
 En PowerShell, con el USB como `E:` (cámbialo por su letra):
 
 ```powershell
-$f="E:\01-rescate-admin-local.bat"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/12-gadgets/01-rescate-admin-local.bat -OutFile $f
+$f="E:\rescate-admin-local.bat"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/12-gadgets/01-rescate-admin-local/rescate-admin-local.bat -OutFile $f
 ```
 
 (O descárgalo a mano desde GitHub y cópialo al USB.) El fichero va en CRLF a
@@ -37,7 +37,7 @@ propósito: en LF el `cmd` de la recuperación puede fallar con los `goto`.
    ```
 4. Ejecútalo con esa letra (p. ej. `E:`):
    ```
-   E:\01-rescate-admin-local.bat
+   E:\rescate-admin-local.bat
    ```
 5. Debe llegar a **[4/4] LISTO**. Entonces `exit` y **Continuar** (o apaga y enciende).
 6. Al arrancar hace el rescate solo (ventana negra 1-2 s) y llega al login. Entra con tu
