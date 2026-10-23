@@ -32,7 +32,7 @@ namespace InstaladorImpresoras
         ThinProgress progress;
         RichTextBox logBox;
         FlatBtn btnClose;
-        LinkBtn lnkQueue, lnkTest;     // tras instalar: cola de impresion y pagina de prueba
+        LinkBtn lnkQueue, lnkTest;     // tras instalar: Impresoras y escaneres y pagina de prueba
         string installedPrinter;       // impresora que acaba de instalarse (para checkRow)
         readonly List<string> summary = new List<string>();
 
@@ -399,14 +399,11 @@ namespace InstaladorImpresoras
             var bar = ButtonBar(btnClose, btnLog);
             // comprobacion rapida de la impresora instalada: aparece al terminar bien, a la izquierda de la barra
             installedPrinter = null;
-            lnkQueue = new LinkBtn("", "Cola de impresión") { Visible = false };
+            lnkQueue = new LinkBtn("", "Impresoras y escáneres") { Visible = false };
             lnkTest = new LinkBtn("", "Página de prueba") { Visible = false };
-            lnkQueue.Click += (s, e) => PrintUi("/o", installedPrinter);
-            lnkTest.Click += (s, e) =>
-            {
-                PrintUi("/k", installedPrinter);
-                Log("OK", $"Página de prueba enviada a «{installedPrinter}»");
-            };
+            // Configuracion > Impresoras y escaneres: estado e historial de impresion de Windows 11
+            lnkQueue.Click += (s, e) => { try { Process.Start("ms-settings:printers"); } catch { PrintUi("/o", installedPrinter); } };
+            lnkTest.Click += (s, e) => SendTestPage();
             bar.Controls.Add(lnkQueue);
             bar.Controls.Add(lnkTest);
             bar.Layout += (s, e) =>
