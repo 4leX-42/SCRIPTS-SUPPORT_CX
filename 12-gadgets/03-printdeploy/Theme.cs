@@ -192,7 +192,7 @@ namespace InstaladorImpresoras
         /// <summary>
         /// Estilo Borderlands 2: esquinas opuestas cortadas, contorno grueso, sombreado plano en dos tonos
         /// (cel shading) y un filete interior. Al pasar el raton se rellena de dorado.
-        /// Con ojo (Escaner, Escanear, Comprobar): tecla en relieve con canto, degradado y brillo; se hunde al pulsar.
+        /// Con ojo (Scanner, Scan, Comprobar): tecla en relieve con canto, degradado y brillo; se hunde al pulsar.
         /// </summary>
         protected override void OnPaint(PaintEventArgs e)
         {

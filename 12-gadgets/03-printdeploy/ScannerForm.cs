@@ -26,8 +26,8 @@ namespace InstaladorImpresoras
         readonly BufferedPanel head = new BufferedPanel(), toolbar = new BufferedPanel(), bar = new BufferedPanel();
         readonly ThinProgress progress = new ThinProgress { Dock = DockStyle.Top, BarColor = Theme.GoldDeep, Visible = false };
         readonly LineField fRange = new LineField("Rango", mono: true);
-        readonly FlatBtn btnScan = new FlatBtn("Escanear", primary: true) { Eye = true, SweepOnHover = true };
-        readonly FlatBtn btnDir = new FlatBtn("Recomprobar oficinas", primary: false);
+        readonly FlatBtn btnScan = new FlatBtn("Scan", primary: true) { Eye = true, SweepOnHover = true };
+        readonly FlatBtn btnDir = new FlatBtn("Recheck offices", primary: false);
         readonly FlatBtn btnInstall = new FlatBtn("Instalar", primary: true);
         readonly FlatBtn btnRetry = new FlatBtn("Reintentar", primary: false);
         readonly FlatBtn btnWeb = new FlatBtn("Web", primary: false);
@@ -84,7 +84,7 @@ namespace InstaladorImpresoras
             BuildBar();
             list.SelectionChanged += e => UpdateBar();
             list.Activated += Install;
-            list.EmptyText = "Sin oficinas.txt. Escanear un rango.";
+            list.EmptyText = "Sin oficinas.txt. Scan: buscar en un rango.";
 
             Controls.Add(list);
             Controls.Add(bar);
@@ -358,7 +358,7 @@ namespace InstaladorImpresoras
             if (list.Selected != null && !list.Items.Contains(list.Selected)) list.Select(null);
             rangeCts = new CancellationTokenSource();
             var ct = rangeCts.Token;
-            btnScan.Text = "Detener";
+            btnScan.Text = "Stop";
             btnScan.Scanning = true;
             btnScan.Invalidate();
             progress.Value = 0;
@@ -399,7 +399,7 @@ namespace InstaladorImpresoras
             rangeStatus = (ct.IsCancellationRequested ? "detenido · " : "") + $"{ips.Count} IPs en {sw.Elapsed.TotalSeconds:0.0} s · {alive} hosts · {found} impresoras";
             progress.Visible = false;
             rangeCts = null;
-            btnScan.Text = "Escanear";
+            btnScan.Text = "Scan";
             btnScan.Scanning = false;
             btnScan.Invalidate();
             Redraw();
