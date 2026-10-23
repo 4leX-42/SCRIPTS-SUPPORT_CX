@@ -9,7 +9,7 @@ Aplicación Windows (WinForms, .NET Framework 4.8) para desplegar y reparar impr
 
 ## Qué hace
 
-**01 · Escáner** (tecla `1` o botón `ESCÁNER`)
+**01 · Scanner** (tecla `1` o botón `SCANNER`)
 
 - Directorio de oficinas (`oficinas.txt`) + rango de red (por defecto el /24 del equipo; acepta `192.168.4.1-254`, `192.168.4.0/24` o `IP-IP`, máx. 1024). Un /24 en ~2 s.
 - Por IP: ICMP + TCP 9100 (RAW), 631 (IPP), 515 (LPD; solo cuenta si además se identifica como impresora). Host sin respuesta: no se consulta más.
@@ -49,8 +49,8 @@ Aplicación Windows (WinForms, .NET Framework 4.8) para desplegar y reparar impr
 
 - Portátil: un solo `PrintDeploy.exe` (drivers y directorio embebidos; .NET Framework 4.8 incluido en Windows 10/11). Funciona desde USB o carpeta de red.
 - Escala: toda la interfaz (medidas y fuentes) sigue el escalado de Windows con la misma proporción; se reduce si la pantalla es pequeña. `PRINTDEPLOY_SCALE` la fuerza.
-- Teclas: `1` escáner · `2` instalar · `3` colas · `F5` reescanear · `Esc` volver / salir.
-- Al terminar una instalación, **Volver** regresa al inicio o al escáner; la app no se cierra.
+- Teclas: `1` scanner · `2` instalar · `3` colas · `F5` reescanear · `Esc` volver / salir.
+- Al terminar una instalación, **Volver** regresa al inicio o al scanner; la app no se cierra.
 - Icono de abrir junto al de impresora: menú con las impresoras instaladas; clic = su cola de impresión, submenú = propiedades / preferencias (`printui`).
 - Icono de impresora en las cabeceras → *Dispositivos e impresoras* (`shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}`).
 - Registro de cada ejecución en `%ProgramData%\PrintDeploy\Logs\`.
