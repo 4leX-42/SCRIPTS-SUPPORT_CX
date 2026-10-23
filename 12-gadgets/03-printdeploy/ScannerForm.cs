@@ -225,9 +225,7 @@ namespace InstaladorImpresoras
                 case ScanState.Printer:
                     var extra = r.Hint.Length > 0 ? "  ·  " + r.Hint : "";
                     if (e.IsShared) return "Instalar: Add-Printer -ConnectionName (driver del servidor)" + extra;
-                    if (e.Brand == "Ricoh") return $"Instalar: {(RicohModels.Detect(r.Description) ?? RicohModels.Universal).DriverName}  →  «{e.QueueName}»";
-                    if (e.Brand == "Canon") return $"Instalar: Canon Generic Plus PCL6  →  «{e.QueueName}»  ·  puerto TCP/IP";
-                    return "Marca no soportada (solo Ricoh / Canon)";
+                    return $"Instalar: {DriverCatalog.Resolve(e.Brand, r.Description).Text}  →  «{e.QueueName}»";
                 default: return r?.Hint ?? "";
             }
         }
