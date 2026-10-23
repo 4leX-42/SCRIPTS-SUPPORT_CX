@@ -519,10 +519,10 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>PC with no administrator (WinRE rescue)</b></summary>
 
-PC with no administrator: restores a local account to Administrators from Windows Recovery (WinRE). No data loss.<br>[`01-rescate-admin-local`](12-gadgets/01-rescate-admin-local.bat)
+PC with no administrator: restores a local account to Administrators from Windows Recovery (WinRE). No data loss.<br>[`01-rescate-admin-local`](12-gadgets/01-rescate-admin-local)
 
 ```powershell
-E:\01-rescate-admin-local.bat   :: recovery console (WinRE); E: = USB drive letter
+$f="E:\rescate-admin-local.bat"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/12-gadgets/01-rescate-admin-local/rescate-admin-local.bat -OutFile $f
 ```
 
 </details>
@@ -546,8 +546,6 @@ dotnet build -c Release .\12-gadgets\03-printdeploy\PrintDeploy.csproj
 ```
 
 </details>
-
-Detailed runbook: [`01-rescate-admin-local.md`](12-gadgets/01-rescate-admin-local.md)
 
 ## <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> 99 - Repo tools
 

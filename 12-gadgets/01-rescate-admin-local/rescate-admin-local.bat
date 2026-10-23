@@ -6,7 +6,7 @@ REM   [EN] PC with no administrator: restores a local account to Administrators 
 REM .NOTES
 REM   Contexto: admin
 REM ==================================================================
-REM  01-rescate-admin-local.bat  (Rescate_Admin)  -  v3
+REM  rescate-admin-local.bat  (Rescate_Admin)  -  v3
 REM  Devuelve una cuenta local al grupo Administradores cuando el equipo
 REM  se ha quedado SIN ningun administrador.
 REM  NO borra datos ni reinstala Windows. Solo toca grupos locales.
@@ -19,7 +19,7 @@ REM  USO (desde el cmd de la recuperacion - WinRE):
 REM    1) Login del equipo > con MAYUS pulsada, Encendido > Reiniciar.
 REM    2) Solucionar problemas > Opciones avanzadas > Simbolo del sistema.
 REM    3) Enchufa este USB.  Letra:   wmic logicaldisk get deviceid,volumename
-REM    4) Ejecuta (con la letra del USB, p.ej. E:):   E:\01-rescate-admin-local.bat
+REM    4) Ejecuta (con la letra del USB, p.ej. E:):   E:\rescate-admin-local.bat
 REM    5) Cuando diga OK: cierra, arranca normal; el rescate se hace solo.
 REM
 REM  Cuentas a devolver a Administradores (separadas por espacio):
