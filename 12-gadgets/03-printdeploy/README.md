@@ -1,6 +1,6 @@
 <!--
-[ES] PrintDeploy: escanea la red, ve qué impresoras responden e instala Ricoh, Canon y colas de servidor con el driver correcto.
-[EN] PrintDeploy: scans the network, shows which printers respond and installs Ricoh, Canon and server queues with the right driver.
+[ES] PrintDeploy: detecta marca y modelo de cualquier impresora de red e instala el driver más reciente y adecuado; escáner, colas y servidor.
+[EN] PrintDeploy: detects brand and model of any network printer and installs the newest suitable driver; scanner, queues and server.
 Contexto: admin
 -->
 # PrintDeploy
@@ -19,27 +19,36 @@ Aplicación Windows (WinForms, .NET Framework 4.8) para desplegar y reparar impr
 - Nombre legible: `PROCESAL_DCH` + `C/ Mayor 1 Plt3 Derecha` → *Procesal Dcha · P3*. Nombres de fábrica (modelo, derivados de la MAC) ignorados.
 - Ubicación: oficina con una impresora en el mismo /24 que el equipo; si no, la del sitio de Active Directory. Esa oficina arriba y abierta; el resto plegadas al final.
 - Indicador: esfera negra con núcleo verde (online) o rojo (offline / sin impresión / cola inaccesible). Fila desplegable con IP, latencia, puertos, datos SNMP y acción de **Instalar**.
-- **Instalar** (doble clic / Enter) con el modelo ya detectado. Ricoh: driver del modelo o universal, reinstala si ya hay cola en esa IP. Canon: como 03, sin asistente. Cola de servidor: `Add-Printer -ConnectionName` (usuario actual) + `printui /ga` (todos los usuarios).
+- **Instalar** (doble clic / Enter) cualquier impresora detectada, con el driver de *Elección de driver*. Si ya hay cola en esa IP, se reinstala. Cola de servidor: `Add-Printer -ConnectionName` (usuario actual) + `printui /ga` (todos los usuarios).
 - **Escanear** / `F5`: rango. **Recomprobar oficinas**: directorio. Botones con haz de escáner animado durante la comprobación.
 
-**02 · Ricoh** (IM C4510A, IM C4500, resto con el universal)
+**02 · Instalar por IP** (cualquier marca)
 
-- Modelo por SNMP, IPP (`printer-make-and-model`) y web. Driver específico embebido o **RICOH PCL6 UniversalDriver**.
-- No instala si la IP no responde o es otra marca.
-- Colas existentes: guarda nombre, puerto, predeterminada, compartida, ubicación y comentario; elimina, limpia drivers sin uso (nunca los de Windows) y recrea.
-- SNMP activo en el puerto TCP/IP: el driver lee bandejas (bypass).
-- Indicador verde / rojo por cola instalada (la IP de su puerto responde como impresora o no).
+- Detección al escribir la IP: fabricante, modelo, nombre y ubicación SNMP, puertos. Nombre de cola sugerido.
+- Muestra el driver elegido (versión y origen) y si la IP ya tiene cola (se reinstala esa, sin duplicar).
+- **Asistente Canon** (instalador oficial) disponible si la impresora es Canon; corre aparte y cerrarlo no cierra PrintDeploy.
 
-**03 · Canon** (Generic Plus PCL6, por IP)
+**03 · Colas instaladas**
 
-- Sin asistente: usa el driver instalado (cualquier versión) o lo instala del paquete (`pnputil` + `Add-PrinterDriver`). Puerto TCP/IP estándar con SNMP y cola; si esa IP ya tiene cola, actualiza su driver.
-- Evita el bloqueo del asistente oficial cuando hay una versión posterior del driver («Ya está instalada una versión posterior del controlador»).
-- **Asistente Canon** sigue disponible; corre como proceso aparte y cerrarlo no cierra PrintDeploy.
+- Todas las colas de red del equipo, con indicador verde / rojo (la IP del puerto responde como impresora; colas de servidor: la cola se abre).
+- **Reinstalar**: modelo por la IP de cada cola (si no responde, por su driver / nombre actual) y driver óptimo. Conserva nombre, puerto, predeterminada, compartida, ubicación y comentario.
+- **Quitar**: cola, puerto TCP/IP y driver si nadie más los usa. Conexiones de servidor: también la conexión global (`printui /gd`).
+
+**Elección de driver** (`DriverCatalog.cs`): siempre la versión más reciente entre la instalada en Windows y la del paquete embebido (`DriverVer` del INF).
+
+| Marca | Driver |
+|---|---|
+| Ricoh | modelo exacto (IM C4510A, IM C4500); si no, **RICOH PCL6 UniversalDriver** más reciente |
+| Canon | **Canon Generic Plus PCL6** (sin asistente: evita «Ya está instalada una versión posterior del controlador») |
+| HP | **HP Universal Printing PCL 6** instalado |
+| Otras (Kyocera, Xerox, Brother, Konica, Sharp…) | su driver universal / PCL instalado; si no, **Microsoft PCL6 Class Driver** (genérico, avisado) |
+
+**Motor** (`engine.ps1`): reutiliza el puerto TCP/IP que ya apunte a la IP, activa SNMP (bandejas), comprueba cada cola tras crearla y deshace lo creado si falla. Un driver que falla no detiene el resto: sus colas vuelven al driver anterior. Los drivers antiguos se limpian al final, nunca los de Windows ni los que use otra cola.
 
 **General**
 
 - Portátil: un solo `PrintDeploy.exe` (drivers y directorio embebidos; .NET Framework 4.8 incluido en Windows 10/11). Funciona desde USB o carpeta de red.
-- Teclas: `1` escáner · `2` Ricoh · `3` Canon · `F5` reescanear · `Esc` volver / salir.
+- Teclas: `1` escáner · `2` instalar · `3` colas · `F5` reescanear · `Esc` volver / salir.
 - Al terminar una instalación, **Volver** regresa al inicio o al escáner; la app no se cierra.
 - Icono de impresora en las cabeceras → *Dispositivos e impresoras* (`shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}`).
 - Registro de cada ejecución en `%ProgramData%\PrintDeploy\Logs\`.
@@ -66,7 +75,9 @@ Sin ellos compila igualmente: el `.exe` avisa del paquete que falta y el directo
 
 | Fichero | Para qué |
 |---|---|
-| `MainForm.cs` | Interfaz y flujo: inicio, Ricoh, Canon, progreso, instalación desde el escáner |
+| `MainForm.cs` | Ventana, cabecera, progreso, motor, instalación desde el escáner, colas de servidor, asistente Canon |
+| `MainForm.Pages.cs` | Páginas 02 (instalar por IP) y 03 (colas instaladas) y lanzador de trabajos |
+| `DriverCatalog.cs` | Marca y driver óptimo por impresora; versiones instaladas frente a las del paquete |
 | `ScannerForm.cs` | Ventana del escáner (grupos por oficina, filas desplegables, credenciales) |
 | `NetworkScan.cs` | Escáner: ping, puertos, identificación, colas de servidor, ubicación, rangos, credenciales |
 | `PrinterProbe.cs` | Detección del dispositivo y modelo (SNMP, IPP, HTTP) |
@@ -74,7 +85,7 @@ Sin ellos compila igualmente: el `.exe` avisa del paquete que falta y el directo
 | `PrinterDirectory.cs` | Lectura de `oficinas.txt` |
 | `ThemedDialog.cs` | Avisos, confirmaciones y credenciales con el estilo de la app |
 | `Theme.cs` | Estilo (carbón, blanco, dorado; rojo solo para errores) y controles dibujados |
-| `engine.ps1` | Motor Ricoh: desinstala, limpia drivers e instala; lo lanza el `.exe` |
+| `engine.ps1` | Motor: instala, reinstala y quita colas de cualquier marca; lo lanza el `.exe` |
 
 ## Añadir un modelo Ricoh
 

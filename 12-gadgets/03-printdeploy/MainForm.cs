@@ -14,7 +14,7 @@ using System.Windows.Forms;
 
 namespace InstaladorImpresoras
 {
-    public sealed class MainForm : Form
+    public sealed partial class MainForm : Form
     {
         static readonly string[] VirtualPrinters = { "PDF", "OneNote", "Fax", "XPS", "AnyDesk", "PDFelement", "Print to" };
 
@@ -26,13 +26,6 @@ namespace InstaladorImpresoras
         readonly string logPath;
         readonly string workDir;
         readonly string version = typeof(MainForm).Assembly.GetName().Version.ToString(3);
-
-        // pagina Ricoh
-        readonly List<CheckRow> printerRows = new List<CheckRow>();
-        CheckRow chkNew;
-        LineField fIp, fName;
-        Label lblProbe;
-        FlatBtn btnInstall;
 
         // pagina progreso
         Label lblStep, lblPct;
@@ -57,13 +50,13 @@ namespace InstaladorImpresoras
             KeyPreview = true;
             // Esc: en el resumen de una instalacion vuelve al inicio; en el inicio, sale
             KeyDown += (s, e) => { if (e.KeyCode == Keys.Escape && closeAllowed) { if (onProgress) Back(); else Close(); } };
-            // inicio: 1 escaner · 2 Ricoh · 3 Canon, sin raton
-            KeyDown += async (s, e) =>
+            // inicio: 1 escaner · 2 instalar por IP · 3 colas instaladas, sin raton
+            KeyDown += (s, e) =>
             {
                 if (!onChooser || !closeAllowed) return;
                 if (e.KeyCode == Keys.D1 || e.KeyCode == Keys.NumPad1) ShowScanner();
-                else if (e.KeyCode == Keys.D2 || e.KeyCode == Keys.NumPad2) { returnToScanner = false; ShowRicoh(); }
-                else if (e.KeyCode == Keys.D3 || e.KeyCode == Keys.NumPad3) { returnToScanner = false; ShowCanon(); }
+                else if (e.KeyCode == Keys.D2 || e.KeyCode == Keys.NumPad2) { returnToScanner = false; ShowInstall(); }
+                else if (e.KeyCode == Keys.D3 || e.KeyCode == Keys.NumPad3) { returnToScanner = false; ShowQueues(); }
             };
 
             var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
@@ -201,9 +194,8 @@ namespace InstaladorImpresoras
         }
 
         /// <summary>
-        /// Instalar desde el escaner: IP y modelo ya detectados, sin volver a sondear.
-        /// Ricoh: si ya hay una cola en esa IP se reinstala (conserva su configuracion); si no, cola nueva.
-        /// Canon: asistente oficial con la IP en el portapapeles.
+        /// Instalar desde el escaner: IP y modelo ya detectados, sin volver a sondear. Driver segun DriverCatalog;
+        /// si ya hay una cola en esa IP se reinstala (conserva su configuracion); si no, cola nueva.
         /// </summary>
         async void InstallFromScan(ScanEntry e)
         {
@@ -217,37 +209,15 @@ namespace InstaladorImpresoras
                 await RunShared(e.Ip);
                 return;
             }
-            if (e.Brand == "Canon")
-            {
-                var how = CanonDriverInstalled() ? "instalado" : "paquete";
-                if (!ThemedDialog.Confirm(scanner, "Canon", e.Label, $"{e.Result.Model}\n\n· Cola «{e.QueueName}» en {e.Ip}\n· {CanonDriver} ({how})\n· Cola existente en esa IP: se actualiza")) return;
-                scanner.Hide();
-                await RunCanonDirect(e.Ip, e.QueueName);
-                return;
-            }
-
-            var model = RicohModels.Detect(e.Result.Description) ?? RicohModels.Universal;
-            var printers = GetPrinters();
-            var existing = printers.FirstOrDefault(p => p.Host == e.Ip);
-            RicohJob job;
-            string action;
-            if (existing != null)
-            {
-                job = new RicohJob { Name = existing.Name, Model = model };
-                action = $"Reinstalar «{existing.Name}» (puerto {e.Ip})";
-            }
-            else
-            {
-                var name = e.QueueName;
-                if (printers.Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase))) name = $"{name} ({e.Ip})";
-                job = new RicohJob { IsNew = true, Name = name, Ip = e.Ip, Model = model };
-                action = $"Nueva cola «{name}» · {e.Ip}";
-            }
-            var msg = $"{e.Result.Model}\n\n· {action}\n· Driver: {model.DriverName}\n· Drivers Ricoh sin uso: se eliminan";
-            if (!ThemedDialog.Confirm(scanner, "Ricoh", e.Label, msg)) return;
+            var plan = DriverCatalog.Resolve(e.Brand, e.Result.Description);
+            var existing = GetPrinters().FirstOrDefault(p => p.Host == e.Ip);
+            var job = existing != null
+                ? new InstallJob { Kind = 'E', Name = existing.Name, Ip = e.Ip, Plan = plan }
+                : new InstallJob { Kind = 'N', Name = e.QueueName, Ip = e.Ip, Plan = plan };
+            var action = existing != null ? $"Reinstalar «{existing.Name}» (puerto {e.Ip})" : $"Nueva cola «{e.QueueName}» · {e.Ip}";
+            if (!ThemedDialog.Confirm(scanner, plan.Brand.Length > 0 ? plan.Brand : "Impresora", e.Label, $"{e.Result.Model}\n\n· {action}\n· Driver: {plan.Text}")) return;
             scanner.Hide();
-            ShowProgress("Ricoh", "Instalando", "No cerrar hasta finalizar.");
-            await RunRicoh(new List<RicohJob> { job });
+            await RunJobs(new List<InstallJob> { job }, plan.Brand);
         }
 
         void SetHeader(string tag, string title, string sub)
@@ -300,14 +270,14 @@ namespace InstaladorImpresoras
             Dock = DockStyle.Bottom, Height = S(22), TextAlign = ContentAlignment.BottomLeft, AutoEllipsis = true,
         };
 
-        // ================= 01: elegir marca =================
+        // ================= inicio =================
         void ShowChooser()
         {
             body.Controls.Clear();
             AcceptButton = null;
             onProgress = false;
             onChooser = true;
-            SetHeader("", "","Ricoh   ·   Canon   ·   colas de servidor");
+            SetHeader("", "", "Ricoh   ·   Canon   ·   HP   ·   colas de servidor");
 
             var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = Theme.Paper, Margin = Padding.Empty };
             for (int i = 0; i < 3; i++) grid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
@@ -317,229 +287,24 @@ namespace InstaladorImpresoras
             { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, S(16)) };
             scan.Click += (s, e) => ShowScanner();
 
-            var ricoh = new Card("02 — RICOH", "Ricoh · " + RicohModels.Names,
-                "Modelo por SNMP / IPP. Driver PCL 6 del modelo o universal. Recrea colas existentes, elimina drivers sin uso, activa bandeja bypass.")
+            var install = new Card("02 — INSTALAR", "Instalar por IP",
+                "Cualquier marca. Detecta fabricante y modelo (SNMP / IPP) y elige el driver más reciente: modelo exacto, universal de la marca o clase de Windows.")
             { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, S(16)) };
-            var canon = new Card("03 — CANON", "Canon · todas las multifunción",
-                "Generic Plus PCL6 por IP: driver instalado o del paquete, puerto TCP/IP con SNMP.")
+            var queues = new Card("03 — COLAS", "Colas instaladas",
+                "Estado verde / rojo de cada cola de red. Reinstalar con el driver óptimo o quitar (cola, puerto y driver sin uso).")
             { Dock = DockStyle.Fill, Margin = new Padding(0) };
-            ricoh.Click += (s, e) => { returnToScanner = false; ShowRicoh(); };
-            canon.Click += (s, e) => { returnToScanner = false; ShowCanon(); };
+            install.Click += (s, e) => { returnToScanner = false; ShowInstall(); };
+            queues.Click += (s, e) => { returnToScanner = false; ShowQueues(); };
             grid.Controls.Add(scan, 0, 0);
-            grid.Controls.Add(ricoh, 0, 1);
-            grid.Controls.Add(canon, 0, 2);
+            grid.Controls.Add(install, 0, 1);
+            grid.Controls.Add(queues, 0, 2);
 
             body.Controls.Add(grid);
-            body.Controls.Add(Footer($"Teclas  1 escáner · 2 Ricoh · 3 Canon · Esc salir      v{version}  ·  registro: {logPath}"));
+            body.Controls.Add(Footer($"Teclas  1 escáner · 2 instalar · 3 colas · Esc salir      v{version}  ·  registro: {logPath}"));
         }
 
-        // ================= 02: opciones Ricoh =================
-        void ShowRicoh()
-        {
-            body.Controls.Clear();
-            onChooser = false;
-            printerRows.Clear();
-            SetHeader("Ricoh", "Configuración", "Colas marcadas: se eliminan y se recrean con el mismo nombre y puerto.");
-
-            // lista de impresoras instaladas
-            // alto ajustado a las filas reales (max. 4 visibles, el resto con scroll): sin huecos vacios
-            int visibles = Math.Max(1, Math.Min(4, GetPrinters().Count));
-            var list = new Panel { Dock = DockStyle.Top, Height = S(32 + visibles * 40), AutoScroll = true, BackColor = Theme.Paper };
-            var rows = new List<Control>();
-            var head = new CheckRow { Header = true, StateColumn = true, Columns = new[] { "Impresora", "Driver actual", "Puerto / IP" }, Widths = new[] { .36f, .38f, .26f }, Dock = DockStyle.Top, Height = S(32) };
-            foreach (var p in GetPrinters())
-            {
-                var row = new CheckRow
-                {
-                    Columns = new[] { p.Name, p.Driver, p.Host ?? p.Port }, Widths = head.Widths, Tag = p, Dock = DockStyle.Top, Height = S(40), StateColumn = true,
-                    Checked = p.Name.IndexOf("ricoh", StringComparison.OrdinalIgnoreCase) >= 0 || p.Driver.IndexOf("ricoh", StringComparison.OrdinalIgnoreCase) >= 0,
-                };
-                printerRows.Add(row);
-                rows.Add(row);
-            }
-            CheckInstalled(printerRows);
-            if (printerRows.Count == 0)
-                rows.Add(new Label { Text = "Sin colas de red en este equipo.", ForeColor = Theme.Muted, Dock = DockStyle.Top, Height = S(40), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(S(14), 0, 0, 0) });
-            for (int i = rows.Count - 1; i >= 0; i--) list.Controls.Add(rows[i]);
-            list.Controls.Add(head);
-
-            // nueva por IP
-            chkNew = new CheckRow { Columns = new[] { "Agregar una Ricoh nueva por IP  ·  modelo autodetectado" }, Dock = DockStyle.Top, Height = S(40), Checked = printerRows.Count == 0 };
-            var fields = new TableLayoutPanel { Dock = DockStyle.Top, Height = S(68), ColumnCount = 4, BackColor = Theme.Paper, Padding = new Padding(S(42), S(12), 0, 0) };
-            fields.RowCount = 1;
-            fields.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, S(180)));
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, S(24)));
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, S(220)));
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            fIp = new LineField("Dirección IP", mono: true) { Dock = DockStyle.Fill, Margin = Padding.Empty };
-            fName = new LineField("Nombre de la cola", mono: false) { Dock = DockStyle.Fill, Margin = Padding.Empty };
-            fName.Box.Text = "Ricoh";
-            var btnProbe = new FlatBtn("Comprobar", primary: false) { Size = new Size(S(150), S(36)), Anchor = AnchorStyles.Left | AnchorStyles.Top, Margin = new Padding(S(24), S(16), 0, 0) };
-            fields.Controls.Add(fIp, 0, 0);
-            fields.Controls.Add(new Panel { BackColor = Theme.Paper }, 1, 0);
-            fields.Controls.Add(fName, 2, 0);
-            fields.Controls.Add(btnProbe, 3, 0);
-            lblProbe = new Label { Dock = DockStyle.Top, Height = S(26), Font = Theme.Sans(9f), ForeColor = Theme.Muted, Padding = new Padding(S(42), S(6), 0, 0) };
-
-            EventHandler toggle = (s, e) => { fIp.Box.Enabled = fName.Box.Enabled = btnProbe.Enabled = chkNew.Checked; if (!chkNew.Checked) SetProbe("", Theme.Muted); };
-            chkNew.CheckedChanged += toggle;
-            toggle(null, null);
-            fIp.Box.TextChanged += (s, e) => SetProbe("", Theme.Muted);
-            btnProbe.Click += async (s, e) => await ProbeNewIp(interactive: false);
-
-            btnInstall = new FlatBtn("Instalar", primary: true);
-            var btnBack = new FlatBtn("Atrás", primary: false);
-            btnInstall.Click += async (s, e) => await StartRicoh();
-            btnBack.Click += (s, e) => ShowChooser();
-
-            // Dock=Top apila en orden inverso: el ultimo anadido queda arriba
-            body.Controls.Add(lblProbe);
-            body.Controls.Add(fields);
-            body.Controls.Add(chkNew);
-            body.Controls.Add(Section("Nueva impresora"));
-            body.Controls.Add(Gap(BlockGap));
-            body.Controls.Add(list);
-            body.Controls.Add(Section("Impresoras en este equipo"));
-            body.Controls.Add(ButtonBar(btnInstall, btnBack));
-        }
-
-        /// <summary>
-        /// Verde / rojo en las colas ya instaladas: la IP de su puerto responde como impresora o no.
-        /// En paralelo y sin bloquear la pantalla; las colas sin IP (USB, WSD) quedan con el indicador apagado.
-        /// </summary>
-        static async void CheckInstalled(List<CheckRow> rows)
-        {
-            await Task.WhenAll(rows.Where(r => ((PrinterInfo)r.Tag).Host != null).Select(async r =>
-            {
-                r.State = ScanState.Checking;
-                try { r.State = (await NetworkScan.Check(((PrinterInfo)r.Tag).Host, quick: false, System.Threading.CancellationToken.None)).State; }
-                catch { r.State = ScanState.Unreachable; }
-            }));
-        }
-
-        sealed class PrinterInfo { public string Name, Driver, Port, Host; }
-
-        static List<PrinterInfo> GetPrinters()
-        {
-            var hosts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            try
-            {
-                using (var q = new ManagementObjectSearcher("SELECT Name, HostAddress FROM Win32_TCPIPPrinterPort"))
-                    foreach (ManagementObject o in q.Get()) hosts[(string)o["Name"]] = (string)o["HostAddress"];
-            }
-            catch { }
-            var list = new List<PrinterInfo>();
-            using (var q = new ManagementObjectSearcher("SELECT Name, DriverName, PortName FROM Win32_Printer"))
-                foreach (ManagementObject o in q.Get())
-                {
-                    var p = new PrinterInfo { Name = (string)o["Name"], Driver = (string)o["DriverName"] ?? "", Port = (string)o["PortName"] ?? "" };
-                    if (VirtualPrinters.Any(v => p.Name.IndexOf(v, StringComparison.OrdinalIgnoreCase) >= 0 || p.Driver.IndexOf(v, StringComparison.OrdinalIgnoreCase) >= 0)) continue;
-                    if (p.Name.StartsWith(@"\\")) continue; // colas compartidas de servidor
-                    hosts.TryGetValue(p.Port, out p.Host);
-                    list.Add(p);
-                }
-            return list.OrderBy(p => p.Name).ToList();
-        }
-
-        /// <summary>Comprueba la IP nueva y detecta el modelo. Devuelve el modelo a instalar o null si no se debe continuar.</summary>
-        async Task<RicohModel> ProbeNewIp(bool interactive)
-        {
-            var ip = fIp.Box.Text.Trim();
-            if (!IPAddress.TryParse(ip, out var addr) || addr.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork || ip.Count(c => c == '.') != 3)
-            {
-                SetProbe("✖  IP no válida", Theme.Red);
-                if (interactive) Warn("IP no válida. Formato: 192.168.1.50");
-                return null;
-            }
-            SetProbe("…  comprobando " + ip, Theme.Muted);
-            UseWaitCursor = true;
-            var r = await Task.Run(() => PrinterProbe.Probe(ip));
-            UseWaitCursor = false;
-            switch (r.Status)
-            {
-                case ProbeStatus.RicohTarget:
-                    SetProbe($"✔  Ricoh {r.Model.Display} detectada  →  driver {r.Model.DriverName}", Theme.Black);
-                    if (fName.Box.Text.Trim().Length == 0 || fName.Box.Text.StartsWith("Ricoh IM ", StringComparison.OrdinalIgnoreCase))
-                        fName.Box.Text = "Ricoh " + r.Model.Display;
-                    return r.Model;
-                case ProbeStatus.RicohOtherModel:
-                case ProbeStatus.NotPrinter:
-                    // sin preguntar: modelo no identificado -> driver universal Ricoh
-                    SetProbe($"✔  Modelo sin driver específico  →  driver {RicohModels.Universal.DriverName}", Theme.Black);
-                    if (fName.Box.Text.Trim().Length == 0 || fName.Box.Text.StartsWith("Ricoh IM ", StringComparison.OrdinalIgnoreCase))
-                        fName.Box.Text = "Ricoh";
-                    return RicohModels.Universal;
-                default:
-                    SetProbe("✖  " + (r.Status == ProbeStatus.Unreachable ? "Sin respuesta en " + ip : "No es una Ricoh: " + r.Description), Theme.Red);
-                    if (interactive) Warn(r.Message + "\n\nSin cambios.");
-                    return null;
-            }
-        }
-
-        void SetProbe(string text, Color c) { lblProbe.Text = text; lblProbe.ForeColor = c; }
         void Warn(string text) => ThemedDialog.Info(scanner != null && scanner.Visible ? (IWin32Window)scanner : this, "Aviso", "Revisar", text);
-        bool Ask(string text) => ThemedDialog.Confirm(this, "Ricoh", "¿Continuar?", text, "Continuar");
-
-        async Task StartRicoh()
-        {
-            var selected = printerRows.Where(r => r.Checked).Select(r => (PrinterInfo)r.Tag).ToList();
-            var jobs = new List<RicohJob>();
-            if (chkNew.Checked)
-            {
-                var newName = fName.Box.Text.Trim();
-                if (newName.Length == 0) newName = "Ricoh";
-                if (GetPrinters().Any(p => p.Name.Equals(newName, StringComparison.OrdinalIgnoreCase)) && !selected.Any(p => p.Name.Equals(newName, StringComparison.OrdinalIgnoreCase)))
-                {
-                    Warn($"Ya existe la cola «{newName}». Cambie el nombre o márquela para reinstalarla.");
-                    return;
-                }
-                btnInstall.Enabled = false;
-                var model = await ProbeNewIp(interactive: true);
-                btnInstall.Enabled = true;
-                if (model == null) return;
-                jobs.Add(new RicohJob { IsNew = true, Name = fName.Box.Text.Trim().Length > 0 ? fName.Box.Text.Trim() : newName, Ip = fIp.Box.Text.Trim(), Model = model });
-            }
-            if (selected.Count == 0 && jobs.Count == 0)
-            {
-                Warn("Ninguna cola marcada ni IP nueva.");
-                return;
-            }
-
-            // colas existentes: detectar modelo por su IP; si no, por el driver actual; si no, preguntar
-            var offline = new List<string>();
-            btnInstall.Enabled = false;
-            UseWaitCursor = true;
-            var probes = new Dictionary<PrinterInfo, ProbeResult>();
-            foreach (var p in selected.Where(p => p.Host != null))
-                probes[p] = await Task.Run(() => PrinterProbe.Probe(p.Host));
-            UseWaitCursor = false;
-            btnInstall.Enabled = true;
-            foreach (var p in selected)
-            {
-                probes.TryGetValue(p, out var r);
-                if (r != null && (r.Status == ProbeStatus.Unreachable || r.Status == ProbeStatus.OtherBrand))
-                    offline.Add($"· {p.Name} ({p.Host}): {(r.Status == ProbeStatus.Unreachable ? "no responde" : "no es una Ricoh")}");
-                // modelo: por su IP; si no, por el driver o nombre actual; si no, driver universal (sin preguntar)
-                var model = r?.Model ?? RicohModels.Detect(p.Driver) ?? RicohModels.Detect(p.Name) ?? RicohModels.Universal;
-                jobs.Insert(0, new RicohJob { Name = p.Name, Model = model });
-            }
-            if (offline.Count > 0 && !Ask("Sin respuesta o no Ricoh:\n\n" + string.Join("\n", offline) + "\n\nSe reinstalan igualmente con el driver Ricoh."))
-                return;
-
-            var confirm = new StringBuilder();
-            foreach (var j in jobs.Where(j => !j.IsNew))
-            {
-                var p = selected.First(x => x.Name == j.Name);
-                confirm.AppendLine($"· Reinstalar \"{j.Name}\" ({p.Host ?? p.Port}) con {j.Model.DriverName}");
-            }
-            foreach (var j in jobs.Where(j => j.IsNew)) confirm.AppendLine($"· Agregar \"{j.Name}\" en {j.Ip} con {j.Model.DriverName}");
-            confirm.AppendLine("· Drivers Ricoh sin uso: se eliminan");
-            if (!ThemedDialog.Confirm(this, "Ricoh", "Confirmar instalación", confirm.ToString().TrimEnd())) return;
-
-            ShowProgress("Ricoh", "Instalando", "No cerrar hasta finalizar.");
-            await RunRicoh(jobs);
-        }
+        bool Ask(string text) => ThemedDialog.Confirm(this, "Aviso", "¿Continuar?", text, "Continuar");
 
         // ================= 03: progreso =================
         void ShowProgress(string tag, string title, string sub)
@@ -670,40 +435,6 @@ namespace InstaladorImpresoras
             return dest;
         }
 
-        sealed class RicohJob { public bool IsNew; public string Name, Ip; public RicohModel Model; }
-
-        async Task RunRicoh(List<RicohJob> jobs)
-        {
-            int exit = -1;
-            try
-            {
-                // extraer solo los paquetes de driver que hacen falta
-                var infs = new Dictionary<RicohModel, string>();
-                foreach (var m in jobs.Select(j => j.Model).Distinct())
-                {
-                    SetStep(2, "Preparando driver " + m.DriverName);
-                    var dir = await Task.Run(() => ExtractPayload(m.Resource, Path.GetFileNameWithoutExtension(m.Resource)));
-                    infs[m] = Path.Combine(dir, m.Inf);
-                }
-                var engine = Path.Combine(workDir, "engine.ps1");
-                using (var s = typeof(MainForm).Assembly.GetManifestResourceStream("engine.ps1"))
-                using (var f = File.Create(engine)) s.CopyTo(f);
-
-                string clean(string v) => v.Replace("\t", " ").Replace("\n", " ").Replace("\r", "");
-                var lines = jobs.Select(j => string.Join("\t", new[] { j.IsNew ? "N" : "E", clean(j.Name), j.Model.DriverName, infs[j.Model] }.Concat(j.IsNew ? new[] { j.Ip } : new string[0])));
-                var b64 = Convert.ToBase64String(Encoding.UTF8.GetBytes(string.Join("\n", lines)));
-                var args = $"-NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"{engine}\" -JobsB64 {b64}";
-
-                exit = await Task.Run(() => RunEngine(args));
-            }
-            catch (Exception ex)
-            {
-                Log("ERR", ex.Message);
-            }
-            bool ok = exit == 0;
-            Finish(ok, ok ? "Bandeja bypass: Imprimir > Preferencias > Bandeja de entrada > \"Bandeja bypass\"." : null);
-        }
-
         int RunEngine(string args)
         {
             var psi = new ProcessStartInfo("powershell.exe", args)
@@ -790,122 +521,7 @@ namespace InstaladorImpresoras
             Finish(exit == 0, exit == 0 ? "La impresora aparece como \"" + unc.TrimStart('\\').Split('\\').Last() + " en " + unc.TrimStart('\\').Split('\\')[0] + "\"." : null);
         }
 
-        // ================= Canon =================
-        const string CanonDriver = "Canon Generic Plus PCL6";
-
-        static bool CanonDriverInstalled()
-        {
-            try
-            {
-                using (var q = new ManagementObjectSearcher("SELECT Name FROM Win32_PrinterDriver"))
-                    return q.Get().Cast<ManagementObject>().Any(m => ((m["Name"] as string) ?? "").StartsWith(CanonDriver + ",", StringComparison.OrdinalIgnoreCase));
-            }
-            catch { return false; }
-        }
-
-        /// <summary>
-        /// Canon por IP sin el asistente: el asistente se niega si ya hay una version posterior del driver
-        /// ("Ya está instalada una versión posterior del controlador"). Aqui se usa la instalada, sea cual sea.
-        /// </summary>
-        void ShowCanon()
-        {
-            body.Controls.Clear();
-            onChooser = false;
-            AcceptButton = null;
-            bool has = CanonDriverInstalled();
-            SetHeader("Canon", "Nueva impresora", has
-                ? "Driver Generic Plus PCL6 instalado · puerto TCP/IP + cola."
-                : "Driver Generic Plus PCL6 del paquete · puerto TCP/IP + cola.");
-
-            var fields = new TableLayoutPanel { Dock = DockStyle.Top, Height = S(68), ColumnCount = 3, RowCount = 1, BackColor = Theme.Paper, Padding = new Padding(0, S(8), 0, 0) };
-            fields.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, S(200)));
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, S(24)));
-            fields.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            var ip = new LineField("Dirección IP", mono: true) { Dock = DockStyle.Fill, Margin = Padding.Empty };
-            var name = new LineField("Nombre de la cola", mono: false) { Dock = DockStyle.Fill, Margin = Padding.Empty };
-            name.Box.Text = "Canon";
-            fields.Controls.Add(ip, 0, 0);
-            fields.Controls.Add(new Panel { BackColor = Theme.Paper }, 1, 0);
-            fields.Controls.Add(name, 2, 0);
-
-            var help = new Label
-            {
-                Dock = DockStyle.Top, Height = S(64), Font = Theme.Sans(9f), ForeColor = Theme.Muted, Padding = new Padding(0, S(14), 0, 0),
-                Text = "Puerto TCP/IP estándar con SNMP (public) y cola con Canon Generic Plus PCL6. IP con cola existente: se actualiza su driver.\n" +
-                       "Asistente Canon: instalador oficial; rechaza instalar si hay una versión posterior del driver.",
-            };
-
-            var btnGo = new FlatBtn("Instalar", primary: true);
-            var btnWizard = new FlatBtn("Asistente Canon", primary: false);
-            var btnBack = new FlatBtn("Atrás", primary: false);
-            async void Go()
-            {
-                var addr = ip.Box.Text.Trim();
-                var queue = name.Box.Text.Trim().Length > 0 ? name.Box.Text.Trim() : "Canon";
-                if (!IPAddress.TryParse(addr, out var a) || a.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork || addr.Count(c => c == '.') != 3)
-                {
-                    Warn("IP no válida. Formato: 192.168.1.50");
-                    ip.Box.Focus();
-                    return;
-                }
-                if (!ThemedDialog.Confirm(this, "Canon", queue, $"· Cola «{queue}» en {addr}\n· {CanonDriver} ({(has ? "ya instalado" : "del paquete")})")) return;
-                await RunCanonDirect(addr, queue);
-            }
-            btnGo.Click += (s, e) => Go();
-            btnWizard.Click += async (s, e) => await RunCanon();
-            btnBack.Click += (s, e) => ShowChooser();
-            ip.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; Go(); } };
-            name.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; Go(); } };
-
-            body.Controls.Add(help);
-            body.Controls.Add(fields);
-            body.Controls.Add(Section("Impresora Canon por IP"));
-            body.Controls.Add(ButtonBar(btnGo, btnWizard, btnBack));
-            ip.Box.Focus();
-        }
-
-        /// <summary>Driver Generic Plus PCL6 (el instalado o el del paquete), puerto TCP/IP con SNMP y cola.</summary>
-        async Task RunCanonDirect(string ip, string name)
-        {
-            ShowProgress("Canon", "Instalando", $"{name}  ·  {ip}");
-            int exit = -1;
-            try
-            {
-                string inf = "";
-                if (!await Task.Run(() => CanonDriverInstalled()))
-                {
-                    SetStep(10, "Preparando driver Canon del paquete");
-                    var dir = await Task.Run(() => ExtractPayload("canon.zip", "canon"));
-                    inf = Path.Combine(dir, "Driver", "CNP60MA64.INF");
-                }
-                string q(string v) => v.Replace("'", "''");
-                var script = string.Join("\n",
-                    "$ErrorActionPreference = 'Stop'",
-                    "$ProgressPreference = 'SilentlyContinue'",
-                    $"$drv = '{CanonDriver}'; $ip = '{q(ip)}'; $name = '{q(name)}'; $inf = '{q(inf)}'",
-                    "Write-Output 'STEP|25|Driver Canon Generic Plus PCL6'",
-                    "$d = Get-PrinterDriver -Name $drv -ErrorAction SilentlyContinue | Select-Object -First 1",
-                    "if ($d) { $v = [uint64]$d.DriverVersion; $ver = '{0}.{1}.{2}.{3}' -f (($v -shr 48) -band 0xFFFF), (($v -shr 32) -band 0xFFFF), (($v -shr 16) -band 0xFFFF), ($v -band 0xFFFF); Write-Output \"OK|Driver ya instalado (v$ver): se usa ese, sin asistente\" }",
-                    "else { pnputil.exe /add-driver \"$inf\" /install | Out-Null; Add-PrinterDriver -Name $drv; Write-Output 'OK|Driver instalado desde el paquete' }",
-                    "Write-Output 'STEP|55|Puerto TCP/IP'",
-                    "if (Get-PrinterPort -Name $ip -ErrorAction SilentlyContinue) { Write-Output \"OK|Puerto $ip ya existe\" } else { Add-PrinterPort -Name $ip -PrinterHostAddress $ip -SNMP 1 -SNMPCommunity public; Write-Output \"OK|Puerto $ip creado (SNMP activo)\" }",
-                    "Write-Output 'STEP|80|Cola de impresión'",
-                    "$old = Get-Printer | Where-Object PortName -eq $ip | Select-Object -First 1",
-                    "if ($old) { Set-Printer -Name $old.Name -DriverName $drv; $name = $old.Name; Write-Output \"OK|Cola existente actualizada: $name\" }",
-                    "else { if (Get-Printer -Name $name -ErrorAction SilentlyContinue) { $name = \"$name ($ip)\" }; Add-Printer -Name $name -DriverName $drv -PortName $ip; Write-Output \"OK|Cola creada: $name\" }",
-                    "Write-Output \"SUMMARY|$name en $ip con $drv\"",
-                    "Write-Output 'STEP|100|Finalizado'");
-                var b64 = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
-                exit = await Task.Run(() => RunEngine($"-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {b64}"));
-            }
-            catch (Exception ex)
-            {
-                Log("ERR", ex.Message);
-            }
-            Finish(exit == 0, exit == 0 ? "Bandejas y color: Preferencias de impresión de la cola." : null);
-        }
-
+        // ================= Canon: asistente oficial =================
         async Task RunCanon()
         {
             ShowProgress("Canon", "Generic Plus PCL6", "Siga los pasos del asistente de Canon.");

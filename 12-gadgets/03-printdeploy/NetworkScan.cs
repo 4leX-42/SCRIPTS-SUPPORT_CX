@@ -43,7 +43,8 @@ namespace InstaladorImpresoras
         public string Friendly => Result?.Friendly ?? "";
         /// <summary>Nombre en la lista: el del directorio, el que lleva la impresora o, sin nombre, su modelo.</summary>
         public string Label => Directory != null ? Directory.Label : Friendly.Length > 0 ? Friendly : Result != null && Result.Model.Length > 0 && Detected ? Result.Model : "Sin nombre";
-        public bool CanInstall => Detected && (Brand == "Ricoh" || Brand == "Canon" || IsShared);
+        /// <summary>Cualquier impresora detectada: el driver lo elige DriverCatalog (como minimo, el de clase de Windows).</summary>
+        public bool CanInstall => Detected;
         /// <summary>Cola de servidor que pide otro usuario: Instalar pasa a pedir credenciales.</summary>
         public bool NeedsLogin => IsShared && !Detected && Result?.Denied == true;
         /// <summary>Servidor de una cola \\servidor\cola.</summary>
@@ -74,8 +75,6 @@ namespace InstaladorImpresoras
     {
         static readonly int[] Ports = { 9100, 631, 515, 80 };
         static readonly Regex PrinterWords = new Regex(@"printer|print server|ricoh|savin|lanier|gestetner|nashuatec|canon|imagerunner|imageforce|i-sensys|laserjet|officejet|jetdirect|brother|epson|kyocera|ecosys|taskalfa|xerox|lexmark|konica|bizhub|sharp|toshiba|e-studio|\boki\b|samsung", RegexOptions.IgnoreCase);
-        static readonly Regex RicohWords = new Regex("ricoh|savin|lanier|gestetner|nashuatec|nrg|rex-rotary|infotec", RegexOptions.IgnoreCase);
-        static readonly Regex CanonWords = new Regex(@"canon|imagerunner|imageforce|i-sensys|\bimageclass\b", RegexOptions.IgnoreCase);
 
         /// <summary>
         /// Comprueba una IP. quick = pasada de rango: timeouts cortos y solo identifica si hay puerto de impresion.
@@ -111,7 +110,7 @@ namespace InstaladorImpresoras
             if (!printPort && !PrinterWords.IsMatch(r.Description)) return Fail(r, alive || r.Description.Length > 0);
 
             r.Model = CleanModel(ipp ?? snmpModel ?? web ?? "");
-            r.Brand = RicohWords.IsMatch(r.Description) ? "Ricoh" : CanonWords.IsMatch(r.Description) ? "Canon" : "";
+            r.Brand = DriverCatalog.BrandOf(r.Description);
             r.State = ScanState.Printer;
             return r;
         }
