@@ -33,6 +33,7 @@
     <EmbeddedResource Include="Payload\ricoh_universal.zip" LogicalName="ricoh_universal.zip" Condition="Exists('Payload\ricoh_universal.zip')" />
     <EmbeddedResource Include="oficinas.txt" LogicalName="oficinas.txt" Condition="Exists('oficinas.txt')" />
     <EmbeddedResource Include="engine.ps1" LogicalName="engine.ps1" />
+    <EmbeddedResource Include="Assets\logo.png" LogicalName="logo.png" />
   </ItemGroup>
 
 </Project>

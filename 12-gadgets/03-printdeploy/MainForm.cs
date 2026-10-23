@@ -119,9 +119,9 @@ namespace InstaladorImpresoras
                 {
                     // inicio: emblema (ojo dorado) + marca en trazo fino; "Deploy" en dorado
                     var flags = TextFormatFlags.NoPadding;
-                    int em = S(64);
-                    g.DrawImageUnscaled(Logo.Get(em, plate: false), x - S(8), (header.Height - em) / 2);
-                    x += em + S(4);
+                    int em = S(96);
+                    g.DrawImageUnscaled(Logo.Get(em), x - S(14), (header.Height - em) / 2);
+                    x += em - S(4);
                     TextRenderer.DrawText(g, "Print", fWordmark, new Point(x - S(2), S(30)), Theme.Paper, flags);
                     int pw = TextRenderer.MeasureText(g, "Print", fWordmark, Size.Empty, flags).Width;
                     TextRenderer.DrawText(g, "Deploy", fWordmark, new Point(x - S(2) + pw, S(30)), Theme.Gold, flags);
