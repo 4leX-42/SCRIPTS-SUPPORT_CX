@@ -21,7 +21,7 @@ Dentro de WinRE no hay internet, así que el `.bat` se baja **antes** a la raíz
 En PowerShell, con el USB como `E:` (cámbialo por su letra):
 
 ```powershell
-$f="E:\rescate-admin-local.bat"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/12-gadgets/01-rescate-admin-local/rescate-admin-local.bat -OutFile $f
+$f="E:\rescate-admin-local.bat"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/06-rescate-admin-local/rescate-admin-local.bat -OutFile $f
 ```
 
 (O descárgalo a mano desde GitHub y cópialo al USB.) El fichero va en CRLF a

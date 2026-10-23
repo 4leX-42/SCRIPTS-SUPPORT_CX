@@ -2,11 +2,13 @@
 
 🇬🇧 [English](README.en.md)
 
+🧰 Herramientas con interfaz propia (PrintDeploy, DocUnlock, Conversor LEDES, Vorterm): [GADGETS-SUPPORT_CX](https://github.com/4leX-42/GADGETS-SUPPORT_CX)
+
 ---
 
 <!-- INDICE-INICIO: generado por 99-repo-tools/03-generate-readme.ps1, no editar a mano -->
 
-<img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> [Copy and paste (diagnostics)](#-00---copy-and-paste-diagnostics) | <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> [Identity cache](#-01---identity-cache) | <img src=".github/icons/mail.svg" width="20" height="20" align="top" alt=""> [Outlook](#-02---outlook) | <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> [OneDrive](#-03---onedrive) | <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> [Teams](#-04---teams) | <img src=".github/icons/apps.svg" width="20" height="20" align="top" alt=""> [Office apps](#-05---office-apps) | <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> [Corporate applications](#-06---corporate-applications) | <img src=".github/icons/laptop.svg" width="20" height="20" align="top" alt=""> [Endpoint](#-07---endpoint) | <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> [Network](#-08---network) | <img src=".github/icons/folder_open.svg" width="20" height="20" align="top" alt=""> [File picker](#-10---file-picker) | <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> [Certificates](#-11---certificates) | <img src=".github/icons/toolbox.svg" width="20" height="20" align="top" alt=""> [Gadgets](#-12---gadgets) | <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> [Repo tools](#-99---repo-tools)
+<img src=".github/icons/clipboard_code.svg" width="20" height="20" align="top" alt=""> [Copy and paste (diagnostics)](#-00---copy-and-paste-diagnostics) | <img src=".github/icons/key.svg" width="20" height="20" align="top" alt=""> [Identity cache](#-01---identity-cache) | <img src=".github/icons/mail.svg" width="20" height="20" align="top" alt=""> [Outlook](#-02---outlook) | <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> [OneDrive](#-03---onedrive) | <img src=".github/icons/people_team.svg" width="20" height="20" align="top" alt=""> [Teams](#-04---teams) | <img src=".github/icons/apps.svg" width="20" height="20" align="top" alt=""> [Office apps](#-05---office-apps) | <img src=".github/icons/puzzle_piece.svg" width="20" height="20" align="top" alt=""> [Corporate applications](#-06---corporate-applications) | <img src=".github/icons/laptop.svg" width="20" height="20" align="top" alt=""> [Endpoint](#-07---endpoint) | <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> [Network](#-08---network) | <img src=".github/icons/folder_open.svg" width="20" height="20" align="top" alt=""> [File picker](#-10---file-picker) | <img src=".github/icons/certificate.svg" width="20" height="20" align="top" alt=""> [Certificates](#-11---certificates) | <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> [Repo tools](#-99---repo-tools)
 
 ## <img src=".github/icons/pin.svg" width="20" height="20" align="top" alt=""> 0 - LAS MAINS
 
@@ -430,6 +432,16 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 </details>
 
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Equipo sin administrador (rescate WinRE)</b></summary>
+
+Equipo sin administrador: devuelve una cuenta local a Administradores desde la recuperación (WinRE). No borra datos.<br>[`06-rescate-admin-local`](07-endpoint/06-rescate-admin-local)
+
+```powershell
+$f="E:\rescate-admin-local.bat"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/06-rescate-admin-local/rescate-admin-local.bat -OutFile $f
+```
+
+</details>
+
 ## <img src=".github/icons/router.svg" width="20" height="20" align="top" alt=""> 08 - Network
 
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Wi-Fi lenta o que se corta</b></summary>
@@ -510,38 +522,6 @@ Repara un certificado concreto que AutoFirma no lista, sin tocar el resto del al
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\01-repair-autofirma-certificate.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/11-certificates/01-repair-autofirma-certificate.ps1 -OutFile $f; & $f
 ```
 <sub>Parámetros: `-Mode` `-P12` `-Password` `-Match` `-Thumbprint` `-DryRun` `-Force` `-Log`</sub>
-
-</details>
-
-## <img src=".github/icons/toolbox.svg" width="20" height="20" align="top" alt=""> 12 - Gadgets
-
-<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Equipo sin administrador (rescate WinRE)</b></summary>
-
-Equipo sin administrador: devuelve una cuenta local a Administradores desde la recuperación (WinRE). No borra datos.<br>[`01-rescate-admin-local`](12-gadgets/01-rescate-admin-local)
-
-```powershell
-$f="E:\rescate-admin-local.bat"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/12-gadgets/01-rescate-admin-local/rescate-admin-local.bat -OutFile $f
-```
-
-</details>
-
-<details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <b>DocUnlock</b></summary>
-
-DocUnlock: quita protecciones, permisos, firmas y metadatos de PDF y Office, y opcionalmente comprime. Todo local, sin admin.<br>[`02-docunlock`](12-gadgets/02-docunlock)
-
-```powershell
-$f="$env:TEMP\DocUnlock.exe"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://github.com/4leX-42/SCRIPTS-SUPPORT_CX/releases/download/docunlock-v1/DocUnlock.exe -OutFile $f; explorer.exe "$f"
-```
-
-</details>
-
-<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Instalar o reparar impresoras Ricoh y Canon</b></summary>
-
-PrintDeploy: detecta marca y modelo de cualquier impresora de red e instala el driver más reciente y adecuado (Ricoh, Canon, HP y genérico).<br>[`03-printdeploy`](12-gadgets/03-printdeploy)
-
-```powershell
-dotnet build -c Release .\12-gadgets\03-printdeploy\PrintDeploy.csproj
-```
 
 </details>
 

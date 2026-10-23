@@ -2,7 +2,7 @@
 [ES] Equipo sin administrador: devuelve una cuenta local a Administradores desde la recuperacion (WinRE). No borra datos.
 [EN] PC with no administrator: restores a local account to Administrators from Windows Recovery (WinRE). No data loss.
 Contexto: admin
-Instalar: $f="E:\rescate-admin-local.bat"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/12-gadgets/01-rescate-admin-local/rescate-admin-local.bat -OutFile $f
+Instalar: $f="E:\rescate-admin-local.bat"; [Net.ServicePointManager]::SecurityProtocol=3072; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/06-rescate-admin-local/rescate-admin-local.bat -OutFile $f
 -->
 # Rescate de administrador local — ficha técnica
 
