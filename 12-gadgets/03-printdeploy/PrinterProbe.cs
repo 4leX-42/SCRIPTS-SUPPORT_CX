@@ -104,8 +104,58 @@ namespace InstaladorImpresoras
             return (descr.Length > 0 ? descr : null, model, v[1].Trim(), v[2].Trim());
         }
 
+        static readonly Dictionary<string, int> snmpVersion = new Dictionary<string, int>();
+        static readonly byte[] OidPageCount = { 0x2B, 6, 1, 2, 1, 43, 10, 2, 1, 4, 1, 1 };        // prtMarkerLifeCount.1.1
+        static readonly byte[] OidPrinterStatus = { 0x2B, 6, 1, 2, 1, 25, 3, 5, 1, 1, 1 };      // hrPrinterStatus.1
+        static readonly byte[] OidPrinterErrors = { 0x2B, 6, 1, 2, 1, 25, 3, 5, 1, 2, 1 };      // hrPrinterDetectedErrorState.1
+
+        /// <summary>
+        /// Estado de la maquina por SNMP: paginas impresas en toda su vida (sube al imprimir de verdad), estado
+        /// (3 en espera, 4 imprimiendo, 5 calentando) y averias detectadas como texto. null si no responde.
+        /// </summary>
+        internal static (long? pages, int? status, string errors)? PrinterCounters(string ip, int timeoutMs)
+        {
+            // v2c y, si no responde, v1 (las Canon solo contestan v1); se recuerda la que funciona con cada IP
+            List<string> v = null;
+            int known = -1;
+            lock (snmpVersion) if (snmpVersion.TryGetValue(ip, out var k)) known = k;
+            foreach (var version in known == 0 ? new[] { 0 } : new[] { 1, 0 })
+            {
+                v = SnmpGet(ip, version, timeoutMs, 1, true, OidPageCount, OidPrinterStatus, OidPrinterErrors);
+                // v1 rechaza la consulta entera si falta un OID: entonces solo el contador
+                if (v == null && version == 0)
+                {
+                    var only = SnmpGet(ip, 0, timeoutMs, 1, true, OidPageCount);
+                    if (only != null) v = new List<string> { only[0], "", "" };
+                }
+                if (v != null) { lock (snmpVersion) snmpVersion[ip] = version; break; }
+            }
+            if (v == null) return null;
+            long? pages = long.TryParse(v[0], out var pc) ? pc : (long?)null;
+            int? status = int.TryParse(v[1], out var st) ? st : (int?)null;
+            return (pages, status, ErrorText(v[2]));
+        }
+
+        /// <summary>hrPrinterDetectedErrorState: mapa de bits (RFC 3805) -> averias legibles.</summary>
+        static string ErrorText(string hex)
+        {
+            if (string.IsNullOrEmpty(hex)) return "";
+            int bits = 0;
+            for (int i = 0; i < Math.Min(2, hex.Length / 2); i++) bits = bits << 8 | Convert.ToInt32(hex.Substring(i * 2, 2), 16);
+            if (hex.Length < 4) bits <<= 8;
+            var names = new[] { "poco papel", "sin papel", "poco tóner", "sin tóner", "tapa abierta", "atasco", "fuera de línea", "requiere servicio técnico",
+                                "falta una bandeja de entrada", "falta la bandeja de salida", "falta un consumible", "bandeja de salida casi llena", "bandeja de salida llena", "bandeja de entrada vacía", "mantenimiento pendiente" };
+            var found = new List<string>();
+            for (int i = 0; i < names.Length; i++) if ((bits & (0x8000 >> i)) != 0) found.Add(names[i]);
+            return string.Join(", ", found);
+        }
+
         /// <summary>GET de los OID pedidos (version 0 = v1, 1 = v2c): un texto por OID, en orden ("" si no es texto). null si no responde.</summary>
-        static List<string> SnmpGet(string ip, int version, int timeoutMs, int attempts, params byte[][] oids)
+        static List<string> SnmpGet(string ip, int version, int timeoutMs, int attempts, params byte[][] oids) =>
+            SnmpGet(ip, version, timeoutMs, attempts, false, oids);
+
+        /// <summary>raw: los OCTET STRING se devuelven en hexadecimal (para mapas de bits), no como texto.</summary>
+        static List<string> SnmpGet(string ip, int version, int timeoutMs, int attempts, bool raw, params byte[][] oids)
         {
             try
             {
@@ -120,7 +170,7 @@ namespace InstaladorImpresoras
                         try
                         {
                             var remote = new IPEndPoint(IPAddress.Any, 0);
-                            var vals = ParseResponse(udp.Receive(ref remote));
+                            var vals = ParseResponse(udp.Receive(ref remote), raw);
                             if (vals != null && vals.Count == oids.Length) return vals;
                             return null;   // respuesta de error (v1: algun OID no existe)
                         }
@@ -179,7 +229,7 @@ namespace InstaladorImpresoras
         /// GetResponse: SEQ { version, community, A2 { request-id, error-status, error-index, SEQ { SEQ { OID, valor } ... } } }.
         /// Devuelve el valor de cada varbind en orden; null si hay error-status o el paquete no cuadra.
         /// </summary>
-        static List<string> ParseResponse(byte[] d)
+        static List<string> ParseResponse(byte[] d, bool raw)
         {
             int p = 0;
             if (!Header(d, ref p, out var tag, out _) || tag != 0x30) return null;
@@ -199,7 +249,19 @@ namespace InstaladorImpresoras
             {
                 int next = p + len;
                 Skip(d, ref p);                                                   // OID
-                vals.Add(Header(d, ref p, out tag, out len) && tag == 0x04 ? Decode(d, p, len) : "");
+                string val = "";
+                if (Header(d, ref p, out tag, out len))
+                {
+                    if (tag == 0x04) val = raw ? BitConverter.ToString(d, p, len).Replace("-", "") : Decode(d, p, len);
+                    // INTEGER, Counter32, Gauge32, TimeTicks, Counter64: numero sin signo en big-endian
+                    else if (tag == 0x02 || tag == 0x41 || tag == 0x42 || tag == 0x43 || tag == 0x46)
+                    {
+                        ulong n = 0;
+                        for (int i = 0; i < len && i < 9; i++) n = (n << 8) | d[p + i];
+                        val = n.ToString();
+                    }
+                }
+                vals.Add(val);
                 p = next;
             }
             return vals;
