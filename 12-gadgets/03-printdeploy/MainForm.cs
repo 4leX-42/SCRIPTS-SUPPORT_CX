@@ -65,7 +65,8 @@ namespace InstaladorImpresoras
             var logDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "PrintDeploy", "Logs");
             Directory.CreateDirectory(logDir);
             logPath = Path.Combine(logDir, $"instalacion_{stamp}.log");
-            workDir = Path.Combine(Path.GetTempPath(), "PrintDeploy_" + stamp);
+            // carpeta de trabajo (motor y drivers que se ejecutan elevados): fuera del %TEMP% del usuario, ver SecureWorkDir
+            workDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "PrintDeploy", "Work", Guid.NewGuid().ToString("N"));
 
             BuildHeader();
             body.Dock = DockStyle.Fill;
@@ -514,22 +515,48 @@ namespace InstaladorImpresoras
             TopMost = false;
         }
 
+        bool workDirReady;
+        readonly Dictionary<string, string> extracted = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>
-        /// Paquete de driver embebido, descomprimido en la carpeta temporal de la sesion: directamente desde el .exe
-        /// (sin copiar antes el zip a disco) y una sola vez por sesion (marca .ok al terminar; si falta, se rehace).
+        /// Crea la carpeta de trabajo de la sesion. El motor y los drivers que contiene se ejecutan como administrador,
+        /// asi que no puede estar donde escriba un proceso sin elevar: %ProgramData%\PrintDeploy\Work\{GUID}, creada aqui
+        /// con permisos solo para Administradores y SYSTEM (sin herencia). Si ya existe, no se usa.
+        /// </summary>
+        void SecureWorkDir()
+        {
+            if (workDirReady) return;
+            if (Directory.Exists(workDir)) throw new IOException("La carpeta de trabajo ya existía: " + workDir);
+            var acl = new System.Security.AccessControl.DirectorySecurity();
+            acl.SetAccessRuleProtection(true, false);
+            foreach (var who in new[] { System.Security.Principal.WellKnownSidType.BuiltinAdministratorsSid, System.Security.Principal.WellKnownSidType.LocalSystemSid })
+                acl.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(
+                    new System.Security.Principal.SecurityIdentifier(who, null),
+                    System.Security.AccessControl.FileSystemRights.FullControl,
+                    System.Security.AccessControl.InheritanceFlags.ContainerInherit | System.Security.AccessControl.InheritanceFlags.ObjectInherit,
+                    System.Security.AccessControl.PropagationFlags.None,
+                    System.Security.AccessControl.AccessControlType.Allow));
+            Directory.CreateDirectory(Path.GetDirectoryName(workDir));
+            Directory.CreateDirectory(workDir, acl);
+            workDirReady = true;
+        }
+
+        /// <summary>
+        /// Paquete de driver embebido, descomprimido en la carpeta de trabajo protegida: directamente desde el .exe
+        /// (sin copiar antes el zip a disco) y una sola vez por sesion (lo recuerda en memoria, no en disco).
         /// </summary>
         string ExtractPayload(string resource, string folder)
         {
+            lock (extracted) if (extracted.TryGetValue(resource, out var ready)) return ready;
+            SecureWorkDir();
             var dest = Path.Combine(workDir, folder);
-            var done = Path.Combine(dest, ".ok");
-            if (File.Exists(done)) return dest;
             if (Directory.Exists(dest)) Directory.Delete(dest, true);
             using (var s = typeof(MainForm).Assembly.GetManifestResourceStream(resource))
             {
                 if (s == null) throw new FileNotFoundException($"Esta compilación no incluye el paquete de driver '{resource}'. Colóquelo en Payload\\ y vuelva a compilar (ver Payload\\README.md).");
                 using (var zip = new ZipArchive(s, ZipArchiveMode.Read)) zip.ExtractToDirectory(dest);
             }
-            File.WriteAllText(done, "");
+            lock (extracted) extracted[resource] = dest;
             return dest;
         }
 

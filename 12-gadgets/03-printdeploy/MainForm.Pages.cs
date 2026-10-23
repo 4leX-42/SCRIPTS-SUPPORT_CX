@@ -307,8 +307,8 @@ namespace InstaladorImpresoras
                     var res = plan.Resource;
                     dirs[res] = await Task.Run(() => ExtractPayload(res, Path.GetFileNameWithoutExtension(res)));
                 }
+                SecureWorkDir();
                 var engine = Path.Combine(workDir, "engine.ps1");
-                Directory.CreateDirectory(workDir);
                 using (var s = typeof(MainForm).Assembly.GetManifestResourceStream("engine.ps1"))
                 using (var f = File.Create(engine)) s.CopyTo(f);
 
