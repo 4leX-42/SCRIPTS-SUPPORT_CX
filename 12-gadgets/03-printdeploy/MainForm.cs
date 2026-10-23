@@ -80,6 +80,12 @@ namespace InstaladorImpresoras
                 try { if (Directory.Exists(workDir)) Directory.Delete(workDir, true); } catch { }
             };
             ShowChooser();
+            // con la ventana ya pintada: precarga en segundo plano del catalogo de drivers y de los ojos del scanner
+            Shown += (s, e) => BeginInvoke((Action)(() =>
+            {
+                DriverCatalog.Warm();
+                Eyes.Warm(S(12), S(14), S(16));
+            }));
         }
 
         // ---------- ventana sin bordes: sombra, borde, arrastre ----------
@@ -180,7 +186,6 @@ namespace InstaladorImpresoras
         }
 
         ScannerForm scanner;
-        TentacleLink link;   // une las dos ventanas cuando el escaner se separa
         bool returnToScanner, onProgress, onChooser;
 
         void ShowScanner()
@@ -191,7 +196,7 @@ namespace InstaladorImpresoras
                 try { items = PrinterDirectory.Load(); }
                 catch (Exception ex) { Warn("Error al leer oficinas.txt (el escaneo de red sigue disponible):\n" + ex.Message); items = new List<OfficePrinter>(); }
                 scanner = new ScannerForm(items, InstallFromScan);
-                link = new TentacleLink(this, scanner);
+                new TentacleLink(this, scanner);   // se mantiene vivo con los eventos de las dos ventanas
             }
             if (!scanner.Visible)
             {
@@ -227,7 +232,7 @@ namespace InstaladorImpresoras
                 return;
             }
             var plan = DriverCatalog.Resolve(e.Brand, e.Result.Description);
-            var existing = GetPrinters().FirstOrDefault(p => p.Host == e.Ip);
+            var existing = await Task.Run(() => GetPrinters().FirstOrDefault(p => p.Host == e.Ip));
             var job = existing != null
                 ? new InstallJob { Kind = 'E', Name = existing.Name, Ip = e.Ip, Plan = plan }
                 : new InstallJob { Kind = 'N', Name = e.QueueName, Ip = e.Ip, Plan = plan };
@@ -272,6 +277,20 @@ namespace InstaladorImpresoras
             };
             Opacity = .82;
             presentAnim.Start();
+        }
+
+        int page;   // cambia con cada pantalla: lo que termine de cargar tarde para otra pantalla se descarta
+
+        /// <summary>
+        /// Vacia el cuerpo y libera los controles de la pantalla anterior (ventanas, temporizadores, suscripciones).
+        /// Se liberan despues del evento en curso: el boton que se ha pulsado puede ser uno de ellos.
+        /// </summary>
+        void ClearBody()
+        {
+            page++;
+            var old = body.Controls.Cast<Control>().ToArray();
+            body.Controls.Clear();
+            if (old.Length > 0) BeginInvoke((Action)(() => { foreach (var c in old) c.Dispose(); }));
         }
 
         void SetHeader(string tag, string title, string sub)
@@ -327,7 +346,7 @@ namespace InstaladorImpresoras
         // ================= inicio =================
         void ShowChooser()
         {
-            body.Controls.Clear();
+            ClearBody();
             AcceptButton = null;
             onProgress = false;
             onChooser = true;
@@ -361,7 +380,7 @@ namespace InstaladorImpresoras
         // ================= 03: progreso =================
         void ShowProgress(string tag, string title, string sub)
         {
-            body.Controls.Clear();
+            ClearBody();
             AcceptButton = null;
             SetHeader(tag, title, sub);
             summary.Clear();
@@ -482,8 +501,7 @@ namespace InstaladorImpresoras
             btnClose.Focus();
             lblStep.Text = ok ? "Instalación completada" : "Finalizado con errores";
             lblStep.ForeColor = ok ? Theme.Black : Theme.Red;
-            if (ok && installedPrinter != null && GetPrinters(connections: true).Any(p => p.Name.Equals(installedPrinter, StringComparison.OrdinalIgnoreCase)))
-                lnkQueue.Visible = lnkTest.Visible = true;
+            if (ok && installedPrinter != null) lnkQueue.Visible = lnkTest.Visible = true;   // ya verificada en el equipo
             SetHeader(hTag, ok ? "Completado" : "Revisión necesaria", ok ? "Volver: Esc · Salir: ✕" : "Detalle en el registro.");
             if (summary.Count > 0)
             {
@@ -496,19 +514,22 @@ namespace InstaladorImpresoras
             TopMost = false;
         }
 
+        /// <summary>
+        /// Paquete de driver embebido, descomprimido en la carpeta temporal de la sesion: directamente desde el .exe
+        /// (sin copiar antes el zip a disco) y una sola vez por sesion (marca .ok al terminar; si falta, se rehace).
+        /// </summary>
         string ExtractPayload(string resource, string folder)
         {
             var dest = Path.Combine(workDir, folder);
+            var done = Path.Combine(dest, ".ok");
+            if (File.Exists(done)) return dest;
             if (Directory.Exists(dest)) Directory.Delete(dest, true);
-            Directory.CreateDirectory(workDir);
-            var zip = Path.Combine(workDir, resource);
             using (var s = typeof(MainForm).Assembly.GetManifestResourceStream(resource))
             {
                 if (s == null) throw new FileNotFoundException($"Esta compilación no incluye el paquete de driver '{resource}'. Colóquelo en Payload\\ y vuelva a compilar (ver Payload\\README.md).");
-                using (var f = File.Create(zip)) s.CopyTo(f);
+                using (var zip = new ZipArchive(s, ZipArchiveMode.Read)) zip.ExtractToDirectory(dest);
             }
-            ZipFile.ExtractToDirectory(zip, dest);
-            File.Delete(zip);
+            File.WriteAllText(done, "");
             return dest;
         }
 
@@ -595,7 +616,7 @@ namespace InstaladorImpresoras
                 "Write-Output 'STEP|100|Finalizado'");
             var b64 = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
             int exit = await Task.Run(() => RunEngine($"-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {b64}"));
-            installedPrinter = unc;
+            installedPrinter = exit == 0 && await Task.Run(() => PrinterExists(unc)) ? unc : null;
             Finish(exit == 0, exit == 0 ? "La impresora aparece como \"" + unc.TrimStart('\\').Split('\\').Last() + " en " + unc.TrimStart('\\').Split('\\')[0] + "\"." : null);
         }
 

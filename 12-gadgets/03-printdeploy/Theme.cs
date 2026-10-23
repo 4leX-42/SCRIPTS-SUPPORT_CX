@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Text;
@@ -49,7 +50,18 @@ namespace InstaladorImpresoras
             return Math.Max(0.75f, Math.Min(scale, fit));
         }
         /// <summary>Tamaño en puntos a 96 ppp, escalado y en pixeles; nunca por debajo de 8,75 pt (legible a 100 % en 1080p).</summary>
-        static Font F(string family, float pt, FontStyle style = FontStyle.Regular) => new Font(family, Math.Max(pt, 8.75f) * 96f / 72f * Scale, style, GraphicsUnit.Pixel);
+        /// Compartidas: una sola instancia por familia, tamaño y estilo para toda la app (no se liberan).
+        static Font F(string family, float pt, FontStyle style = FontStyle.Regular)
+        {
+            var key = (family, pt, style);
+            lock (fonts)
+            {
+                if (!fonts.TryGetValue(key, out var f))
+                    fonts[key] = f = new Font(family, Math.Max(pt, 8.75f) * 96f / 72f * Scale, style, GraphicsUnit.Pixel);
+                return f;
+            }
+        }
+        static readonly Dictionary<(string, float, FontStyle), Font> fonts = new Dictionary<(string, float, FontStyle), Font>();
 
         /// <summary>
         /// Texto con ClearType aunque el equipo lo tenga desactivado o en escala de grises (RDP, perfiles nuevos):
@@ -57,8 +69,14 @@ namespace InstaladorImpresoras
         /// </summary>
         public static Graphics Crisp(Graphics g) { g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit; return g; }
 
-        static readonly string[] Installed = new InstalledFontCollection().Families.Select(f => f.Name).ToArray();
-        static string Pick(params string[] names) => names.FirstOrDefault(n => Installed.Contains(n)) ?? names.Last();
+        /// <summary>Primera familia instalada de la lista (prueba directa: no enumera todas las fuentes del sistema).</summary>
+        static string Pick(params string[] names)
+        {
+            foreach (var n in names)
+                try { using (new FontFamily(n)) return n; }
+                catch (ArgumentException) { }
+            return names.Last();
+        }
 
         // Segoe UI estatica en todos los equipos (Windows 10 y 11): la variable cambia de aspecto entre equipos y con
         // GDI se ve mas fina y lavada en tamaños pequeños.
@@ -460,7 +478,7 @@ namespace InstaladorImpresoras
         ScanState state = ScanState.Pending;
         public ScanState State { get => state; set { state = value; Invalidate(); } }
         readonly Font fMain = Theme.Sans(9.75f), fMono = Theme.Mono(8.75f), fHead = Theme.Strong(8f);
-        public CheckRow() { Cursor = Cursors.Hand; Height = S(40); Eyes.Attach(this); }
+        public CheckRow() { Cursor = Cursors.Hand; Height = S(40); Eyes.Attach(this, S(90)); }
         protected override void OnClick(EventArgs e) { if (!Header && Enabled) Checked = !Checked; base.OnClick(e); }
         protected override void OnPaint(PaintEventArgs e)
         {

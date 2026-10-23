@@ -21,15 +21,15 @@ namespace InstaladorImpresoras
         const double IgniteAt = 0.3, FlareDur = 1.2, MinGap = 8, MaxGap = 16, Apart = 0.4;
         const int Fps = 24, Frames = (int)(FlareDur * Fps);
         static readonly Stopwatch clock = Stopwatch.StartNew();
-        static readonly List<WeakReference<Control>> views = new List<WeakReference<Control>>();
+        static readonly List<(WeakReference<Control> view, int strip)> views = new List<(WeakReference<Control>, int)>();
         static readonly Dictionary<object, double> nextFlare = new Dictionary<object, double>();
         static readonly Random rnd = new Random();
         static Timer timer;
 
-        /// <summary>Repinta el control mientras alguna llama se mueve.</summary>
-        public static void Attach(Control c)
+        /// <summary>Repinta el control mientras alguna llama se mueve; 'strip' > 0: solo esa franja izquierda (la columna de los ojos).</summary>
+        public static void Attach(Control c, int strip = 0)
         {
-            views.Add(new WeakReference<Control>(c));
+            views.Add((new WeakReference<Control>(c), strip));
             if (timer == null)
             {
                 timer = new Timer { Interval = 1000 / Fps };
@@ -45,8 +45,10 @@ namespace InstaladorImpresoras
             timer.Interval = 1000 / Fps;
             for (int i = views.Count - 1; i >= 0; i--)
             {
-                if (!views[i].TryGetTarget(out var c) || c.IsDisposed) { views.RemoveAt(i); continue; }
-                if (c.Visible && c.IsHandleCreated) c.Invalidate();
+                if (!views[i].view.TryGetTarget(out var c) || c.IsDisposed) { views.RemoveAt(i); continue; }
+                if (!c.Visible || !c.IsHandleCreated) continue;
+                if (views[i].strip > 0) c.Invalidate(new Rectangle(0, 0, views[i].strip, c.Height));
+                else c.Invalidate();
             }
         }
 
@@ -133,8 +135,7 @@ namespace InstaladorImpresoras
 
         static void Draw(Graphics g, Rectangle r, Fire fire, int frame)
         {
-            var key = (fire, r.Width, frame);
-            if (!cache.TryGetValue(key, out var bmp)) cache[key] = bmp = Render(fire, r.Width, frame);
+            var bmp = Sprite(fire, r.Width, frame);
             g.DrawImageUnscaled(bmp, r.X + r.Width / 2 - bmp.Width / 2, r.Y + r.Height / 2 - bmp.Height / 2);
         }
 
@@ -143,6 +144,27 @@ namespace InstaladorImpresoras
         /// hendidura negra con filo al rojo blanco y nubes de fuego que suben alrededor. En la llamarada las nubes crecen
         /// y todo brilla mas. Transparente donde no hay fuego (se pinta sobre blanco o carbon).
         /// </summary>
+        /// <summary>Fotograma de la cache (lo pinta si falta). Seguro entre hilos: la precarga va en segundo plano.</summary>
+        static Bitmap Sprite(Fire fire, int size, int frame)
+        {
+            var key = (fire, size, frame);
+            lock (cache) if (cache.TryGetValue(key, out var hit)) return hit;
+            var bmp = Render(fire, size, frame);
+            lock (cache)
+            {
+                if (cache.TryGetValue(key, out var other)) { bmp.Dispose(); return other; }
+                return cache[key] = bmp;
+            }
+        }
+
+        /// <summary>Precarga en segundo plano los ojos en calma (los que se ven al abrir el scanner) para estos tamaños.</summary>
+        public static void Warm(params int[] sizes) => System.Threading.Tasks.Task.Run(() =>
+        {
+            foreach (var size in sizes)
+                foreach (var f in new[] { Fire.Green, Fire.Blue, Fire.Red, Fire.Gold, Fire.Ember })
+                    try { Sprite(f, size, -1); } catch { }
+        });
+
         static Bitmap Render(Fire f, int size, int frame)
         {
             int side = (int)Math.Ceiling(size * 2.1f) | 1, n = side * SS;

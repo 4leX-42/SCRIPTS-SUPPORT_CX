@@ -14,7 +14,7 @@ namespace InstaladorImpresoras
     {
         readonly BufferedPanel head = new BufferedPanel();
         readonly FlatBtn ok, cancel;
-        readonly string tag, title, text;
+        readonly string text;
         readonly Font fMark = Theme.Strong(8.25f), fTitle = Theme.Title(13f), fText = Theme.Sans(9.5f), fNote = Theme.Sans(9f);
         readonly LineField fUser, fPass;
         Rectangle textRect, noteRect;
@@ -25,7 +25,7 @@ namespace InstaladorImpresoras
 
         ThemedDialog(string tag, string title, string text, string okText, string cancelText, bool credentials)
         {
-            this.tag = tag; this.title = title; this.text = text;
+            this.text = text;
             FormBorderStyle = FormBorderStyle.None;
             AutoScaleMode = AutoScaleMode.None;
             ShowInTaskbar = false;

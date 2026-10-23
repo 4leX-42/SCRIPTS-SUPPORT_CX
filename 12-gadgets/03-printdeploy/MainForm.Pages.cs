@@ -44,6 +44,13 @@ namespace InstaladorImpresoras
             return list.OrderBy(p => p.IsConnection).ThenBy(p => p.Name).ToList();
         }
 
+        /// <summary>La cola existe en el equipo (local o conexion de servidor).</summary>
+        static bool PrinterExists(string name)
+        {
+            try { return GetPrinters(connections: true).Any(p => p.Name.Equals(name, StringComparison.OrdinalIgnoreCase)); }
+            catch { return false; }
+        }
+
         /// <summary>Impresoras instaladas en el equipo: IP del puerto o nombre de la conexion \\servidor\cola -> nombre de la cola.</summary>
         internal static Dictionary<string, string> InstalledMap()
         {
@@ -82,7 +89,7 @@ namespace InstaladorImpresoras
         // ================= 02: instalar por IP =================
         void ShowInstall()
         {
-            body.Controls.Clear();
+            ClearBody();
             onChooser = false;
             AcceptButton = null;
             SetHeader("Instalar", "Impresora por IP", "Detección de fabricante y modelo · driver más reciente disponible.");
@@ -158,7 +165,7 @@ namespace InstaladorImpresoras
                 var r = await NetworkScan.Check(addr, quick: false, CancellationToken.None);
                 var pl = r.State == ScanState.Printer ? await Task.Run(() => DriverCatalog.Resolve(r.Brand, r.Description)) : null;
                 var ex = await Task.Run(() => GetPrinters().FirstOrDefault(p => p.Host == addr));
-                if (id != detectId || IsDisposed) return;   // otra IP escrita mientras tanto
+                if (id != detectId || IsDisposed || card.IsDisposed) return;   // otra IP escrita mientras tanto, o se cambio de pantalla
                 busy = false; btnDetect.Scanning = false;
                 res = r; plan = pl; existing = ex;
                 btnGo.Enabled = plan != null;
@@ -178,7 +185,7 @@ namespace InstaladorImpresoras
             ip.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; debounce.Stop(); if (btnGo.Enabled) Go(); else Detect(); } };
             name.Box.KeyDown += (s, e) => { if (e.KeyCode == Keys.Enter && btnGo.Enabled) { e.SuppressKeyPress = true; Go(); } };
             btnDetect.Click += (s, e) => Detect();
-            body.Disposed += (s, e) => debounce.Dispose();
+            card.Disposed += (s, e) => debounce.Dispose();   // se libera con la pagina
 
             async void Go()
             {
@@ -205,14 +212,17 @@ namespace InstaladorImpresoras
         }
 
         // ================= 03: colas instaladas =================
-        void ShowQueues()
+        async void ShowQueues()
         {
-            body.Controls.Clear();
+            ClearBody();
+            int mine = page;
             onChooser = false;
             AcceptButton = null;
             SetHeader("Impresoras", "Impresoras instaladas", "Marcadas: reinstalar con el driver óptimo o quitar (cola, puerto y driver sin uso).");
 
-            var printers = GetPrinters(connections: true);
+            // WMI fuera del hilo de la interfaz (con colas de servidor caidas puede tardar segundos)
+            var printers = await Task.Run(() => GetPrinters(connections: true));
+            if (mine != page || IsDisposed) return;   // ya se cambio de pantalla
             var rowsList = new List<CheckRow>();
             int visibles = Math.Max(1, Math.Min(8, printers.Count));
             var list = new Panel { Dock = DockStyle.Top, Height = S(32 + visibles * 40), AutoScroll = true, BackColor = Theme.Paper };
@@ -318,11 +328,11 @@ namespace InstaladorImpresoras
             {
                 Log("ERR", ex.Message);
             }
-            DriverCatalog.Installed(refresh: true);
             bool ok = exit == 0;
             // una sola impresora instalada: su nombre real (si la IP ya tenia cola, el motor reinstala esa)
             if (ok && !removing && jobs.Count == 1)
-                installedPrinter = GetPrinters().FirstOrDefault(p => p.Host == jobs[0].Ip)?.Name ?? jobs[0].Name;
+                installedPrinter = await Task.Run(() => GetPrinters().FirstOrDefault(p => p.Host == jobs[0].Ip)?.Name);
+            await Task.Run(() => DriverCatalog.Installed(refresh: true));
             Finish(ok, ok && jobs.Any(j => j.Plan?.Brand == "Ricoh") ? "Bandeja bypass: Imprimir > Preferencias > Bandeja de entrada > \"Bandeja bypass\"." : null);
         }
     }
