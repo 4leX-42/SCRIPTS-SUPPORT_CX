@@ -18,9 +18,9 @@ Aplicación Windows (WinForms, .NET Framework 4.8) para desplegar y reparar impr
 - Sin permiso: **Instalar** pasa a **Credenciales**. Sesión `IPC$` con usuario del servidor (valida al momento) + credencial en el Administrador de credenciales de Windows; recomprueba las colas de ese servidor.
 - Nombre legible: `PROCESAL_DCH` + `C/ Mayor 1 Plt3 Derecha` → *Procesal Dcha · P3*. Nombres de fábrica (modelo, derivados de la MAC) ignorados.
 - Ubicación: oficina con una impresora en el mismo /24 que el equipo; si no, la del sitio de Active Directory. Esa oficina arriba y abierta; el resto plegadas al final.
-- Indicador: esfera negra con núcleo verde (online) o rojo (offline / sin impresión / cola inaccesible). Fila desplegable con IP, latencia, puertos, datos SNMP y acción de **Instalar**.
+- Indicador: ojo de fuego (estilo Ojo de Sauron) generado por píxel con ruido fractal 3D: verde = online, rojo = offline / sin impresión / cola inaccesible, dorado = comprobando, brasa gris = pendiente. Cada ojo aviva sus llamas cada 8-16 s al azar (llamarada de 1,2 s); fotogramas en caché, un solo temporizador.
 - **Instalar** (doble clic / Enter) cualquier impresora detectada, con el driver de *Elección de driver*. Si ya hay cola en esa IP, se reinstala. Cola de servidor: `Add-Printer -ConnectionName` (usuario actual) + `printui /ga` (todos los usuarios).
-- **Escanear** / `F5`: rango. **Recomprobar oficinas**: directorio. Botones con haz de escáner animado durante la comprobación.
+- **Escanear** / `F5`: rango. **Recomprobar oficinas**: directorio. Botón en relieve con el ojo del logo de Nmap en dorado (iris con retícula que gira, mira en cruz) y haz de faro de izquierda a derecha.
 
 **02 · Instalar por IP** (cualquier marca)
 
@@ -28,7 +28,7 @@ Aplicación Windows (WinForms, .NET Framework 4.8) para desplegar y reparar impr
 - Muestra el driver elegido (versión y origen) y si la IP ya tiene cola (se reinstala esa, sin duplicar).
 - **Asistente Canon** (instalador oficial) disponible si la impresora es Canon; corre aparte y cerrarlo no cierra PrintDeploy.
 
-**03 · Colas instaladas**
+**03 · Impresoras instaladas**
 
 - Todas las colas de red del equipo, con indicador verde / rojo (la IP del puerto responde como impresora; colas de servidor: la cola se abre).
 - **Reinstalar**: modelo por la IP de cada cola (si no responde, por su driver / nombre actual) y driver óptimo. Conserva nombre, puerto, predeterminada, compartida, ubicación y comentario.
@@ -48,8 +48,10 @@ Aplicación Windows (WinForms, .NET Framework 4.8) para desplegar y reparar impr
 **General**
 
 - Portátil: un solo `PrintDeploy.exe` (drivers y directorio embebidos; .NET Framework 4.8 incluido en Windows 10/11). Funciona desde USB o carpeta de red.
+- Escala: toda la interfaz (medidas y fuentes) sigue el escalado de Windows con la misma proporción; se reduce si la pantalla es pequeña. `PRINTDEPLOY_SCALE` la fuerza.
 - Teclas: `1` escáner · `2` instalar · `3` colas · `F5` reescanear · `Esc` volver / salir.
 - Al terminar una instalación, **Volver** regresa al inicio o al escáner; la app no se cierra.
+- Icono de abrir junto al de impresora: menú con las impresoras instaladas; clic = su cola de impresión, submenú = propiedades / preferencias (`printui`).
 - Icono de impresora en las cabeceras → *Dispositivos e impresoras* (`shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}`).
 - Registro de cada ejecución en `%ProgramData%\PrintDeploy\Logs\`.
 
@@ -84,7 +86,10 @@ Sin ellos compila igualmente: el `.exe` avisa del paquete que falta y el directo
 | `RicohModels.cs` | Modelos Ricoh soportados, driver y paquete; universal de reserva |
 | `PrinterDirectory.cs` | Lectura de `oficinas.txt` |
 | `ThemedDialog.cs` | Avisos, confirmaciones y credenciales con el estilo de la app |
-| `Theme.cs` | Estilo (carbón, blanco, dorado; rojo solo para errores) y controles dibujados |
+| `Theme.cs` | Estilo (carbón, blanco, dorado; rojo solo para errores), escala única de interfaz y controles dibujados |
+| `NmapEye.cs` | Ojo del botón Escáner calcado del logo de Nmap (dorado): párpados rayados, iris con retícula que gira, mira |
+| `Organic.cs` | Ojos de fuego de estado (shader por píxel, caché de fotogramas, llamaradas al azar) |
+| `TentacleLink.cs` | Tentáculo cyberpunk (metal negro, vértebras y núcleo de energía dorados) que une la ventana principal y el escáner, abierto a su derecha (ventana por capas, sin clics) |
 | `engine.ps1` | Motor: instala, reinstala y quita colas de cualquier marca; lo lanza el `.exe` |
 
 ## Añadir un modelo Ricoh

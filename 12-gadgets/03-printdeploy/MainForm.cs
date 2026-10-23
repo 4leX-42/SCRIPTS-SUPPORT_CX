@@ -32,9 +32,11 @@ namespace InstaladorImpresoras
         ThinProgress progress;
         RichTextBox logBox;
         FlatBtn btnClose;
+        LinkBtn lnkQueue, lnkTest;     // tras instalar: cola de impresion y pagina de prueba
+        string installedPrinter;       // impresora que acaba de instalarse (para checkRow)
         readonly List<string> summary = new List<string>();
 
-        int S(int px) => (int)Math.Round(px * DeviceDpi / 96.0);
+        int S(int px) => Theme.S(px);
 
         public MainForm()
         {
@@ -104,7 +106,7 @@ namespace InstaladorImpresoras
             header.MouseDown += (s, e) => { if (e.Button == MouseButtons.Left) { ReleaseCapture(); SendMessage(Handle, 0xA1, 2, 0); } };
             header.Paint += (s, e) =>
             {
-                var g = e.Graphics;
+                var g = Theme.Crisp(e.Graphics);
                 int x = S(36);
                 if (hTag.Length == 0)
                 {
@@ -128,13 +130,13 @@ namespace InstaladorImpresoras
             {
                 lbl.Text = text;
                 lbl.Font = Theme.Sans(10f);
-                lbl.ForeColor = Color.FromArgb(205, 205, 207);
+                lbl.ForeColor = Color.FromArgb(222, 222, 224);
                 lbl.BackColor = Theme.Black;
                 lbl.TextAlign = ContentAlignment.MiddleCenter;
                 lbl.Size = new Size(S(46), S(34));
                 lbl.Cursor = Cursors.Hand;
                 lbl.MouseEnter += (s, e) => { lbl.BackColor = lbl == lblClose ? Theme.Red : Color.FromArgb(56, 56, 58); lbl.ForeColor = Theme.Paper; };
-                lbl.MouseLeave += (s, e) => { lbl.BackColor = Theme.Black; lbl.ForeColor = Color.FromArgb(205, 205, 207); };
+                lbl.MouseLeave += (s, e) => { lbl.BackColor = Theme.Black; lbl.ForeColor = Color.FromArgb(222, 222, 224); };
                 lbl.Click += (s, e) => act();
                 header.Controls.Add(lbl);
             }
@@ -142,6 +144,10 @@ namespace InstaladorImpresoras
             var lblPanel = new IconBtn(Theme.GlyphPrinter, "Dispositivos e impresoras") { Size = new Size(S(40), S(34)) };
             lblPanel.Click += (s, e) => Theme.OpenPrintersPanel();
             header.Controls.Add(lblPanel);
+            // acceso directo a una impresora instalada (cola / propiedades)
+            var lblOpen = new IconBtn(PrinterMenu.Glyph, "Abrir una impresora instalada") { Size = new Size(S(40), S(34)) };
+            lblOpen.Click += (s, e) => PrinterMenu.Show(lblOpen);
+            header.Controls.Add(lblOpen);
             // escaner de red: directorio de oficinas + busqueda por rango
             var btnDir = new FlatBtn("Escáner", primary: false) { Size = new Size(S(150), S(34)), OnDark = true, TabStop = false, Eye = true, SweepOnHover = true };
             Shown += (s, e) => btnDir.StartSweep();   // una pasada al abrir
@@ -153,6 +159,7 @@ namespace InstaladorImpresoras
                 lblClose.Location = new Point(header.Width - lblClose.Width - 1, 1);
                 lblMin.Location = new Point(lblClose.Left - lblMin.Width, 1);
                 lblPanel.Location = new Point(lblMin.Left - lblPanel.Width, 1);
+                lblOpen.Location = new Point(lblPanel.Left - lblOpen.Width, 1);
                 btnDir.Location = new Point(header.Width - btnDir.Width - S(36), S(58));
             };
         }
@@ -170,6 +177,7 @@ namespace InstaladorImpresoras
         }
 
         ScannerForm scanner;
+        TentacleLink link;   // une las dos ventanas cuando el escaner se separa
         bool returnToScanner, onProgress, onChooser;
 
         void ShowScanner()
@@ -180,14 +188,19 @@ namespace InstaladorImpresoras
                 try { items = PrinterDirectory.Load(); }
                 catch (Exception ex) { Warn("Error al leer oficinas.txt (el escaneo de red sigue disponible):\n" + ex.Message); items = new List<OfficePrinter>(); }
                 scanner = new ScannerForm(items, InstallFromScan);
+                link = new TentacleLink(this, scanner);
             }
             if (!scanner.Visible)
             {
-                // centrado sobre la ventana principal, sin salirse de la pantalla
+                // a la derecha de la ventana principal, sin taparla; si no cabe, se centra el conjunto en la pantalla
+                // (la principal se desplaza a la izquierda) y, en pantallas estrechas, se solapan lo minimo
                 var area = Screen.FromControl(this).WorkingArea;
-                scanner.Location = new Point(
-                    Math.Max(area.Left, Math.Min(area.Right - scanner.Width, Left + (Width - scanner.Width) / 2)),
-                    Math.Max(area.Top, Math.Min(area.Bottom - scanner.Height, Top + (Height - scanner.Height) / 2)));
+                // hueco para el tentaculo: hasta 150 px, menos si la pantalla no da
+                int gap = Math.Max(S(40), Math.Min(S(150), area.Width - Width - scanner.Width - S(24)));
+                if (Right + gap + scanner.Width > area.Right && WindowState == FormWindowState.Normal)
+                    Left = Math.Max(area.Left, area.Left + (area.Width - (Width + gap + scanner.Width)) / 2);
+                int top = Math.Max(area.Top, Math.Min(area.Bottom - scanner.Height, Top - (scanner.Height - Height) / 2));
+                scanner.Location = new Point(Math.Max(area.Left, Math.Min(area.Right - scanner.Width, Right + gap)), top);
                 scanner.Show(this);
             }
             scanner.Activate();
@@ -237,7 +250,7 @@ namespace InstaladorImpresoras
             var font = Theme.Strong(8.25f);
             p.Paint += (s, e) =>
             {
-                TextRenderer.DrawText(e.Graphics, Theme.Caps(text), font, new Point(0, 0), Theme.Muted, TextFormatFlags.NoPadding);
+                TextRenderer.DrawText(Theme.Crisp(e.Graphics), Theme.Caps(text), font, new Point(0, 0), Theme.Muted, TextFormatFlags.NoPadding);
                 using (var b = new SolidBrush(Theme.Line)) e.Graphics.FillRectangle(b, 0, S(24), p.Width, 1);
                 using (var b = new SolidBrush(Theme.GoldDeep)) e.Graphics.FillRectangle(b, 0, S(23), S(24), S(2));
             };
@@ -266,7 +279,7 @@ namespace InstaladorImpresoras
 
         Label Footer(string text) => new Label
         {
-            Text = text, Font = Theme.Sans(8f), ForeColor = Color.FromArgb(130, 130, 132),
+            Text = text, Font = Theme.Sans(8f), ForeColor = Theme.Muted,
             Dock = DockStyle.Bottom, Height = S(22), TextAlign = ContentAlignment.BottomLeft, AutoEllipsis = true,
         };
 
@@ -277,30 +290,28 @@ namespace InstaladorImpresoras
             AcceptButton = null;
             onProgress = false;
             onChooser = true;
-            SetHeader("", "", "Ricoh   ·   Canon   ·   HP   ·   colas de servidor");
+            SetHeader("", "", "Instalación de impresoras de red");
 
-            var grid = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, BackColor = Theme.Paper, Margin = Padding.Empty };
-            for (int i = 0; i < 3; i++) grid.RowStyles.Add(new RowStyle(SizeType.Percent, 33.3f));
-
-            var scan = new Card("01 — ESCÁNER", "Escanear e instalar",
-                "Directorio de oficinas y rango /24: ICMP, TCP 9100 / 631 / 515, SNMP. Instalación con el driver detectado.")
-            { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, S(16)) };
+            var scan = new Card("01", "Escáner", "Oficinas y red local: estado de cada impresora e instalación directa.");
+            var install = new Card("02", "Instalar por IP", "Cualquier marca. Modelo y driver detectados automáticamente.");
+            var queues = new Card("03", "Impresoras instaladas", "Estado, reinstalación y desinstalación.");
             scan.Click += (s, e) => ShowScanner();
-
-            var install = new Card("02 — INSTALAR", "Instalar por IP",
-                "Cualquier marca. Detecta fabricante y modelo (SNMP / IPP) y elige el driver más reciente: modelo exacto, universal de la marca o clase de Windows.")
-            { Dock = DockStyle.Fill, Margin = new Padding(0, 0, 0, S(16)) };
-            var queues = new Card("03 — COLAS", "Colas instaladas",
-                "Estado verde / rojo de cada cola de red. Reinstalar con el driver óptimo o quitar (cola, puerto y driver sin uso).")
-            { Dock = DockStyle.Fill, Margin = new Padding(0) };
             install.Click += (s, e) => { returnToScanner = false; ShowInstall(); };
             queues.Click += (s, e) => { returnToScanner = false; ShowQueues(); };
-            grid.Controls.Add(scan, 0, 0);
-            grid.Controls.Add(install, 0, 1);
-            grid.Controls.Add(queues, 0, 2);
-
-            body.Controls.Add(grid);
-            body.Controls.Add(Footer($"Teclas  1 escáner · 2 instalar · 3 colas · Esc salir      v{version}  ·  registro: {logPath}"));
+            // las tres entradas, con filete arriba, centradas en vertical en el espacio libre
+            var menu = new Panel { Dock = DockStyle.Fill, BackColor = Theme.Paper };
+            var rule = new Panel { Height = 1, BackColor = Theme.Line };
+            menu.Controls.Add(rule);
+            foreach (var c in new[] { scan, install, queues }) menu.Controls.Add(c);
+            menu.Layout += (s, e) =>
+            {
+                int rowH = Math.Min(S(112), (menu.ClientSize.Height - 1) / 3), y = Math.Max(0, (menu.ClientSize.Height - (3 * rowH + 1)) / 2);
+                rule.SetBounds(0, y, menu.ClientSize.Width, 1);
+                y += 1;
+                foreach (var c in new[] { scan, install, queues }) { c.SetBounds(0, y, menu.ClientSize.Width, rowH); y += rowH; }
+            };
+            body.Controls.Add(menu);
+            body.Controls.Add(Footer($"1  ·  2  ·  3  ·  Esc        v{version}"));
         }
 
         void Warn(string text) => ThemedDialog.Info(scanner != null && scanner.Visible ? (IWin32Window)scanner : this, "Aviso", "Revisar", text);
@@ -347,7 +358,33 @@ namespace InstaladorImpresoras
             body.Controls.Add(top);
             var spacer = Gap(BlockGap - 8); spacer.Dock = DockStyle.Bottom;
             body.Controls.Add(spacer);
-            body.Controls.Add(ButtonBar(btnClose, btnLog));
+            var bar = ButtonBar(btnClose, btnLog);
+            // comprobacion rapida de la impresora instalada: aparece al terminar bien, a la izquierda de la barra
+            installedPrinter = null;
+            lnkQueue = new LinkBtn("", "Cola de impresión") { Visible = false };
+            lnkTest = new LinkBtn("", "Página de prueba") { Visible = false };
+            lnkQueue.Click += (s, e) => PrintUi("/o", installedPrinter);
+            lnkTest.Click += (s, e) =>
+            {
+                PrintUi("/k", installedPrinter);
+                Log("OK", $"Página de prueba enviada a «{installedPrinter}»");
+            };
+            bar.Controls.Add(lnkQueue);
+            bar.Controls.Add(lnkTest);
+            bar.Layout += (s, e) =>
+            {
+                int y = bar.Height - S(42) + (S(42) - lnkQueue.Height) / 2;
+                lnkQueue.Location = new Point(0, y);
+                lnkTest.Location = new Point(lnkQueue.Right + S(20), y);
+            };
+            body.Controls.Add(bar);
+        }
+
+        /// <summary>printui sobre una impresora: /o cola de impresion, /k pagina de prueba.</summary>
+        static void PrintUi(string arg, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return;
+            try { Process.Start("rundll32.exe", $"printui.dll,PrintUIEntry {arg} /n \"{name}\""); } catch { }
         }
 
         /// <summary>Del resumen de una instalacion al inicio; si se lanzo desde el escaner, se reabre.</summary>
@@ -365,11 +402,11 @@ namespace InstaladorImpresoras
             string tag; Color tagColor, c;
             switch (kind)
             {
-                case "OK":   tag = "[ OK ] "; tagColor = Color.FromArgb(150, 150, 152); c = Theme.Paper; break;
+                case "OK":   tag = "[ OK ] "; tagColor = Color.FromArgb(184, 184, 188); c = Theme.Paper; break;
                 case "WARN": tag = "[ !! ] "; tagColor = Theme.Amber; c = Color.FromArgb(240, 220, 180); break;
                 case "ERR":  tag = "[ERR ] "; tagColor = Theme.RedOnDark; c = Color.FromArgb(255, 200, 205); break;
                 case "STEP": tag = "▌ ";      tagColor = Theme.Gold; c = Theme.Paper; break;
-                default:     tag = "       "; tagColor = c = Color.FromArgb(170, 170, 172); break;
+                default:     tag = "       "; tagColor = c = Color.FromArgb(200, 200, 204); break;
             }
             if (kind == "STEP" && logBox.TextLength > 0) logBox.AppendText("\n");
             int start = logBox.TextLength;
@@ -407,6 +444,8 @@ namespace InstaladorImpresoras
             btnClose.Focus();
             lblStep.Text = ok ? "Instalación completada" : "Finalizado con errores";
             lblStep.ForeColor = ok ? Theme.Black : Theme.Red;
+            if (ok && installedPrinter != null && GetPrinters(connections: true).Any(p => p.Name.Equals(installedPrinter, StringComparison.OrdinalIgnoreCase)))
+                lnkQueue.Visible = lnkTest.Visible = true;
             SetHeader(hTag, ok ? "Completado" : "Revisión necesaria", ok ? "Volver: Esc · Salir: ✕" : "Detalle en el registro.");
             if (summary.Count > 0)
             {
@@ -518,6 +557,7 @@ namespace InstaladorImpresoras
                 "Write-Output 'STEP|100|Finalizado'");
             var b64 = Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
             int exit = await Task.Run(() => RunEngine($"-NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand {b64}"));
+            installedPrinter = unc;
             Finish(exit == 0, exit == 0 ? "La impresora aparece como \"" + unc.TrimStart('\\').Split('\\').Last() + " en " + unc.TrimStart('\\').Split('\\')[0] + "\"." : null);
         }
 

@@ -13,32 +13,63 @@ namespace InstaladorImpresoras
     /// </summary>
     static class Theme
     {
-        public static readonly Color Black = Color.FromArgb(30, 30, 32);   // carbon, no negro puro (legibilidad)
+        public static readonly Color Black = Color.FromArgb(22, 22, 24);   // carbon, no negro puro (legibilidad)
         public static readonly Color Ink = Color.FromArgb(24, 24, 26);
         public static readonly Color Gold = Color.FromArgb(201, 169, 110);       // acento sobre carbon
-        public static readonly Color GoldDeep = Color.FromArgb(146, 114, 56);    // acento sobre blanco (texto y filetes)
+        public static readonly Color GoldDeep = Color.FromArgb(112, 84, 30);    // acento sobre blanco (texto y filetes)
         public static readonly Color Red = Color.FromArgb(200, 16, 46);
         public static readonly Color RedOnDark = Color.FromArgb(240, 72, 92);   // texto rojo sobre fondo carbon
         public static readonly Color Paper = Color.White;
-        public static readonly Color Muted = Color.FromArgb(100, 100, 102);
+        public static readonly Color Muted = Color.FromArgb(56, 56, 60);
         public static readonly Color Line = Color.FromArgb(222, 222, 222);
         public static readonly Color Hover = Color.FromArgb(247, 247, 247);
         public static readonly Color Green = Color.FromArgb(40, 200, 110);   // nucleo del indicador online
         public static readonly Color Amber = Color.FromArgb(214, 150, 40);
-        public static readonly Color HeadSub = Color.FromArgb(150, 150, 152);    // texto secundario sobre carbon
+        public static readonly Color HeadSub = Color.FromArgb(184, 184, 188);    // texto secundario sobre carbon
+
+        /// <summary>
+        /// Escala unica de toda la interfaz (medidas y fuentes): DPI del sistema / 96, reducida si la ventana
+        /// principal no cabe en la pantalla. Fuentes en pixeles con la misma escala: el texto y los controles
+        /// guardan siempre la misma proporcion, sea cual sea el escalado de Windows del equipo.
+        /// PRINTDEPLOY_SCALE (p. ej. 1.5) la fuerza.
+        /// </summary>
+        public static readonly float Scale = InitScale();
+        public static int S(int px) => (int)Math.Round(px * Scale);
+        static float InitScale()
+        {
+            if (float.TryParse(Environment.GetEnvironmentVariable("PRINTDEPLOY_SCALE"), System.Globalization.NumberStyles.Float,
+                    System.Globalization.CultureInfo.InvariantCulture, out var forced) && forced >= 0.5f && forced <= 4f)
+                return forced;
+            float dpi = 96f;
+            try { using (var g = Graphics.FromHwnd(IntPtr.Zero)) dpi = g.DpiX; } catch { }
+            float scale = dpi / 96f;
+            var area = Screen.PrimaryScreen.WorkingArea;
+            // ventana principal 780 x 660 + margen
+            float fit = Math.Min(area.Width / 820f, area.Height / 700f);
+            return Math.Max(0.75f, Math.Min(scale, fit));
+        }
+        /// <summary>Tamaño en puntos a 96 ppp, escalado y en pixeles; nunca por debajo de 8,75 pt (legible a 100 % en 1080p).</summary>
+        static Font F(string family, float pt, FontStyle style = FontStyle.Regular) => new Font(family, Math.Max(pt, 8.75f) * 96f / 72f * Scale, style, GraphicsUnit.Pixel);
+
+        /// <summary>
+        /// Texto con ClearType aunque el equipo lo tenga desactivado o en escala de grises (RDP, perfiles nuevos):
+        /// TextRenderer toma la calidad de la fuente de la pista de la Graphics. Devuelve la misma Graphics.
+        /// </summary>
+        public static Graphics Crisp(Graphics g) { g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit; return g; }
 
         static readonly string[] Installed = new InstalledFontCollection().Families.Select(f => f.Name).ToArray();
         static string Pick(params string[] names) => names.FirstOrDefault(n => Installed.Contains(n)) ?? names.Last();
 
-        // Windows 11 trae Segoe UI Variable (optica de titulo y de texto); Windows 10, Segoe UI.
-        static readonly string DisplayFamily = Pick("Segoe UI Variable Display Semib", "Segoe UI Semibold");
-        static readonly string TextFamily = Pick("Segoe UI Variable Text", "Segoe UI");
-        static readonly string StrongFamily = Pick("Segoe UI Variable Text Semibold", "Segoe UI Semibold");
-        static readonly string MonoFamily = Pick("Cascadia Mono", "Cascadia Code", "Consolas");
+        // Segoe UI estatica en todos los equipos (Windows 10 y 11): la variable cambia de aspecto entre equipos y con
+        // GDI se ve mas fina y lavada en tamaños pequeños.
+        static readonly string DisplayFamily = Pick("Segoe UI Semibold", "Segoe UI");
+        static readonly string TextFamily = "Segoe UI";
+        static readonly string StrongFamily = Pick("Segoe UI Semibold", "Segoe UI");
+        static readonly string MonoFamily = "Consolas";
         static readonly string IconFamily = Pick("Segoe Fluent Icons", "Segoe MDL2 Assets");
 
         /// <summary>Iconos del sistema (Segoe Fluent Icons en Windows 11, MDL2 en Windows 10).</summary>
-        public static Font Icon(float size) => new Font(IconFamily, size);
+        public static Font Icon(float size) => F(IconFamily, size);
         public const string GlyphPrinter = "";
 
         /// <summary>Panel clasico "Dispositivos e impresoras".</summary>
@@ -47,18 +78,18 @@ namespace InstaladorImpresoras
             try { System.Diagnostics.Process.Start("explorer.exe", "shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}"); } catch { }
         }
 
-        static readonly string LightFamily = Pick("Segoe UI Variable Display Light", "Segoe UI Variable Display Semil", "Segoe UI Light");
+        static readonly string LightFamily = Pick("Segoe UI Light", "Segoe UI");
         /// <summary>Trazo fino: solo la marca de la pantalla de inicio.</summary>
-        public static Font Light(float size) => new Font(LightFamily, size);
+        public static Font Light(float size) => F(LightFamily, size);
 
         /// <summary>Titulos (cabecera, tarjetas, paso actual).</summary>
-        public static Font Title(float size) => new Font(DisplayFamily, size);
+        public static Font Title(float size) => F(DisplayFamily, size);
         /// <summary>Texto normal.</summary>
-        public static Font Sans(float size, FontStyle style = FontStyle.Regular) => new Font(TextFamily, size, style);
+        public static Font Sans(float size, FontStyle style = FontStyle.Regular) => F(TextFamily, size, style);
         /// <summary>Etiquetas, botones, encabezados de tabla.</summary>
-        public static Font Strong(float size) => new Font(StrongFamily, size);
+        public static Font Strong(float size) => F(StrongFamily, size);
         /// <summary>Solo datos: IP, nombres de driver, registro.</summary>
-        public static Font Mono(float size, FontStyle style = FontStyle.Regular) => new Font(MonoFamily, size, style);
+        public static Font Mono(float size, FontStyle style = FontStyle.Regular) => F(MonoFamily, size, style);
 
         /// <summary>
         /// Marca de cabecera: rombo dorado pequeño + "PRINTDEPLOY · SECCION" en dorado, sin degradados.
@@ -78,60 +109,6 @@ namespace InstaladorImpresoras
             return x + TextRenderer.MeasureText(text, font).Width - at.X;
         }
 
-        /// <summary>
-        /// Indicador de estado: esfera negra con volumen (luz arriba a la izquierda) y un nucleo luminoso
-        /// verde (online) o rojo (offline). Pendiente = nucleo apagado; comprobando = nucleo dorado tenue.
-        /// </summary>
-        public static void DrawOrb(Graphics g, Rectangle r, Color? core, bool dim = false)
-        {
-            var old = g.SmoothingMode;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            // sombra de contacto
-            using (var b = new SolidBrush(Color.FromArgb(28, 0, 0, 0)))
-                g.FillEllipse(b, r.X + r.Width * .12f, r.Bottom - r.Height * .08f, r.Width * .76f, r.Height * .18f);
-            // cuerpo negro
-            using (var path = new GraphicsPath())
-            {
-                path.AddEllipse(r);
-                using (var b = new PathGradientBrush(path))
-                {
-                    b.CenterPoint = new PointF(r.X + r.Width * .34f, r.Y + r.Height * .28f);
-                    b.CenterColor = Color.FromArgb(92, 92, 96);
-                    b.SurroundColors = new[] { Color.FromArgb(8, 8, 10) };
-                    g.FillPath(b, path);
-                }
-            }
-            // nucleo: halo + punto con brillo propio
-            float cd = r.Width * .46f;
-            var c = core ?? Color.FromArgb(70, 70, 74);
-            var cr = new RectangleF(r.X + (r.Width - cd) / 2, r.Y + (r.Height - cd) / 2, cd, cd);
-            if (core != null && !dim)
-            {
-                float hd = r.Width * .78f;
-                using (var path = new GraphicsPath())
-                {
-                    path.AddEllipse(r.X + (r.Width - hd) / 2, r.Y + (r.Height - hd) / 2, hd, hd);
-                    using (var b = new PathGradientBrush(path) { CenterColor = Color.FromArgb(110, c), SurroundColors = new[] { Color.FromArgb(0, c) } })
-                        g.FillPath(b, path);
-                }
-            }
-            using (var path = new GraphicsPath())
-            {
-                path.AddEllipse(cr);
-                using (var b = new PathGradientBrush(path))
-                {
-                    b.CenterPoint = new PointF(cr.X + cr.Width * .4f, cr.Y + cr.Height * .35f);
-                    b.CenterColor = dim || core == null ? c : Mix(c, Color.White, .55f);
-                    b.SurroundColors = new[] { dim ? Color.FromArgb(140, c) : c };
-                    g.FillPath(b, path);
-                }
-            }
-            // reflejo sobre el cristal
-            using (var b = new SolidBrush(Color.FromArgb(70, 255, 255, 255)))
-                g.FillEllipse(b, r.X + r.Width * .22f, r.Y + r.Height * .12f, r.Width * .32f, r.Height * .18f);
-            g.SmoothingMode = old;
-        }
-
         public static Color Mix(Color a, Color b, float t) =>
             Color.FromArgb((int)(a.R + (b.R - a.R) * t), (int)(a.G + (b.G - a.G) * t), (int)(a.B + (b.B - a.B) * t));
 
@@ -148,7 +125,7 @@ namespace InstaladorImpresoras
             BackColor = Theme.Paper;
         }
         protected bool hover;
-        protected int S(int px) => (int)Math.Round(px * DeviceDpi / 96.0);
+        protected int S(int px) => Theme.S(px);
         protected override void OnMouseEnter(EventArgs e) { hover = true; Invalidate(); base.OnMouseEnter(e); }
         protected override void OnMouseLeave(EventArgs e) { hover = false; Invalidate(); base.OnMouseLeave(e); }
         protected override void OnEnabledChanged(EventArgs e) { Invalidate(); base.OnEnabledChanged(e); }
@@ -171,13 +148,13 @@ namespace InstaladorImpresoras
         {
             Text = glyph;
             Font = icon ? Theme.Icon(size) : Theme.Sans(size);
-            ForeColor = Color.FromArgb(205, 205, 207);
+            ForeColor = Color.FromArgb(222, 222, 224);
             BackColor = Theme.Black;
             TextAlign = ContentAlignment.MiddleCenter;
             Cursor = Cursors.Hand;
             if (tip != null) tips.SetToolTip(this, tip);
             MouseEnter += (s, e) => { BackColor = HoverBack; ForeColor = Theme.Paper; };
-            MouseLeave += (s, e) => { BackColor = Theme.Black; ForeColor = Color.FromArgb(205, 205, 207); };
+            MouseLeave += (s, e) => { BackColor = Theme.Black; ForeColor = Color.FromArgb(222, 222, 224); };
         }
     }
 
@@ -188,16 +165,24 @@ namespace InstaladorImpresoras
         /// <summary>Variante para la cabecera oscura: contorno gris, dorado al pasar.</summary>
         public bool OnDark { get; set; }
         readonly Font font = Theme.Title(9.5f);
-        public FlatBtn(string text, bool primary) { Text = text; Primary = primary; Cursor = Cursors.Hand; Height = 40; Width = 150; TabStop = true; }
+        bool pressed;
+        public FlatBtn(string text, bool primary) { Text = text; Primary = primary; Cursor = Cursors.Hand; Height = S(40); Width = S(150); TabStop = true; }
+
+        protected override void OnMouseDown(MouseEventArgs e) { pressed = true; Invalidate(); base.OnMouseDown(e); }
+        protected override void OnMouseUp(MouseEventArgs e) { pressed = false; Invalidate(); base.OnMouseUp(e); }
 
         /// <summary>
         /// Estilo Borderlands 2: esquinas opuestas cortadas, contorno grueso, sombreado plano en dos tonos
         /// (cel shading) y un filete interior. Al pasar el raton se rellena de dorado.
+        /// Con ojo (Escaner, Escanear, Comprobar): tecla en relieve con canto, degradado y brillo; se hunde al pulsar.
         /// </summary>
         protected override void OnPaint(PaintEventArgs e)
         {
-            var g = e.Graphics;
-            int w = Width - 1, h = Height - 1, c = Math.Min(S(9), h / 3);
+            var g = Theme.Crisp(e.Graphics);
+            bool relief = Eye && Enabled;
+            int depth = relief ? (pressed ? S(1) : S(4)) : 0;
+            int w = Width - 1, h = Height - 1 - (relief ? S(4) : 0), c = Math.Min(S(9), h / 3);
+            int top = relief ? S(4) - depth : 0;   // al pulsar la cara baja hasta el canto
             Color bg, fg, border, inner;
             if (!Enabled) { bg = Theme.Hover; fg = Theme.Line; border = Theme.Line; inner = Color.Empty; }
             else if (OnDark) { bg = hover ? Theme.Gold : Theme.Black; fg = hover ? Theme.Ink : Theme.Gold; border = Theme.Gold; inner = hover ? Color.Empty : Color.FromArgb(70, Theme.Gold); }
@@ -205,57 +190,89 @@ namespace InstaladorImpresoras
             else { bg = hover ? Theme.Ink : Theme.Paper; fg = hover ? Theme.Gold : Theme.Black; border = Theme.Ink; inner = hover ? Color.FromArgb(110, Theme.Gold) : Color.Empty; }
 
             g.Clear(Parent?.BackColor ?? Theme.Paper);
-            Point[] Shape(int i) => new[] { new Point(c + i, i), new Point(w - i, i), new Point(w - i, h - c - i), new Point(w - c - i, h - i), new Point(i, h - i), new Point(i, c + i) };
-            using (var path = new GraphicsPath())
-            {
-                path.AddPolygon(Shape(0));
-                using (var b = new SolidBrush(bg)) g.FillPath(b, path);
-                // cel shading: franja inferior un tono mas oscura, corte duro
-                g.SetClip(path);
-                using (var b = new SolidBrush(Theme.Mix(bg, Color.Black, Enabled ? .14f : .03f))) g.FillRectangle(b, 0, (int)(h * .62), Width, Height);
-                g.ResetClip();
-            }
+            faceBg = bg;
+            Point[] Shape(int i, int y0) => new[] { new Point(c + i, y0 + i), new Point(w - i, y0 + i), new Point(w - i, y0 + h - c - i), new Point(w - c - i, y0 + h - i), new Point(i, y0 + h - i), new Point(i, y0 + c + i) };
             var old = g.SmoothingMode;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            if (sweep >= 0 && Enabled) DrawBeam(g, Shape(0), w, h, bg);
-            if (inner != Color.Empty) using (var p = new Pen(inner, 1)) g.DrawPolygon(p, Shape(S(4)));
-            using (var p = new Pen(border, Enabled ? Math.Max(2, S(2)) : 1) { LineJoin = LineJoin.Miter }) g.DrawPolygon(p, Shape(Enabled ? 1 : 0));
+            if (relief)
+            {
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                // sombra de contacto y canto (la parte de la tecla que asoma por debajo)
+                using (var b = new SolidBrush(Color.FromArgb(OnDark ? 120 : 45, 0, 0, 0))) g.FillPolygon(b, Shape(S(2), top + depth + S(1)));
+                using (var b = new SolidBrush(Theme.Mix(border, Color.Black, .55f))) g.FillPolygon(b, Shape(0, top + depth));
+                // cara: degradado vertical (luz arriba) + brillo en la mitad superior
+                using (var path = new GraphicsPath())
+                {
+                    path.AddPolygon(Shape(0, top));
+                    using (var b = new LinearGradientBrush(new Rectangle(0, top - 1, Width, h + 2), Theme.Mix(bg, Color.White, .16f), Theme.Mix(bg, Color.Black, .22f), LinearGradientMode.Vertical))
+                        g.FillPath(b, path);
+                    g.SetClip(path);
+                    using (var b = new LinearGradientBrush(new Rectangle(0, top - 1, Width, h / 2 + 2), Color.FromArgb(44, 255, 255, 255), Color.FromArgb(0, 255, 255, 255), LinearGradientMode.Vertical) { WrapMode = WrapMode.TileFlipXY })
+                        g.FillRectangle(b, 0, top, Width, h / 2);
+                    if (sweep >= 0 && sweep <= 1) DrawBeam(g, w, h, top, bg);
+                    g.ResetClip();
+                }
+                // bisel: filo claro arriba, contorno
+                using (var p = new Pen(Color.FromArgb(hover ? 120 : 80, 255, 255, 255), 1)) g.DrawLine(p, c + S(2), top + S(2), w - S(2), top + S(2));
+                using (var p = new Pen(border, Math.Max(2, S(2))) { LineJoin = LineJoin.Miter }) g.DrawPolygon(p, Shape(1, top));
+            }
+            else
+            {
+                using (var path = new GraphicsPath())
+                {
+                    path.AddPolygon(Shape(0, 0));
+                    using (var b = new SolidBrush(bg)) g.FillPath(b, path);
+                    // cel shading: franja inferior un tono mas oscura, corte duro
+                    g.SetClip(path);
+                    using (var b = new SolidBrush(Theme.Mix(bg, Color.Black, Enabled ? .14f : .03f))) g.FillRectangle(b, 0, (int)(h * .62), Width, Height);
+                    g.ResetClip();
+                }
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                if (inner != Color.Empty) using (var p = new Pen(inner, 1)) g.DrawPolygon(p, Shape(S(4), 0));
+                using (var p = new Pen(border, Enabled ? Math.Max(2, S(2)) : 1) { LineJoin = LineJoin.Miter }) g.DrawPolygon(p, Shape(Enabled ? 1 : 0, 0));
+            }
             g.SmoothingMode = old;
             var caption = Theme.Caps(base.Text);
-            if (Eye && Enabled)
+            var face = new Rectangle(0, top, Width, h);
+            if (relief)
             {
                 // ojo + texto, centrados juntos
-                int ew = S(20), eh = S(12), gap = S(9);
+                int ew = S(34), eh = S(19), gap = S(8);
                 int tw = TextRenderer.MeasureText(g, caption, font, Size.Empty, TextFormatFlags.NoPadding).Width;
                 int x0 = (Width - (ew + gap + tw)) / 2;
-                DrawEye(g, new Rectangle(x0, (Height - eh) / 2, ew, eh), fg);
-                Draw(g, caption, font, new Rectangle(x0 + ew + gap, 0, tw + S(4), Height), fg, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+                lamp = new PointF(x0 + ew / 2f, top + h / 2f);
+                DrawEye(g, new Rectangle(x0, top + (h - eh) / 2, ew, eh), fg);
+                var tr = new Rectangle(x0 + ew + gap, top, tw + S(4), h);
+                var tf = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding;
+                Draw(g, caption, font, tr, fg, tf);
+                if (sweep >= 0 && sweep <= 1) LightText(g, caption, tr, fg, tf);
             }
-            else Draw(g, caption, font, ClientRectangle, fg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            else Draw(g, caption, font, face, fg, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
             // foco: marca triangular en la esquina libre
             if (Focused && Enabled)
                 using (var b = new SolidBrush(hover ? Theme.Ink : Theme.Gold))
-                    g.FillPolygon(b, new[] { new Point(w - S(10), S(3)), new Point(w - S(3), S(3)), new Point(w - S(3), S(10)) });
+                    g.FillPolygon(b, new[] { new Point(w - S(10), top + S(3)), new Point(w - S(3), top + S(3)), new Point(w - S(3), top + S(10)) });
         }
         protected override void OnKeyDown(KeyEventArgs e) { if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space) OnClick(EventArgs.Empty); base.OnKeyDown(e); }
         protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
         protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
 
-        // ---------- haz de escaner: una linea de luz que barre el boton de izquierda a derecha ----------
+        // ---------- faro: el haz gira alrededor del ojo como la luz de un faro vista desde la playa ----------
         System.Windows.Forms.Timer anim;
         readonly System.Diagnostics.Stopwatch clock = new System.Diagnostics.Stopwatch();
-        float sweep = -1;          // 0..1 posicion del haz; -1 = sin haz
+        float sweep = -1;          // 0..1 dentro de una vuelta; -1 = apagado
         bool scanning;
-        const float SweepMs = 1100f, LoopMs = 1500f;
+        PointF lamp;               // centro del ojo = foco del faro
+        Color faceBg;              // color de la cara (el ojo se tiñe con el)
+        const float TurnMs = 2400f;
 
-        /// <summary>Barrido continuo mientras dura un escaneo.</summary>
+        /// <summary>Faro girando sin parar mientras dura un escaneo.</summary>
         public bool Scanning
         {
             get => scanning;
             set { if (scanning == value) return; scanning = value; if (value) StartSweep(); }
         }
 
-        /// <summary>Una pasada del haz al entrar el raton.</summary>
+        /// <summary>Una vuelta del faro al entrar el raton.</summary>
         public bool SweepOnHover { get; set; }
 
         protected override void OnMouseEnter(EventArgs e)
@@ -264,21 +281,22 @@ namespace InstaladorImpresoras
             base.OnMouseEnter(e);
         }
 
-        /// <summary>Lanza una pasada (o el bucle si Scanning).</summary>
+        /// <summary>Lanza una vuelta (o el giro continuo si Scanning).</summary>
         public void StartSweep()
         {
             if (anim == null)
             {
-                anim = new System.Windows.Forms.Timer { Interval = 15 };
+                anim = new System.Windows.Forms.Timer { Interval = 16 };
                 anim.Tick += (s, e) =>
                 {
-                    float t = clock.ElapsedMilliseconds;
-                    if (scanning) sweep = t % LoopMs / SweepMs;            // bucle con una pausa breve entre pasadas
-                    else sweep = t / SweepMs;
-                    if (sweep > 1) { if (scanning) sweep = 2; else { sweep = -1; anim.Stop(); } }
+                    float t = clock.ElapsedMilliseconds / TurnMs;
+                    if (scanning) sweep = t % 1f;
+                    else if (t <= 1) sweep = t;
+                    else { sweep = -1; anim.Stop(); }
                     Invalidate();
                 };
             }
+            if (sweep >= 0 && anim.Enabled) return;   // ya girando: sin saltos
             clock.Restart();
             sweep = 0;
             anim.Start();
@@ -286,90 +304,145 @@ namespace InstaladorImpresoras
 
         protected override void Dispose(bool disposing) { if (disposing) anim?.Dispose(); base.Dispose(disposing); }
 
-        /// <summary>Icono de ojo delante del texto; la pupila sigue al haz mientras escanea.</summary>
+        /// <summary>Angulo del haz: empieza de espaldas (detras), barre a la izquierda, destella de frente y sigue hacia la derecha.</summary>
+        double Angle => sweep < 0 ? Math.PI / 2 : -Math.PI / 2 - sweep * Math.PI * 2;
+        /// <summary>Encendido suave al empezar y al acabar una vuelta suelta.</summary>
+        float Envelope => scanning ? 1f : (float)Math.Pow(Math.Sin(Math.PI * Math.Max(0, Math.Min(1, sweep))), .5);
+
+        /// <summary>Icono de ojo delante del texto (estilo Nmap); el iris sigue al haz.</summary>
         public bool Eye { get; set; }
 
+        /// <summary>Ojo del logo de Nmap (NmapEye) con resplandor cuando el faro mira de frente.</summary>
         void DrawEye(Graphics g, Rectangle r, Color c)
         {
             var old = g.SmoothingMode;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             float cx = r.X + r.Width / 2f, cy = r.Y + r.Height / 2f;
-            using (var path = new GraphicsPath())
-            {
-                // contorno almendrado: dos curvas entre los lagrimales
-                path.AddBezier(r.Left, cy, r.Left + r.Width * .25f, r.Top - r.Height * .15f, r.Right - r.Width * .25f, r.Top - r.Height * .15f, r.Right, cy);
-                path.AddBezier(r.Right, cy, r.Right - r.Width * .25f, r.Bottom + r.Height * .15f, r.Left + r.Width * .25f, r.Bottom + r.Height * .15f, r.Left, cy);
-                path.CloseFigure();
-                using (var p = new Pen(c, Math.Max(1.4f, S(2) * .8f))) g.DrawPath(p, path);
-                // pupila: mira de lado a lado con el haz (en reposo, al centro)
-                float look = sweep >= 0 && sweep <= 1 ? (float)Math.Sin((sweep * 2 - 1) * Math.PI / 2) : 0;
-                float ir = r.Height * .32f, px = cx + look * (r.Width / 2f - ir * .55f);
-                var oldClip = g.Clip;
-                g.SetClip(path, CombineMode.Intersect);
-                using (var p = new Pen(c, Math.Max(1f, S(1)))) g.DrawEllipse(p, px - ir, cy - ir, ir * 2, ir * 2);
-                using (var b = new SolidBrush(c)) g.FillEllipse(b, px - ir * .5f, cy - ir * .5f, ir, ir);
-                g.Clip = oldClip;
-            }
+            bool on = sweep >= 0 && sweep <= 1;
+            float front = on ? (float)Math.Max(0, Math.Sin(Angle)) * Envelope : 0;   // 1 = el haz apunta hacia quien mira
+            if (front > .01f)
+                using (var glow = new GraphicsPath())
+                {
+                    float gr = r.Width * (.6f + .9f * front);
+                    glow.AddEllipse(cx - gr, cy - gr, gr * 2, gr * 2);
+                    var lc = Theme.Mix(c, Color.White, .5f);
+                    using (var b = new PathGradientBrush(glow) { CenterColor = Color.FromArgb((int)(190 * front * front), lc), SurroundColors = new[] { Color.FromArgb(0, lc) } })
+                        g.FillPath(b, glow);
+                }
+            // ojo del logo de Nmap: la pupila mira hacia el haz y el globo del iris gira con el faro
+            float look = on ? (float)Math.Cos(Angle) * Envelope : 0;
+            NmapEye.Draw(g, r, look, on ? Angle : .3, c, faceBg);
             g.SmoothingMode = old;
         }
 
-        /// <summary>Haz dorado con estela suave, recortado a la forma del boton (sobre dorado, haz claro).</summary>
-        void DrawBeam(Graphics g, Point[] shape, int w, int h, Color bg)
+        /// <summary>
+        /// Haz del faro (ya recortado a la cara del boton): cono que nace en el ojo y se apaga con la distancia
+        /// (degradado radial desde el foco), con nucleo mas intenso y un charco de luz donde incide. Su longitud sigue
+        /// el giro (cos): de espaldas se ve tenue; de frente se acorta y destella. Guarda los conos para iluminar el texto.
+        /// </summary>
+        void DrawBeam(Graphics g, int w, int h, int top, Color bg)
         {
-            if (sweep > 1) return;
-            float ease = sweep * sweep * (3 - 2 * sweep);                  // entra y sale suave
-            int trail = Math.Max(S(28), w / 4);
-            float x = -trail + ease * (w + trail * 1.5f);
-            var c = bg.GetBrightness() > .5f ? Color.White : Theme.Gold;
-            using (var path = new GraphicsPath())
+            beamWide = beamCore = null;
+            if (lamp.IsEmpty) lamp = new PointF(w * .3f, top + h / 2f);
+            double a = Angle;
+            float env = Envelope, dx = (float)Math.Cos(a), toward = (float)Math.Sin(a);
+            beamLight = bg.GetBrightness() > .5f ? Color.White : Theme.Mix(Theme.Gold, Color.White, .35f);
+            float len = Math.Abs(dx) * w * 1.15f;
+            if (len < S(3)) return;
+            float tipX = lamp.X + Math.Sign(dx) * len;
+            beamAlpha = env * (toward >= 0 ? .6f + .4f * toward : .3f + .3f * (1 + toward));
+            PointF[] Cone(float spread) { float half = len * spread + S(2); return new[] { lamp, new PointF(tipX, lamp.Y - half), new PointF(tipX, lamp.Y + half) }; }
+            void Fill(PointF[] cone, int peak)
             {
-                path.AddPolygon(shape);
-                var oldClip = g.Clip;
-                g.SetClip(path, CombineMode.Intersect);
-                var trailRect = new RectangleF(x - trail, 0, trail + 1, h + 1);
-                using (var b = new LinearGradientBrush(trailRect, Color.FromArgb(0, c), Color.FromArgb(90, c), LinearGradientMode.Horizontal))
-                    g.FillRectangle(b, trailRect);
-                using (var p = new Pen(Color.FromArgb(230, c), Math.Max(1, S(2)))) g.DrawLine(p, x, 0, x, h);
-                // lineas de barrido finas, como un lector
-                using (var p = new Pen(Color.FromArgb(35, c)))
-                    for (int y = S(3); y < h; y += S(4)) g.DrawLine(p, x - trail, y, x, y);
-                g.Clip = oldClip;
+                using (var path = new GraphicsPath())
+                {
+                    path.AddPolygon(cone);
+                    using (var b = new PathGradientBrush(path) { CenterPoint = lamp, CenterColor = Color.FromArgb((int)(peak * beamAlpha), beamLight), SurroundColors = new[] { Color.FromArgb(0, beamLight) } })
+                        g.FillPath(b, path);
+                }
             }
+            beamWide = Cone(.5f);
+            beamCore = Cone(.14f);
+            Fill(Cone(.75f), 60);     // halo
+            Fill(beamWide, 110);      // haz
+            Fill(beamCore, 210);      // nucleo
+            // charco de luz donde el haz toca la superficie
+            using (var pool = new GraphicsPath())
+            {
+                float pcx = lamp.X + Math.Sign(dx) * len * .62f, pw = len * .42f, ph = h * .9f;
+                pool.AddEllipse(pcx - pw, lamp.Y - ph / 2, pw * 2, ph);
+                using (var b = new PathGradientBrush(pool) { CenterColor = Color.FromArgb((int)(55 * beamAlpha), beamLight), SurroundColors = new[] { Color.FromArgb(0, beamLight) } })
+                    g.FillPath(b, pool);
+            }
+        }
+
+        PointF[] beamWide, beamCore;
+        Color beamLight;
+        float beamAlpha;
+
+        /// <summary>Texto iluminado por el haz: se repinta mas claro solo dentro de los conos.</summary>
+        void LightText(Graphics g, string caption, Rectangle r, Color fg, TextFormatFlags flags)
+        {
+            if (beamWide == null || beamAlpha < .05f) return;
+            foreach (var (cone, k) in new[] { (beamWide, .35f), (beamCore, .8f) })
+                using (var path = new GraphicsPath())
+                {
+                    path.AddPolygon(cone);
+                    var clip = g.Clip;
+                    g.SetClip(path, CombineMode.Intersect);
+                    Draw(g, caption, font, r, Theme.Mix(fg, beamLight, k * beamAlpha), flags);
+                    g.Clip = clip;
+                    clip.Dispose();
+                }
         }
     }
 
-    /// <summary>Tarjeta de seleccion: indice dorado, titulo, esquina cortada.</summary>
+    /// <summary>Accion secundaria discreta: icono + etiqueta pequeña en gris; dorado y subrayado al pasar.</summary>
+    sealed class LinkBtn : Painted
+    {
+        readonly string glyph;
+        readonly Font fIcon = Theme.Icon(10f), fText = Theme.Strong(8.25f);
+        public LinkBtn(string glyph, string text)
+        {
+            this.glyph = glyph; Text = text; Cursor = Cursors.Hand; TabStop = true;
+            Height = S(30);
+            Width = S(30) + TextRenderer.MeasureText(Theme.Caps(text), fText, Size.Empty, TextFormatFlags.NoPadding).Width + S(6);
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var g = Theme.Crisp(e.Graphics);
+            g.Clear(Parent?.BackColor ?? Theme.Paper);
+            var c = !Enabled ? Theme.Line : hover || Focused ? Theme.GoldDeep : Theme.Muted;
+            Draw(g, glyph, fIcon, new Rectangle(0, 0, S(24), Height), c, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
+            var caps = Theme.Caps(Text);
+            int tw = TextRenderer.MeasureText(g, caps, fText, Size.Empty, TextFormatFlags.NoPadding).Width;
+            Draw(g, caps, fText, new Rectangle(S(28), 0, tw + S(2), Height), c);
+            if (hover || Focused) using (var b = new SolidBrush(Theme.Gold)) g.FillRectangle(b, S(28), Height / 2 + S(9), tw, 1);
+        }
+        protected override void OnKeyDown(KeyEventArgs e) { if (e.KeyCode == Keys.Enter || e.KeyCode == Keys.Space) OnClick(EventArgs.Empty); base.OnKeyDown(e); }
+        protected override void OnGotFocus(EventArgs e) { Invalidate(); base.OnGotFocus(e); }
+        protected override void OnLostFocus(EventArgs e) { Invalidate(); base.OnLostFocus(e); }
+    }
+
+    /// <summary>Entrada del menu de inicio: numero fino, titulo y una linea; filete inferior. Al pasar: acento dorado y flecha.</summary>
     sealed class Card : Painted
     {
         readonly string index, title, desc;
-        readonly Font fIndex = Theme.Strong(8.5f), fTitle = Theme.Title(17f), fDesc = Theme.Sans(9.5f), fArrow = Theme.Sans(16f);
+        readonly Font fIndex = Theme.Light(22f), fTitle = Theme.Title(15f), fDesc = Theme.Sans(9.5f), fArrow = Theme.Sans(15f);
         public Card(string index, string title, string desc) { this.index = index; this.title = title; this.desc = desc; Cursor = Cursors.Hand; }
         protected override void OnPaint(PaintEventArgs e)
         {
-            var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(Parent?.BackColor ?? Theme.Paper);
-            int w = Width - 1, h = Height - 1, cut = S(18);
-            var shape = new[] { new Point(0, 0), new Point(w - cut, 0), new Point(w, cut), new Point(w, h), new Point(0, h) };
-            using (var b = new SolidBrush(hover ? Theme.Hover : Theme.Paper)) g.FillPolygon(b, shape);
-            g.SmoothingMode = SmoothingMode.None;
-            using (var p = new Pen(hover ? Theme.Black : Theme.Line)) g.DrawPolygon(p, shape);
-            using (var b = new SolidBrush(hover ? Theme.GoldDeep : Theme.Black)) g.FillRectangle(b, 0, 0, S(3), Height);
+            var g = Theme.Crisp(e.Graphics);
+            g.Clear(hover ? Theme.Hover : Theme.Paper);
+            using (var b = new SolidBrush(Theme.Line)) g.FillRectangle(b, 0, Height - 1, Width, 1);
+            if (hover) using (var b = new SolidBrush(Theme.GoldDeep)) g.FillRectangle(b, 0, 0, S(2), Height - 1);
 
-            // bloque indice + titulo + descripcion centrado en vertical: mismo aire arriba y abajo
-            int x = S(28), textW = Width - S(120);
-            var wrap = TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.WordBreak | TextFormatFlags.NoPadding;
-            int hIndex = TextRenderer.MeasureText(index, fIndex).Height;
-            int hTitle = TextRenderer.MeasureText(title, fTitle).Height;
-            int hDesc = TextRenderer.MeasureText(g, desc, fDesc, new Size(textW, int.MaxValue), wrap).Height;
-            int gap1 = S(6), gap2 = S(8);
-            int y = Math.Max(S(12), (Height - (hIndex + gap1 + hTitle + gap2 + hDesc)) / 2);
-            Draw(g, index, fIndex, new Rectangle(x, y, textW, hIndex), Theme.GoldDeep);
-            y += hIndex + gap1;
+            int hTitle = TextRenderer.MeasureText(title, fTitle).Height, hDesc = TextRenderer.MeasureText(desc, fDesc).Height;
+            int y = (Height - (hTitle + S(4) + hDesc)) / 2, x = S(76), textW = Width - x - S(64);
+            Draw(g, index, fIndex, new Rectangle(S(16), 0, S(60), Height), hover ? Theme.GoldDeep : Theme.Gold);
             Draw(g, title, fTitle, new Rectangle(x, y, textW, hTitle), Theme.Black);
-            y += hTitle + gap2;
-            Draw(g, desc, fDesc, new Rectangle(x, y, textW, hDesc), Theme.Muted, wrap);
-            Draw(g, "→", fArrow, new Rectangle(Width - S(60), 0, S(40), Height), hover ? Theme.GoldDeep : Theme.Black, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+            Draw(g, desc, fDesc, new Rectangle(x, y + hTitle + S(4), textW, hDesc), Theme.Muted);
+            if (hover) Draw(g, "→", fArrow, new Rectangle(Width - S(56), 0, S(40), Height), Theme.GoldDeep, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
         }
     }
 
@@ -382,16 +455,16 @@ namespace InstaladorImpresoras
         public string[] Columns = new string[0];
         public float[] Widths = { 1f };
         public bool Header;
-        /// <summary>Columna de estado (esfera verde / roja) entre la casilla y el texto.</summary>
+        /// <summary>Columna de estado (ojo verde / rojo) entre la casilla y el texto.</summary>
         public bool StateColumn;
         ScanState state = ScanState.Pending;
         public ScanState State { get => state; set { state = value; Invalidate(); } }
         readonly Font fMain = Theme.Sans(9.75f), fMono = Theme.Mono(8.75f), fHead = Theme.Strong(8f);
-        public CheckRow() { Cursor = Cursors.Hand; Height = 40; }
+        public CheckRow() { Cursor = Cursors.Hand; Height = S(40); Eyes.Attach(this); }
         protected override void OnClick(EventArgs e) { if (!Header && Enabled) Checked = !Checked; base.OnClick(e); }
         protected override void OnPaint(PaintEventArgs e)
         {
-            var g = e.Graphics;
+            var g = Theme.Crisp(e.Graphics);
             g.Clear(Header ? Theme.Black : (hover && Enabled ? Theme.Hover : Theme.Paper));
             int box = S(14), x = S(14), cy = Height / 2;
             if (!Header)
@@ -404,7 +477,7 @@ namespace InstaladorImpresoras
             int cx = x + box + S(14);
             if (StateColumn)
             {
-                if (!Header) ScannerForm.DrawState(g, state, new Rectangle(cx, cy - S(7), S(14), S(14)));
+                if (!Header) ScannerForm.DrawState(g, state, new Rectangle(cx, cy - S(7), S(14), S(14)), this);
                 cx += S(26);
             }
             int avail = Width - cx - S(10);
@@ -438,9 +511,9 @@ namespace InstaladorImpresoras
             Box.GotFocus += (s, e) => Invalidate();
             Box.LostFocus += (s, e) => Invalidate();
             Box.EnabledChanged += (s, e) => { Box.BackColor = Theme.Paper; Invalidate(); };
-            Height = 58;
+            Height = S(58);
         }
-        int S(int px) => (int)Math.Round(px * DeviceDpi / 96.0);
+        int S(int px) => Theme.S(px);
         protected override void OnLayout(LayoutEventArgs e)
         {
             Box.SetBounds(0, S(22), Width, Box.PreferredHeight);
@@ -448,7 +521,7 @@ namespace InstaladorImpresoras
         }
         protected override void OnPaint(PaintEventArgs e)
         {
-            TextRenderer.DrawText(e.Graphics, Theme.Caps(label), fLabel, new Point(0, 0), Box.Enabled ? Theme.Muted : Theme.Line, TextFormatFlags.NoPadding);
+            TextRenderer.DrawText(Theme.Crisp(e.Graphics), Theme.Caps(label), fLabel, new Point(0, 0), Box.Enabled ? Theme.Muted : Theme.Line, TextFormatFlags.NoPadding);
             var c = !Box.Enabled ? Theme.Line : Box.Focused ? Theme.GoldDeep : Theme.Black;
             using (var b = new SolidBrush(c)) e.Graphics.FillRectangle(b, 0, Box.Bottom + S(4), Width, S(Box.Focused ? 2 : 1));
         }
@@ -460,10 +533,10 @@ namespace InstaladorImpresoras
         int value;
         public int Value { get => value; set { this.value = Math.Max(0, Math.Min(100, value)); Invalidate(); } }
         public Color BarColor = Theme.Black;
-        public ThinProgress() { Height = 6; }
+        public ThinProgress() { Height = S(6); }
         protected override void OnPaint(PaintEventArgs e)
         {
-            var g = e.Graphics;
+            var g = Theme.Crisp(e.Graphics);
             g.Clear(Theme.Line);
             int w = (int)(Width * value / 100.0);
             using (var b = new SolidBrush(BarColor)) g.FillRectangle(b, 0, 0, w, Height);
