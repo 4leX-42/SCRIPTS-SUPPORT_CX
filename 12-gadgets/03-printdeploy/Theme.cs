@@ -477,7 +477,7 @@ namespace InstaladorImpresoras
             int cx = x + box + S(14);
             if (StateColumn)
             {
-                if (!Header) ScannerForm.DrawState(g, state, new Rectangle(cx, cy - S(7), S(14), S(14)), this);
+                if (!Header) ScannerForm.DrawState(g, state, new Rectangle(cx, cy - S(7), S(14), S(14)), this, installed: true);
                 cx += S(26);
             }
             int avail = Width - cx - S(10);

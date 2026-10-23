@@ -38,6 +38,9 @@ namespace InstaladorImpresoras
         public ScanResult Result;
         public bool Detected => State == ScanState.Printer;
         public bool Failed => State == ScanState.Unreachable || State == ScanState.NotPrinter;
+        /// <summary>Cola de este equipo que ya apunta a esta impresora (por IP o conexion \\servidor\cola); null = no instalada.</summary>
+        public string InstalledAs;
+        public bool Installed => InstalledAs != null;
         public bool IsShared => Ip.StartsWith(@"\\");
         public string Brand => Result != null && Result.Brand.Length > 0 ? Result.Brand : Directory?.Brand ?? "";
         public string Friendly => Result?.Friendly ?? "";
