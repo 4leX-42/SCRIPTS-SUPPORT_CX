@@ -561,6 +561,14 @@ Regenera el índice de README.md y README.en.md leyendo el .SYNOPSIS de cada scr
 
 <!-- INDICE-FIN -->
 
+## 10 - Herramientas
+
+<!-- Seccion manual: el generador de indices solo lee el .SYNOPSIS de los .ps1 -->
+
+| Funcion | Herramienta |
+|---|---|
+| Convierte facturas en PDF al formato LEDES 98BI de las plataformas de facturacion legal | [`conversor-ledes-98bi`](10-herramientas/conversor-ledes-98bi/) |
+
 ---
 
 ## Parámetros y ejecución

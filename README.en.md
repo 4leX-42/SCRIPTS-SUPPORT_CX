@@ -563,6 +563,14 @@ Rebuilds the index in README.md and README.en.md from each script's .SYNOPSIS.<b
 
 <!-- INDICE-FIN -->
 
+## 10 - Tools
+
+<!-- Manual section: the index generator only reads the .SYNOPSIS of .ps1 files -->
+
+| Function | Tool |
+|---|---|
+| Converts PDF invoices to the LEDES 98BI format used by legal e-billing platforms | [`conversor-ledes-98bi`](10-herramientas/conversor-ledes-98bi/) |
+
 ---
 
 ## Parameters and execution
