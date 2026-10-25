@@ -44,7 +44,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 <details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> <b>OneDrive Long Path Fix</b></summary>
 
-Acorta las rutas de OneDrive de mas de 380 caracteres ("la ruta es demasiado larga") sin tocar el nombre de los documentos.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
+Acorta las rutas de OneDrive/SharePoint de mas de 400 caracteres ("la ruta es demasiado larga"). Solo consola, automatico.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-shorten-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/03-shorten-long-paths.ps1 -OutFile $f; & $f
@@ -240,12 +240,12 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 <details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <b>OneDrive: la ruta es demasiado larga</b></summary>
 
-Acorta las rutas de OneDrive de mas de 380 caracteres ("la ruta es demasiado larga") sin tocar el nombre de los documentos.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
+Acorta las rutas de OneDrive/SharePoint de mas de 400 caracteres ("la ruta es demasiado larga"). Solo consola, automatico.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-shorten-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/03-shorten-long-paths.ps1 -OutFile $f; & $f
 ```
-<sub>Parámetros: `-Ruta` `-Upn` `-Raiz` `-Limite` `-Margen` `-PermitirRecorte` `-MinNombre` `-DryRun` `-SinConfirmar` `-Ascii` `-Revertir`</sub>
+<sub>Parámetros: `-Ruta` `-Upn` `-Raiz` `-Prefijo` `-Limite` `-Margen` `-PermitirRecorte` `-MinNombre` `-Excluir` `-Proteger` `-DryRun` `-SinConfirmar` `-Revertir` `-Version` `-Ascii`</sub>
 
 </details>
 

@@ -46,7 +46,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> <b>OneDrive Long Path Fix</b></summary>
 
-Shortens OneDrive paths over 380 characters ("the path is too long") without renaming the documents.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
+Shortens OneDrive/SharePoint paths over 400 characters ("the path is too long"). Console only, automatic.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-shorten-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/03-shorten-long-paths.ps1 -OutFile $f; & $f
@@ -242,12 +242,12 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>OneDrive: path too long</b></summary>
 
-Shortens OneDrive paths over 380 characters ("the path is too long") without renaming the documents.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
+Shortens OneDrive/SharePoint paths over 400 characters ("the path is too long"). Console only, automatic.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-shorten-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/03-shorten-long-paths.ps1 -OutFile $f; & $f
 ```
-<sub>Parameters: `-Ruta` `-Upn` `-Raiz` `-Limite` `-Margen` `-PermitirRecorte` `-MinNombre` `-DryRun` `-SinConfirmar` `-Ascii` `-Revertir`</sub>
+<sub>Parameters: `-Ruta` `-Upn` `-Raiz` `-Prefijo` `-Limite` `-Margen` `-PermitirRecorte` `-MinNombre` `-Excluir` `-Proteger` `-DryRun` `-SinConfirmar` `-Revertir` `-Version` `-Ascii`</sub>
 
 </details>
 
