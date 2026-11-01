@@ -133,6 +133,7 @@ $titulos = @{
     '04-block-shell-extension.ps1'                = @('Bloquear una extension de shell', 'Block a shell extension')
     '05-diagnose-file-picker-crash.ps1'           = @('La app se cierra al Abrir o Guardar como', 'App crashes on Open or Save as')
     '01-repair-autofirma-certificate.ps1'         = @('AutoFirma no muestra el certificado', 'AutoFirma does not list the certificate')
+    '02-register-app-certificate.ps1'             = @('Certificado de este equipo para una app de Entra', 'This computer''s certificate for an Entra app')
     '01-validate-scripts.ps1'                     = @('Validar los scripts del repo', 'Validate repo scripts')
     '02-test-outlook-reset.ps1'                   = @('Probar el reset de Outlook en sandbox', 'Test the Outlook reset in a sandbox')
     '03-generate-readme.ps1'                      = @('Regenerar los README', 'Rebuild the READMEs')
