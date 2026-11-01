@@ -527,6 +527,17 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 </details>
 
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>This computer's certificate for an Entra app</b></summary>
+
+Creates a certificate on this computer and adds it to an Entra ID app without removing other computers' certificates.<br>[`02-register-app-certificate`](11-certificates/02-register-app-certificate.ps1)
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\02-register-app-certificate.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/11-certificates/02-register-app-certificate.ps1 -OutFile $f; & $f
+```
+<sub>Parameters: `-AppId` `-TenantId` `-Years` `-Subject` `-OutDir` `-New` `-DryRun` `-ClientId`</sub>
+
+</details>
+
 ## <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> 99 - Repo tools
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>Validate repo scripts</b></summary>
@@ -593,6 +604,7 @@ Get-Help .\script.ps1 -Full                               # parameters and examp
 | `-Excluir`, `-Quitar` | `01/01` | accounts to keep, or accounts to purge |
 | `-Mode`, `-RestoreFrom` | `01/03` | `Diagnose` \| `Repair` \| `Restore` |
 | `-Mode`, `-P12`, `-Thumbprint` | `11/01` | `Diag` \| `Fix` \| `ResetPrefs`, PKCS#12 file and thumbprint of the certificate to repair |
+| `-AppId`, `-TenantId`, `-New` | `11/02` | Entra app the certificate is added to, tenant (defaults to the signed-in account's) and a new certificate even if a valid one exists |
 | `-Fase` | `03/02` | `Reparar` \| `Comprobar` \| `Verificar` |
 | `-TargetService`, `-MaxLevel`, `-DiagnosticOnly` | `05/02` | service, max escalation tier, diagnose only |
 | `-RutaRespaldo` | `01/02` | backup target when the Desktop is not writable |

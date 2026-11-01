@@ -525,6 +525,17 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 </details>
 
+<details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <b>Certificado de este equipo para una app de Entra</b></summary>
+
+Crea un certificado en este equipo y lo registra en una app de Entra ID sin quitar los de otros equipos.<br>[`02-register-app-certificate`](11-certificates/02-register-app-certificate.ps1)
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\02-register-app-certificate.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/11-certificates/02-register-app-certificate.ps1 -OutFile $f; & $f
+```
+<sub>Parámetros: `-AppId` `-TenantId` `-Years` `-Subject` `-OutDir` `-New` `-DryRun` `-ClientId`</sub>
+
+</details>
+
 ## <img src=".github/icons/wrench.svg" width="20" height="20" align="top" alt=""> 99 - Repo tools
 
 <details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <b>Validar los scripts del repo</b></summary>
@@ -591,6 +602,7 @@ Get-Help .\script.ps1 -Full                               # parámetros y ejempl
 | `-Excluir`, `-Quitar` | `01/01` | cuentas que se conservan o que se purgan |
 | `-Mode`, `-RestoreFrom` | `01/03` | `Diagnose` \| `Repair` \| `Restore` |
 | `-Mode`, `-P12`, `-Thumbprint` | `11/01` | `Diag` \| `Fix` \| `ResetPrefs`, fichero PKCS#12 y huella del certificado a reparar |
+| `-AppId`, `-TenantId`, `-New` | `11/02` | app de Entra a la que se añade el certificado, tenant (por defecto el de la cuenta que inicia sesión) y certificado nuevo aunque haya uno válido |
 | `-Fase` | `03/02` | `Reparar` \| `Comprobar` \| `Verificar` |
 | `-TargetService`, `-MaxLevel`, `-DiagnosticOnly` | `05/02` | servicio, nivel máximo de escalado, solo diagnóstico |
 | `-RutaRespaldo` | `01/02` | destino del respaldo si el Escritorio no admite escritura |
