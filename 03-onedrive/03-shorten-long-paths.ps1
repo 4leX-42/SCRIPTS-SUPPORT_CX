@@ -102,9 +102,14 @@ try {
         Invoke-WebRequest -Uri "$base/PathShrink.zip" -OutFile $zip -UseBasicParsing
         Invoke-WebRequest -Uri "$base/PathShrink.zip.sha256" -OutFile "$zip.sha256" -UseBasicParsing
         $esperado = ((Get-Content -LiteralPath "$zip.sha256" -Raw).Trim() -split '\s+')[0]
-        $real = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
+        # .NET en vez de Get-FileHash y Expand-Archive: lanzado desde PowerShell 7, Windows PowerShell
+        # hereda su PSModulePath y esos dos cmdlets no se encuentran.
+        $sha = [Security.Cryptography.SHA256]::Create()
+        $fs = [IO.File]::OpenRead($zip)
+        try { $real = -join ($sha.ComputeHash($fs) | ForEach-Object { $_.ToString('X2') }) } finally { $fs.Dispose(); $sha.Dispose() }
         if ($real -ne $esperado) { throw "SHA-256 distinto (esperado $esperado, obtenido $real). No se ejecuta nada." }
-        Expand-Archive -LiteralPath $zip -DestinationPath (Join-Path $tmp 'app') -Force
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        [IO.Compression.ZipFile]::ExtractToDirectory($zip, (Join-Path $tmp 'app'))
         $psd1 = Join-Path $tmp 'app\PathShrink\PathShrink.psd1'
     } catch {
         if ($_.Exception.Message -like 'SHA-256*') { throw }
@@ -113,7 +118,7 @@ try {
         Write-Host 'Sin descarga: se usa la copia instalada de PathShrink.' -ForegroundColor Yellow
         $psd1 = $local
     }
-    Get-ChildItem -LiteralPath (Split-Path $psd1 -Parent) -Recurse -File | Unblock-File
+    foreach ($x in Get-ChildItem -LiteralPath (Split-Path $psd1 -Parent) -Recurse -File) { Remove-Item -LiteralPath $x.FullName -Stream Zone.Identifier -ErrorAction SilentlyContinue }
     Import-Module $psd1 -Force
 
     if ($Revertir) {
