@@ -44,7 +44,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 <details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> <b>OneDrive Long Path Fix</b></summary>
 
-Acorta las rutas de OneDrive/SharePoint de mas de 400 caracteres ("la ruta es demasiado larga"). Solo consola, automatico.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
+Detecta y acorta las rutas demasiado largas de OneDrive/SharePoint: limite del servidor (400), del PC (259) y accesos directos. Solo consola.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-shorten-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/03-shorten-long-paths.ps1 -OutFile $f; & $f
@@ -240,12 +240,23 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 <details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <b>OneDrive: la ruta es demasiado larga</b></summary>
 
-Acorta las rutas de OneDrive/SharePoint de mas de 400 caracteres ("la ruta es demasiado larga"). Solo consola, automatico.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
+Detecta y acorta las rutas demasiado largas de OneDrive/SharePoint: limite del servidor (400), del PC (259) y accesos directos. Solo consola.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-shorten-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/03-shorten-long-paths.ps1 -OutFile $f; & $f
 ```
 <sub>Parámetros: `-Ruta` `-Upn` `-Raiz` `-Prefijo` `-Limite` `-Margen` `-LimiteLocal` `-PermitirRecorte` `-MinNombre` `-Excluir` `-Proteger` `-DryRun` `-SinConfirmar` `-Revertir` `-Version` `-Ascii`</sub>
+
+</details>
+
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Activar rutas largas de Windows</b></summary>
+
+Activa las rutas largas de Windows (mas de 260 caracteres) y desactiva los nombres cortos 8.3.<br>[`04-enable-long-paths`](03-onedrive/04-enable-long-paths.ps1)
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\04-enable-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/04-enable-long-paths.ps1 -OutFile $f; & $f
+```
+<sub>Parámetros: `-DryRun`</sub>
 
 </details>
 
@@ -418,17 +429,6 @@ Deja el reloj en hora para poder firmar en sedes electrónicas: detecta la ubica
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\04-repair-time-sync.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/04-repair-time-sync.ps1 -OutFile $f; & $f
 ```
 <sub>Parámetros: `-DryRun` `-Force` `-DiagnoseOnly` `-TimeZoneId` `-NtpServers` `-SkipGeo` `-NoTimeZoneChange` `-PersistPublicNtp` `-AllowStepTime` `-NoStepTime` `-AutoTimeZoneService` `-PollSeconds` `-LogPath`</sub>
-
-</details>
-
-<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Activar rutas largas de Windows</b></summary>
-
-Activa las rutas largas de Windows (mas de 260 caracteres) y desactiva los nombres cortos 8.3.<br>[`05-enable-long-paths`](07-endpoint/05-enable-long-paths.ps1)
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\05-enable-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/05-enable-long-paths.ps1 -OutFile $f; & $f
-```
-<sub>Parámetros: `-DryRun`</sub>
 
 </details>
 

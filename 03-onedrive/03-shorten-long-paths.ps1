@@ -2,8 +2,8 @@
 
 <#
 .SYNOPSIS
-    [ES] Acorta las rutas de OneDrive/SharePoint de mas de 400 caracteres ("la ruta es demasiado larga"). Solo consola, automatico.
-    [EN] Shortens OneDrive/SharePoint paths over 400 characters ("the path is too long"). Console only, automatic.
+    [ES] Detecta y acorta las rutas demasiado largas de OneDrive/SharePoint: limite del servidor (400), del PC (259) y accesos directos. Solo consola.
+    [EN] Finds and shortens OneDrive/SharePoint paths that are too long: server limit (400), PC limit (259) and shortcuts. Console only.
 .DESCRIPTION
     Lanzador del motor de PathShrink (github.com/4leX-42/PathShrink), sin ventana ni instalacion:
     descarga la release a %TEMP%, comprueba su SHA-256, carga el modulo, ejecuta y borra lo descargado.
@@ -19,6 +19,13 @@
 
     Flujo: analiza, muestra el plan, pide confirmacion, renombra y verifica. -DryRun solo muestra
     el plan; -SinConfirmar aplica sin preguntar (desatendido).
+
+    Accesos directos a otras bibliotecas: el analisis de la carpeta de arriba no los toca. Los mide y
+    da el comando para analizar cada uno. Dentro de uno, los cambios los ve todo el que tenga acceso:
+    antes de renombrar, valorar acortar el nombre del acceso directo o dejar de sincronizarlo.
+
+    Si OneDrive avisa de "acorta la ruta N caracteres" y aqui nada pasa de 400: -LimiteLocal con la
+    longitud de esa ruta menos N.
     Informes y undo.csv en %LOCALAPPDATA%\PathShrink\Reports\<fecha>\.
 .PARAMETER Ruta
     Carpeta a revisar. Por defecto el OneDrive de empresa del usuario, detectado solo.
@@ -68,6 +75,9 @@
 .EXAMPLE
     .\03-shorten-long-paths.ps1 -Ruta "$env:OneDriveCommercial\CLIENTES" -LimiteLocal 259 -DryRun
     Plan para las rutas que fallan en el PC, no solo para las que pasan del limite del servidor.
+.EXAMPLE
+    .\03-shorten-long-paths.ps1 -Ruta "$env:OneDriveCommercial\NombreDelAccesoDirecto" -LimiteLocal 259 -DryRun
+    Plan dentro de un acceso directo. No cambia nada; los renombrados se verian en la biblioteca compartida.
 .NOTES
     Contexto: usuario
     EJECUTAR COMO: cuenta del usuario, SIN elevar. La cuenta y la carpeta de OneDrive
@@ -80,18 +90,18 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Ruta,
+    [Alias('Path')][string]$Ruta,
     [string]$Upn,
     [string]$Raiz,
     [string]$Prefijo,
-    [ValidateRange(50, 400)][int]$Limite = 400,
-    [ValidateRange(0, 200)][int]$Margen = 20,
-    [ValidateRange(0, 400)][int]$LimiteLocal = 0,
+    [Alias('Limit')][ValidateRange(50, 400)][int]$Limite = 400,
+    [Alias('Margin')][ValidateRange(0, 200)][int]$Margen = 20,
+    [Alias('LocalLimit')][ValidateRange(0, 400)][int]$LimiteLocal = 0,
     [switch]$PermitirRecorte,
     [ValidateRange(3, 200)][int]$MinNombre = 20,
     [string[]]$Excluir = @(),
     [string[]]$Proteger = @(),
-    [switch]$DryRun,
+    [Alias('WhatIf')][switch]$DryRun,
     [switch]$SinConfirmar,
     [string]$Revertir,
     [string]$Version = 'latest',
@@ -99,6 +109,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Los alias son los nombres del motor: sus avisos dan los comandos con esos nombres.
 $repo = 'https://github.com/4leX-42/PathShrink'
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ('PathShrink-' + [guid]::NewGuid().ToString('N'))
 $psd1 = $null
