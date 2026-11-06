@@ -245,7 +245,7 @@ Acorta las rutas de OneDrive/SharePoint de mas de 400 caracteres ("la ruta es de
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-shorten-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/03-shorten-long-paths.ps1 -OutFile $f; & $f
 ```
-<sub>Parámetros: `-Ruta` `-Upn` `-Raiz` `-Prefijo` `-Limite` `-Margen` `-PermitirRecorte` `-MinNombre` `-Excluir` `-Proteger` `-DryRun` `-SinConfirmar` `-Revertir` `-Version` `-Ascii`</sub>
+<sub>Parámetros: `-Ruta` `-Upn` `-Raiz` `-Prefijo` `-Limite` `-Margen` `-LimiteLocal` `-PermitirRecorte` `-MinNombre` `-Excluir` `-Proteger` `-DryRun` `-SinConfirmar` `-Revertir` `-Version` `-Ascii`</sub>
 
 </details>
 

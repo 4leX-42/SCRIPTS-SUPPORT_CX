@@ -247,7 +247,7 @@ Shortens OneDrive/SharePoint paths over 400 characters ("the path is too long").
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-shorten-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/03-shorten-long-paths.ps1 -OutFile $f; & $f
 ```
-<sub>Parameters: `-Ruta` `-Upn` `-Raiz` `-Prefijo` `-Limite` `-Margen` `-PermitirRecorte` `-MinNombre` `-Excluir` `-Proteger` `-DryRun` `-SinConfirmar` `-Revertir` `-Version` `-Ascii`</sub>
+<sub>Parameters: `-Ruta` `-Upn` `-Raiz` `-Prefijo` `-Limite` `-Margen` `-LimiteLocal` `-PermitirRecorte` `-MinNombre` `-Excluir` `-Proteger` `-DryRun` `-SinConfirmar` `-Revertir` `-Version` `-Ascii`</sub>
 
 </details>
 
