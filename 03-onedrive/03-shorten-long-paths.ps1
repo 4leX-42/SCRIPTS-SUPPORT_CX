@@ -6,7 +6,8 @@
     [EN] Finds and shortens OneDrive/SharePoint paths that are too long: server limit (400), PC limit (259) and shortcuts. Console only.
 .DESCRIPTION
     Lanzador del motor de PathShrink (github.com/4leX-42/PathShrink), sin ventana ni instalacion:
-    descarga la release a %TEMP%, comprueba su SHA-256, carga el modulo, ejecuta y borra lo descargado.
+    descarga la release a %TEMP%, sin el PathShrink.exe, comprueba su SHA-256, carga el modulo, ejecuta y
+    borra lo descargado.
     Si no hay red y PathShrink ya esta instalado, usa esa copia.
 
     Respecto a la version anterior de este script, el motor nuevo:
@@ -124,8 +125,14 @@ try {
     try {
         New-Item -ItemType Directory -Path $tmp | Out-Null
         $zip = Join-Path $tmp 'PathShrink.zip'
-        Invoke-WebRequest -Uri "$base/PathShrink.zip" -OutFile $zip -UseBasicParsing
-        Invoke-WebRequest -Uri "$base/PathShrink.zip.sha256" -OutFile "$zip.sha256" -UseBasicParsing
+        # Sin el exe, que aqui no hace falta y algunos antivirus detienen. Las releases anteriores a 1.3.3 no tienen este zip.
+        try {
+            Invoke-WebRequest -Uri "$base/PathShrink-script.zip" -OutFile $zip -UseBasicParsing
+            Invoke-WebRequest -Uri "$base/PathShrink-script.zip.sha256" -OutFile "$zip.sha256" -UseBasicParsing
+        } catch {
+            Invoke-WebRequest -Uri "$base/PathShrink.zip" -OutFile $zip -UseBasicParsing
+            Invoke-WebRequest -Uri "$base/PathShrink.zip.sha256" -OutFile "$zip.sha256" -UseBasicParsing
+        }
         $esperado = ((Get-Content -LiteralPath "$zip.sha256" -Raw).Trim() -split '\s+')[0]
         # .NET en vez de Get-FileHash y Expand-Archive: lanzado desde PowerShell 7, Windows PowerShell
         # hereda su PSModulePath y esos dos cmdlets no se encuentran.
