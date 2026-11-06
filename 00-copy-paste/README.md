@@ -81,7 +81,7 @@ Si falta `[FIN]`, la salida está truncada: se ha perdido parte del informe al c
 
 ## 1. Rutas y ficheros
 
-Rutas largas: no son de pegar, son scripts. "La ruta es demasiado larga" de OneDrive -> [`03-onedrive/03-shorten-long-paths.ps1`](../03-onedrive/03-shorten-long-paths.ps1). Limite local de 260 (iManage, Explorador) -> [`07-endpoint/05-enable-long-paths.ps1`](../07-endpoint/05-enable-long-paths.ps1) `[ADMIN]`.
+Rutas largas: no son de pegar, son scripts. "La ruta es demasiado larga" de OneDrive -> [`03-onedrive/03-shorten-long-paths.ps1`](../03-onedrive/03-shorten-long-paths.ps1). Limite local de 260 (iManage, Explorador) -> [`03-onedrive/04-enable-long-paths.ps1`](../03-onedrive/04-enable-long-paths.ps1) `[ADMIN]`.
 
 ### 1.1 Desbloquear ficheros descargados de Internet
 ```powershell

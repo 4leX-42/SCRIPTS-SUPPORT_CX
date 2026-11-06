@@ -46,7 +46,7 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> <b>OneDrive Long Path Fix</b></summary>
 
-Shortens OneDrive/SharePoint paths over 400 characters ("the path is too long"). Console only, automatic.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
+Finds and shortens OneDrive/SharePoint paths that are too long: server limit (400), PC limit (259) and shortcuts. Console only.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-shorten-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/03-shorten-long-paths.ps1 -OutFile $f; & $f
@@ -242,12 +242,23 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>OneDrive: path too long</b></summary>
 
-Shortens OneDrive/SharePoint paths over 400 characters ("the path is too long"). Console only, automatic.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
+Finds and shortens OneDrive/SharePoint paths that are too long: server limit (400), PC limit (259) and shortcuts. Console only.<br>[`03-shorten-long-paths`](03-onedrive/03-shorten-long-paths.ps1)
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\03-shorten-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/03-shorten-long-paths.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-Ruta` `-Upn` `-Raiz` `-Prefijo` `-Limite` `-Margen` `-LimiteLocal` `-PermitirRecorte` `-MinNombre` `-Excluir` `-Proteger` `-DryRun` `-SinConfirmar` `-Revertir` `-Version` `-Ascii`</sub>
+
+</details>
+
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Enable Windows long paths</b></summary>
+
+Enables Windows long paths (over 260 characters) and disables 8.3 short names.<br>[`04-enable-long-paths`](03-onedrive/04-enable-long-paths.ps1)
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\04-enable-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/03-onedrive/04-enable-long-paths.ps1 -OutFile $f; & $f
+```
+<sub>Parameters: `-DryRun`</sub>
 
 </details>
 
@@ -420,17 +431,6 @@ Gets the clock back in sync so e-government signing works: detects location, mat
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\04-repair-time-sync.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/04-repair-time-sync.ps1 -OutFile $f; & $f
 ```
 <sub>Parameters: `-DryRun` `-Force` `-DiagnoseOnly` `-TimeZoneId` `-NtpServers` `-SkipGeo` `-NoTimeZoneChange` `-PersistPublicNtp` `-AllowStepTime` `-NoStepTime` `-AutoTimeZoneService` `-PollSeconds` `-LogPath`</sub>
-
-</details>
-
-<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Enable Windows long paths</b></summary>
-
-Enables Windows long paths (over 260 characters) and disables 8.3 short names.<br>[`05-enable-long-paths`](07-endpoint/05-enable-long-paths.ps1)
-
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\05-enable-long-paths.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/05-enable-long-paths.ps1 -OutFile $f; & $f
-```
-<sub>Parameters: `-DryRun`</sub>
 
 </details>
 

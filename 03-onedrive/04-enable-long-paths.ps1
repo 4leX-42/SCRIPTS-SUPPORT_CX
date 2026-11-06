@@ -15,17 +15,16 @@
           Deja de crear el nombre corto tipo NOMBRE~1 en cada fichero nuevo. Solo
           afecta a lo que se cree a partir de ahora.
 
-    NO arregla el aviso de OneDrive "la ruta es demasiado larga": ese es un limite del
-    servidor (400 caracteres) que no depende de Windows. Para eso:
-    03-onedrive\03-shorten-long-paths.ps1
+    NO arregla el aviso de OneDrive "la ruta es demasiado larga": OneDrive tiene sus propios
+    limites, que no dependen de este ajuste. Para eso: 03-shorten-long-paths.ps1, en esta carpeta.
 
     Muestra el valor anterior y el nuevo de cada clave. Hace falta reiniciar.
 .PARAMETER DryRun
     Muestra el estado actual y lo que cambiaria, sin escribir nada.
 .EXAMPLE
-    .\05-enable-long-paths.ps1
+    .\04-enable-long-paths.ps1
 .EXAMPLE
-    .\05-enable-long-paths.ps1 -DryRun
+    .\04-enable-long-paths.ps1 -DryRun
 .NOTES
     Contexto: admin
     EJECUTAR COMO: administrador (escribe en HKLM). PowerShell 5.1 y 7.
@@ -68,5 +67,5 @@ foreach ($n in $valores.Keys) {
 }
 Write-Host ''
 if ($cambiado) { Write-Host 'Reinicia el equipo para que surta efecto.' -ForegroundColor Yellow }
-Write-Host 'El aviso de OneDrive "ruta demasiado larga" (limite 400) se arregla con 03-onedrive\03-shorten-long-paths.ps1' -ForegroundColor DarkGray
+Write-Host 'El aviso de OneDrive "ruta demasiado larga" no depende de esto: se mira con 03-onedrive\03-shorten-long-paths.ps1' -ForegroundColor DarkGray
 Write-Host ''
