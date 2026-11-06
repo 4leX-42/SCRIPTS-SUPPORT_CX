@@ -24,8 +24,13 @@
     da el comando para analizar cada uno. Dentro de uno, los cambios los ve todo el que tenga acceso:
     antes de renombrar, valorar acortar el nombre del acceso directo o dejar de sincronizarlo.
 
-    Si OneDrive avisa de "acorta la ruta N caracteres" y aqui nada pasa de 400: -LimiteLocal con la
-    longitud de esa ruta menos N.
+    Aviso de OneDrive "la ruta es demasiado larga", que bloquea todo mientras esta abierto: lo causa un
+    fichero que solo esta en el PC porque el servidor no lo acepta (mas de 400). Este script los lista,
+    tambien dentro de accesos directos: moverlos o acortarlos y pulsar "Volver a intentar". No fiarse
+    del numero de caracteres que pide. No pulsar "Salir" (cierra OneDrive) ni "configura OneDrive"
+    (desvincula el equipo).
+
+    Tras renombrar un acceso directo, reiniciar OneDrive: hasta entonces este script no renombra nada.
     Informes y undo.csv en %LOCALAPPDATA%\PathShrink\Reports\<fecha>\.
 .PARAMETER Ruta
     Carpeta a revisar. Por defecto el OneDrive de empresa del usuario, detectado solo.
