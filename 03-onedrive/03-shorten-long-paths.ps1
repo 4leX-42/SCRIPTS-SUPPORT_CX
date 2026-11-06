@@ -29,9 +29,14 @@
 .PARAMETER Prefijo
     Prefijo de servidor de esa carpeta, por ejemplo "sites/Legal/Shared Documents/". Con -Raiz.
 .PARAMETER Limite
-    Longitud maxima en el servidor. Por defecto 400.
+    Longitud maxima en el servidor. Por defecto 400. No cuenta la carpeta local de OneDrive ni el
+    nombre del acceso directo: una ruta puede caber aqui y fallar en el PC.
 .PARAMETER Margen
     Margen por debajo del limite. Por defecto 20: se trata toda ruta que pase de 380.
+    Con -LimiteLocal, por defecto 0.
+.PARAMETER LimiteLocal
+    Longitud maxima de la ruta en el PC, por ejemplo 259 (el limite clasico de Windows). Planifica
+    con el limite de servidor equivalente. Por defecto no se usa, pero el informe avisa de esas rutas.
 .PARAMETER PermitirRecorte
     Permite recortar letras de los nombres (nunca por debajo de -MinNombre). Por defecto no.
 .PARAMETER MinNombre
@@ -60,6 +65,9 @@
     .\03-shorten-long-paths.ps1 -Ruta "$env:OneDriveCommercial\Desktop\CLIENTES" -SinConfirmar
 .EXAMPLE
     .\03-shorten-long-paths.ps1 -Revertir "$env:LOCALAPPDATA\PathShrink\Reports\20261024-101500-000\undo.csv"
+.EXAMPLE
+    .\03-shorten-long-paths.ps1 -Ruta "$env:OneDriveCommercial\CLIENTES" -LimiteLocal 259 -DryRun
+    Plan para las rutas que fallan en el PC, no solo para las que pasan del limite del servidor.
 .NOTES
     Contexto: usuario
     EJECUTAR COMO: cuenta del usuario, SIN elevar. La cuenta y la carpeta de OneDrive
@@ -78,6 +86,7 @@ param(
     [string]$Prefijo,
     [ValidateRange(50, 400)][int]$Limite = 400,
     [ValidateRange(0, 200)][int]$Margen = 20,
+    [ValidateRange(0, 400)][int]$LimiteLocal = 0,
     [switch]$PermitirRecorte,
     [ValidateRange(3, 200)][int]$MinNombre = 20,
     [string[]]$Excluir = @(),
@@ -131,8 +140,9 @@ try {
         return
     }
 
-    $a = @{ Limit = $Limite; Margin = $Margen; AllowTrim = $PermitirRecorte; MinNameLength = $MinNombre; Exclude = $Excluir; Protect = $Proteger }
-    foreach ($par in @(@('Ruta', 'Path'), @('Upn', 'Upn'), @('Raiz', 'Root'), @('Prefijo', 'Prefix'))) {
+    # Margin solo si se pide: con -LimiteLocal el motor usa 0 si no le llega ninguno.
+    $a = @{ Limit = $Limite; AllowTrim = $PermitirRecorte; MinNameLength = $MinNombre; Exclude = $Excluir; Protect = $Proteger }
+    foreach ($par in @(@('Ruta', 'Path'), @('Upn', 'Upn'), @('Raiz', 'Root'), @('Prefijo', 'Prefix'), @('Margen', 'Margin'), @('LimiteLocal', 'LocalLimit'))) {
         if ($PSBoundParameters.ContainsKey($par[0])) { $a[$par[1]] = $PSBoundParameters[$par[0]] }
     }
     if ($DryRun) { $a.WhatIf = $true }
