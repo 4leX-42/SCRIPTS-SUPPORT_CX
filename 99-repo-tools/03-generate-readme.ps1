@@ -104,6 +104,7 @@ $titulos = @{
     '01-reset-outlook-profile.ps1'                = @('Rehacer el perfil de Outlook', 'Rebuild the Outlook profile')
     '02-full-outlook-reset.ps1'                   = @('Reset completo de Outlook', 'Full Outlook reset')
     '03-repair-signin-window.ps1'                 = @('Ventana de login en blanco en Outlook', 'Blank sign-in window in Outlook')
+    '04-reset-new-outlook.ps1'                    = @('Nuevo Outlook: no tiene buzon ni licencia', 'New Outlook: user has no mailbox and no license')
     '01-remediate-onedrive-tiered.ps1'            = @('OneDrive no sincroniza o no arranca', 'OneDrive not syncing or not starting')
     '02-fix-onedrive-permissions.ps1'             = @('OneDrive pide permisos de administrador', 'OneDrive asks for admin rights')
     '03-shorten-long-paths.ps1'                   = @('OneDrive: la ruta es demasiado larga', 'OneDrive: path too long')
