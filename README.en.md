@@ -216,6 +216,17 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 </details>
 
+<details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>New Outlook: user has no mailbox and no license</b></summary>
+
+New Outlook (olk) reset: clears the cached account so a different one can sign in (device joined to another organization).<br>[`04-reset-new-outlook`](02-outlook/04-reset-new-outlook.ps1)
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\04-reset-new-outlook.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/02-outlook/04-reset-new-outlook.ps1 -OutFile $f; & $f
+```
+<sub>Parameters: `-SkipCredentialCache` `-SkipAppReset` `-SwitchToClassic` `-NoStart` `-WhatIf`</sub>
+
+</details>
+
 ## <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> 03 - OneDrive
 
 <details><summary><img src=".github/icons/badge-user.svg" height="20" align="top" alt="user"> <b>OneDrive not syncing or not starting</b></summary>

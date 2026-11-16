@@ -214,6 +214,17 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 </details>
 
+<details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <b>Nuevo Outlook: no tiene buzón ni licencia</b></summary>
+
+Reset del nuevo Outlook (olk): quita la cuenta guardada para poder entrar con otra (equipo unido a otra organización).<br>[`04-reset-new-outlook`](02-outlook/04-reset-new-outlook.ps1)
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\04-reset-new-outlook.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/02-outlook/04-reset-new-outlook.ps1 -OutFile $f; & $f
+```
+<sub>Parámetros: `-SkipCredentialCache` `-SkipAppReset` `-SwitchToClassic` `-NoStart` `-WhatIf`</sub>
+
+</details>
+
 ## <img src=".github/icons/cloud.svg" width="20" height="20" align="top" alt=""> 03 - OneDrive
 
 <details><summary><img src=".github/icons/badge-usuario.svg" height="20" align="top" alt="usuario"> <b>OneDrive no sincroniza o no arranca</b></summary>
