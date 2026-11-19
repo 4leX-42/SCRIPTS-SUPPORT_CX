@@ -445,6 +445,17 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 </details>
 
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Slow laptop: CPU capped (low GHz)</b></summary>
+
+Laptop with a capped CPU (low GHz): removes CPU and disk power limits (Lenovo, Samsung, Surface, LG and any other brand).<br>[`05-unlock-cpu-performance`](07-endpoint/05-unlock-cpu-performance.ps1)
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\05-unlock-cpu-performance.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/05-unlock-cpu-performance.ps1 -OutFile $f; & $f
+```
+<sub>Parameters: `-DryRun` `-Restore` `-Plan` `-AcOnly` `-SkipBios` `-BackupFile` `-LogPath`</sub>
+
+</details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>PC with no administrator (WinRE rescue)</b></summary>
 
 PC with no administrator: restores a local account to Administrators from Windows Recovery (WinRE). No data loss.<br>[`06-rescate-admin-local`](07-endpoint/06-rescate-admin-local)

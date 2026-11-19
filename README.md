@@ -443,6 +443,17 @@ Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::Sec
 
 </details>
 
+<details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Portátil lento: CPU limitada (GHz bajos)</b></summary>
+
+Portátil con la CPU limitada (GHz bajos): quita los límites de energía de CPU y disco (Lenovo, Samsung, Surface, LG y cualquier otro).<br>[`05-unlock-cpu-performance`](07-endpoint/05-unlock-cpu-performance.ps1)
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\05-unlock-cpu-performance.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/05-unlock-cpu-performance.ps1 -OutFile $f; & $f
+```
+<sub>Parámetros: `-DryRun` `-Restore` `-Plan` `-AcOnly` `-SkipBios` `-BackupFile` `-LogPath`</sub>
+
+</details>
+
 <details><summary><img src=".github/icons/badge-admin.svg" height="20" align="top" alt="admin"> <b>Equipo sin administrador (rescate WinRE)</b></summary>
 
 Equipo sin administrador: devuelve una cuenta local a Administradores desde la recuperación (WinRE). No borra datos.<br>[`06-rescate-admin-local`](07-endpoint/06-rescate-admin-local)
