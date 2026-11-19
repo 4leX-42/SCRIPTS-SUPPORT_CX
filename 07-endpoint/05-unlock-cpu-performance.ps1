@@ -191,14 +191,21 @@ function Test-Scheme([string]$guid) {
     return (((& powercfg /list) -join "`n") -match [regex]::Escape($guid))
 }
 
-# Devuelve @{Ac;Dc} o $null si el ajuste no existe. Los dos ultimos 0x... de la salida son
-# los indices actuales en CA y CC en cualquier idioma de Windows.
+# Devuelve @{Ac;Dc} o $null si el ajuste no existe. Las dos ultimas lineas de la salida son
+# los indices actuales en CA y CC en cualquier idioma de Windows. En un modo de energia
+# (overlay) un valor no definido sale como "Ninguno"/"None": queda en $null.
+# Con un modo de energia activo, lo que se lee del plan es el valor EFECTIVO (el modo manda
+# sobre el plan en los ajustes que define, p. ej. EPP y nucleos aparcados en un LG).
 function Get-PowerValue([string]$scheme, [string]$sub, [string]$setting) {
     $o = & powercfg /qh $scheme $sub $setting 2>&1
     if ($LASTEXITCODE -ne 0) { return $null }
-    $hex = @([regex]::Matches(($o -join "`n"), '0x[0-9a-fA-F]{8}') | ForEach-Object { $_.Value })
-    if ($hex.Count -lt 2) { return $null }
-    return @{ Ac = [Convert]::ToInt32($hex[-2], 16); Dc = [Convert]::ToInt32($hex[-1], 16) }
+    $lines = @($o | ForEach-Object { "$_".Trim() } | Where-Object { $_ })
+    if ($lines.Count -lt 2) { return $null }
+    $v = foreach ($l in $lines[-2], $lines[-1]) {
+        if ($l -match '0x([0-9a-fA-F]{8})\s*$') { [Convert]::ToInt32($Matches[1], 16) } else { $null }
+    }
+    if ($null -eq $v[0] -and $null -eq $v[1]) { return $null }
+    return @{ Ac = $v[0]; Dc = $v[1] }
 }
 
 function Set-PowerValue([string]$scheme, [string]$sub, [string]$setting, [int]$ac, [int]$dc, [bool]$doDc) {
@@ -216,11 +223,34 @@ function Get-Overlay {
     return @{ Ac = $p.ActiveOverlayAcPowerScheme; Dc = $p.ActiveOverlayDcPowerScheme }
 }
 
+# Ejecuta reg.exe como SYSTEM con una tarea programada de un solo uso y la borra despues.
+function Invoke-RegAsSystem([string]$regArgs) {
+    $name = 'SCRIPTS-SUPPORT_CX-reg-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
+    try {
+        $a = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\reg.exe" -Argument $regArgs
+        $p = New-ScheduledTaskPrincipal -UserId 'S-1-5-18' -LogonType ServiceAccount -RunLevel Highest
+        Register-ScheduledTask -TaskName $name -Action $a -Principal $p -Force -ErrorAction Stop | Out-Null
+        Start-ScheduledTask -TaskName $name -ErrorAction Stop
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        do { Start-Sleep -Milliseconds 300; $t = Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue }
+        while ($t -and $t.State -eq 'Running' -and $sw.Elapsed.TotalSeconds -lt 20)
+        Start-Sleep -Milliseconds 300
+    } finally {
+        Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
+    }
+}
+
 function Set-Overlay([string]$ac, [string]$dc) {
-    if (-not (Test-Path $OverlayKey)) { New-Item -Path $OverlayKey -Force | Out-Null }
+    $isSystem = ([Security.Principal.WindowsIdentity]::GetCurrent().User.Value -eq 'S-1-5-18')
+    $regKey = 'HKLM\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes'
     foreach ($p in @(@('ActiveOverlayAcPowerScheme', $ac), @('ActiveOverlayDcPowerScheme', $dc))) {
-        if ($p[1]) { Set-ItemProperty -Path $OverlayKey -Name $p[0] -Value $p[1] -Type String -Force }
-        else { Remove-ItemProperty -Path $OverlayKey -Name $p[0] -ErrorAction SilentlyContinue }
+        $cur = (Get-ItemProperty -Path $OverlayKey -ErrorAction SilentlyContinue).($p[0])
+        if ("$cur" -eq "$($p[1])") { continue }
+        if ($isSystem) {
+            if ($p[1]) { Set-ItemProperty -Path $OverlayKey -Name $p[0] -Value $p[1] -Type String -Force }
+            else { Remove-ItemProperty -Path $OverlayKey -Name $p[0] -ErrorAction SilentlyContinue }
+        } elseif ($p[1]) { Invoke-RegAsSystem "add $regKey /v $($p[0]) /t REG_SZ /d $($p[1]) /f" }
+        else { Invoke-RegAsSystem "delete $regKey /v $($p[0]) /f" }
     }
     # El registro guarda los dos; la API de Windows (la que usa Configuracion) lo aplica ya
     # para la fuente de energia actual. powercfg no tiene opcion para esto.
@@ -425,6 +455,14 @@ if ($Restore) {
         foreach ($l in $b.LenovoBios) { Write-Plan "BIOS $($l.Name) -> $($l.Value)" }
         exit 0
     }
+    foreach ($s in @($b.OverlaySettings)) {
+        if (-not $s) { continue }
+        $base = @($b.Settings) | Where-Object { $_.G -eq $s.G } | Select-Object -First 1
+        $ac = if ($null -ne $s.Ac) { $s.Ac } elseif ($base) { $base.Ac } else { $null }
+        $dc = if ($null -ne $s.Dc) { $s.Dc } elseif ($base) { $base.Dc } else { $null }
+        if ($null -ne $ac) { & powercfg /setacvalueindex $OverlayBest $s.S $s.G $ac 2>&1 | Out-Null }
+        if ($null -ne $dc) { & powercfg /setdcvalueindex $OverlayBest $s.S $s.G $dc 2>&1 | Out-Null }
+    }
     Set-Overlay $b.OverlayAc $b.OverlayDc
     if ($null -eq $b.PowerThrottlingOff) { Remove-ItemProperty -Path $ThrottleKey -Name 'PowerThrottlingOff' -ErrorAction SilentlyContinue }
     else { Set-ItemProperty -Path $ThrottleKey -Name 'PowerThrottlingOff' -Value ([int]$b.PowerThrottlingOff) -Type DWord -Force }
@@ -513,6 +551,7 @@ foreach ($t in $Targets) {
 $ovDc = if ($doDc) { $OverlayBest } else { $ov.Dc }
 if ($DryRun) {
     Write-Plan "Modo de energia -> Maximo rendimiento ($OverlayBest) en CA$(if ($doDc) { ' y CC' })"
+    Write-Plan 'Los mismos valores dentro del modo Maximo rendimiento (si no, sus EPP y nucleos mandan sobre el plan)'
     Write-Plan 'PowerThrottlingOff -> 1'
 }
 
@@ -534,6 +573,13 @@ if (-not $SkipBios -and $cs.Manufacturer -match 'LENOVO') {
 if ($DryRun) {
     Write-Section 'DryRun: no se ha cambiado nada'
 } else {
+    # Valores propios del modo "Maximo rendimiento": mandan sobre el plan (EPP, nucleos...).
+    $ovBackup = @()
+    foreach ($t in $Targets) {
+        $cur = Get-PowerValue $OverlayBest $t.S $t.G
+        if ($null -eq $cur) { continue }
+        $ovBackup += [pscustomobject]@{ N = $t.N; S = $t.S; G = $t.G; Ac = $cur.Ac; Dc = $cur.Dc }
+    }
     # Copia de seguridad antes de escribir.
     $bk = [pscustomobject]@{
         Date               = (Get-Date).ToString('s')
@@ -544,6 +590,7 @@ if ($DryRun) {
         OverlayDc          = $ov.Dc
         PowerThrottlingOff = $thr
         Settings           = $backup
+        OverlaySettings    = $ovBackup
         LenovoBios         = @($lenovo | Where-Object { -not $lenovoLocked })
     }
     # Solo se guarda el estado ORIGINAL: si ya hay copia pendiente (el script se lanzo antes y
@@ -574,7 +621,12 @@ if ($DryRun) {
     }
     & powercfg /setactive $target 2>&1 | Out-Null
 
+    foreach ($t in $Targets) {
+        if ($null -eq (Get-PowerValue $target $t.S $t.G)) { continue }
+        [void](Set-PowerValue $OverlayBest $t.S $t.G $t.Ac $t.Dc $doDc)
+    }
     Set-Overlay $OverlayBest $ovDc
+    & powercfg /setactive $target 2>&1 | Out-Null
     if (-not (Test-Path $ThrottleKey)) { New-Item -Path $ThrottleKey -Force | Out-Null }
     Set-ItemProperty -Path $ThrottleKey -Name 'PowerThrottlingOff' -Value 1 -Type DWord -Force
 
