@@ -28,6 +28,9 @@
       - PCIe ASPM y suspension selectiva USB desactivados.
       - Lenovo ThinkPad: BIOS "Adaptive Thermal Management" a MaximizePerformance (CA y
         bateria) si la BIOS no tiene contrasena de supervisor. Necesita reinicio.
+    Actualizaciones (solo lectura): fecha de la BIOS, y en Lenovo compara BIOS y drivers con el
+    catalogo oficial del modelo (el de System Update). En cualquier marca busca drivers y firmware
+    pendientes en Windows Update; con -InstallDrivers los instala.
     Samsung Settings y LG Control Center tienen su propio modo de rendimiento sin API: el
     script lo detecta y dice donde cambiarlo.
 
@@ -52,7 +55,9 @@
     performance, no core parking, active cooling, Windows Power Throttling off, energy saver
     never turns on by itself, disk never idles, AHCI/NVMe power saving off, PCIe ASPM and USB
     selective suspend off, and on Lenovo ThinkPads the BIOS Adaptive Thermal Management set to
-    MaximizePerformance when no supervisor password is set (needs a reboot). Samsung Settings
+    MaximizePerformance when no supervisor password is set (needs a reboot). Update check (read
+    only): BIOS age, on Lenovo BIOS and drivers against the model's official catalog, and on any
+    brand pending drivers and firmware in Windows Update (-InstallDrivers installs them). Samsung Settings
     and LG Control Center have their own performance mode with no API: the script points to it.
 
     Current values are saved to a .json before writing; -Restore puts them back. -DryRun only
@@ -78,6 +83,14 @@
     [ES] No toca la BIOS de Lenovo.
     [EN] Does not touch the Lenovo BIOS.
 
+.PARAMETER SkipUpdateCheck
+    [ES] No busca actualizaciones de BIOS ni drivers (ahorra 1-5 minutos).
+    [EN] Skips the BIOS and driver update check (saves 1-5 minutes).
+
+.PARAMETER InstallDrivers
+    [ES] Instala los drivers y el firmware pendientes de Windows Update. Los de Lenovo los indica, no los instala.
+    [EN] Installs pending drivers and firmware from Windows Update. Lenovo catalog items are reported, not installed.
+
 .PARAMETER BackupFile
     [ES] .json concreto para -Restore.
     [EN] Specific .json for -Restore.
@@ -95,6 +108,9 @@
 .EXAMPLE
     .\05-unlock-cpu-performance.ps1 -Restore
 
+.EXAMPLE
+    .\05-unlock-cpu-performance.ps1 -InstallDrivers
+
 .NOTES
     Contexto: admin
     Funciona tambien como SYSTEM (consola remota): todo lo que toca es de equipo, no de perfil.
@@ -108,6 +124,8 @@ param(
     [string]$Plan = 'Auto',
     [switch]$AcOnly,
     [switch]$SkipBios,
+    [switch]$SkipUpdateCheck,
+    [switch]$InstallDrivers,
     [string]$BackupFile,
     [string]$LogPath = (Join-Path $env:ProgramData 'SCRIPTS-SUPPORT_CX\cpu-performance')
 )
@@ -245,6 +263,139 @@ function Set-LenovoBios([string]$name, [string]$value) {
         $r = Invoke-CimMethod -InputObject $save -MethodName 'SaveBiosSettings' -Arguments @{ parameter = '' } -ErrorAction Stop
         return $r.return
     } catch { return $_.Exception.Message }
+}
+
+# ---------------------------------------------------------------- ACTUALIZACIONES (funciones)
+function Get-XmlFromUrl([string]$url) {
+    # Bytes y UTF-8 a mano: en 5.1 Invoke-WebRequest decodifica como ISO-8859-1 y el BOM de
+    # los XML de Lenovo llega como basura que rompe el [xml].
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
+    $wc = New-Object Net.WebClient
+    try { $bytes = $wc.DownloadData($url) } finally { $wc.Dispose() }
+    $t = [Text.Encoding]::UTF8.GetString($bytes)
+    return [xml]($t.TrimStart([char]0xFEFF))
+}
+
+function Test-AnyLike([string]$value, $patterns) {
+    foreach ($p in @($patterns)) { if ($p -and $value -like ([string]$p).Trim()) { return $true } }
+    return $false
+}
+
+# -1 = lo instalado es mas viejo; 0 = igual o mas nuevo; $null = no se puede comparar.
+function Compare-DriverVersion([string]$installed, [string]$available) {
+    $a = ($installed -replace '[^\d\.]', '').Trim('.')
+    $b = ($available -replace '[^\d\.]', '').Trim('.')
+    try { if ([version]$a -lt [version]$b) { return -1 } else { return 0 } } catch { return $null }
+}
+
+# Catalogo oficial de Lenovo por modelo (el mismo que usan System Update y Thin Installer):
+# BIOS por patron de version y drivers por Hardware ID + version minima.
+function Get-LenovoCatalogUpdates {
+    $mtm = (($cs.Model -replace '\s', '') + '    ').Substring(0, 4)
+    $os = if ([Environment]::OSVersion.Version.Build -ge 22000) { 'Win11' } else { 'Win10' }
+    $res = [pscustomobject]@{ Catalog = $null; Pending = @(); Checked = 0; Skipped = 0; Error = $null }
+    $url = "https://download.lenovo.com/catalog/${mtm}_$os.xml"
+    try { $cat = Get-XmlFromUrl $url; $res.Catalog = $url }
+    catch { $res.Error = "Lenovo no publica catalogo para $mtm ($os): $($_.Exception.Message)"; return $res }
+
+    $biosVer = ([string](Get-CimInstance Win32_BIOS).SMBIOSBIOSVersion).Trim()
+    $signed = @{}
+    foreach ($d in Get-CimInstance Win32_PnPSignedDriver) { if ($d.DeviceID) { $signed[$d.DeviceID.ToUpper()] = $d } }
+    $hw = New-Object System.Collections.ArrayList
+    foreach ($e in Get-CimInstance Win32_PnPEntity) {
+        foreach ($h in @($e.HardwareID)) { if ($h) { [void]$hw.Add(@($h.ToUpper(), $e.DeviceID.ToUpper())) } }
+    }
+
+    foreach ($p in @($cat.packages.package)) {
+        try { $x = Get-XmlFromUrl $p.location } catch { $res.Skipped++; continue }
+        $titleNode = $x.SelectSingleNode('/Package/Title/Desc')
+        $title = if ($titleNode) { $titleNode.InnerText.Trim() } else { $x.Package.name }
+        $date = [string]$x.Package.ReleaseDate
+        $pkgVer = [string]$x.Package.version
+
+        $bios = @($x.SelectNodes('/Package/DetectInstall//_Bios/Level') | ForEach-Object { $_.InnerText })
+        if ($bios.Count -gt 0) {
+            $res.Checked++
+            if (Test-AnyLike $biosVer $bios) { continue }
+            $dep = @($x.SelectNodes('/Package/Dependencies//_Bios/Level') | ForEach-Object { $_.InnerText })
+            if ($dep.Count -eq 0 -or (Test-AnyLike $biosVer $dep)) {
+                $res.Pending += [pscustomobject]@{ Type = 'BIOS'; Name = $title; Installed = $biosVer; Available = $pkgVer; Date = $date }
+            }
+            continue
+        }
+
+        $drv = $x.SelectSingleNode('/Package/DetectInstall//_Driver')
+        if (-not $drv) { $res.Skipped++; continue }
+        $ids = @($drv.SelectNodes('HardwareID') | ForEach-Object { $_.InnerText.Trim().ToUpper() })
+        $verNode = $drv.SelectSingleNode('Version')
+        $dateNode = $drv.SelectSingleNode('Date')
+        $want = if ($verNode) { $verNode.InnerText -replace '\^', '' } else { $null }
+        $devId = $null
+        foreach ($pair in $hw) {
+            foreach ($id in $ids) { if ($pair[0].StartsWith($id)) { $devId = $pair[1]; break } }
+            if ($devId) { break }
+        }
+        if (-not $devId) { continue }   # este equipo no tiene ese hardware
+        $res.Checked++
+        $inst = $signed[$devId]
+        $instVer = if ($inst) { [string]$inst.DriverVersion } else { '' }
+        $old = $false
+        if ($want -and $instVer) { $old = ((Compare-DriverVersion $instVer $want) -eq -1) }
+        elseif ($dateNode -and $inst -and $inst.DriverDate) {
+            try { $old = ([datetime]$inst.DriverDate -lt [datetime]$dateNode.InnerText) } catch {}
+        } elseif (-not $instVer) { $old = $true }
+        if ($old) {
+            $res.Pending += [pscustomobject]@{ Type = 'Driver'; Name = $title; Installed = $(if ($instVer) { $instVer } else { 'sin driver' }); Available = $want; Date = $date }
+        }
+    }
+    return $res
+}
+
+# Drivers y firmware pendientes en Windows Update. Va en un runspace con plazo: si el
+# servicio se cuelga, el script sigue en vez de esperar sin fin.
+function Get-WuDriverUpdates([int]$TimeoutSec = 300) {
+    $ps = [powershell]::Create()
+    [void]$ps.AddScript({
+        $s = New-Object -ComObject Microsoft.Update.Session
+        $q = $s.CreateUpdateSearcher()
+        try { $q.ServerSelection = 2 } catch {}
+        $r = $q.Search("IsInstalled=0 and Type='Driver' and IsHidden=0")
+        foreach ($u in $r.Updates) {
+            [pscustomobject]@{ Title = $u.Title; Class = $u.DriverClass; Date = $u.DriverVerDate; Id = $u.Identity.UpdateID }
+        }
+    })
+    $h = $ps.BeginInvoke()
+    if (-not $h.AsyncWaitHandle.WaitOne($TimeoutSec * 1000)) {
+        [void]$ps.BeginStop($null, $null)
+        throw "Windows Update no respondio en $TimeoutSec s"
+    }
+    $out = @($ps.EndInvoke($h))
+    $err = if ($ps.Streams.Error.Count) { $ps.Streams.Error[0].Exception.Message } else { $null }
+    $ps.Dispose()
+    if ($err -and $out.Count -eq 0) { throw $err }
+    return $out
+}
+
+function Install-WuDriverUpdates([string[]]$ids) {
+    $s = New-Object -ComObject Microsoft.Update.Session
+    $q = $s.CreateUpdateSearcher()
+    try { $q.ServerSelection = 2 } catch {}
+    $r = $q.Search("IsInstalled=0 and Type='Driver' and IsHidden=0")
+    $col = New-Object -ComObject Microsoft.Update.UpdateColl
+    foreach ($u in $r.Updates) {
+        if ($ids -contains $u.Identity.UpdateID) {
+            if (-not $u.EulaAccepted) { $u.AcceptEula() }
+            [void]$col.Add($u)
+        }
+    }
+    if ($col.Count -eq 0) { return $null }
+    $d = $s.CreateUpdateDownloader(); $d.Updates = $col; [void]$d.Download()
+    $i = $s.CreateUpdateInstaller(); $i.Updates = $col
+    $ir = $i.Install()
+    $list = for ($k = 0; $k -lt $col.Count; $k++) {
+        [pscustomobject]@{ Title = $col.Item($k).Title; Code = $ir.GetUpdateResult($k).ResultCode }
+    }
+    return [pscustomobject]@{ Results = $list; Reboot = $ir.RebootRequired }
 }
 
 if (-not $DryRun -and -not (Test-Path $LogPath)) { New-Item -ItemType Directory -Path $LogPath -Force | Out-Null }
@@ -452,14 +603,65 @@ if ($DryRun) {
     if ($fail -eq 0) { Write-Ok 'Todo aplicado.' } else { Write-Err2 "$fail ajustes no quedaron como debian." }
 }
 
+# ---------------------------------------------------------------- ACTUALIZACIONES
+# Solo lectura salvo -InstallDrivers. Un BIOS o un driver de chipset/graficos viejo tambien
+# deja la CPU lenta o mal gestionada, asi que se revisa aqui.
+if (-not $SkipUpdateCheck) {
+    Write-Section 'Actualizaciones de BIOS y drivers'
+    $bi = Get-CimInstance Win32_BIOS
+    $age = if ($bi.ReleaseDate) { [int]((Get-Date) - $bi.ReleaseDate).TotalDays } else { $null }
+    $msg = "BIOS instalada: $(([string]$bi.SMBIOSBIOSVersion).Trim())$(if ($bi.ReleaseDate) { ' del ' + $bi.ReleaseDate.ToString('yyyy-MM-dd') + " ($age dias)" })"
+    if ($age -gt 540) { Write-Warn2 "$msg -> mas de 18 meses" } else { Write-Info $msg }
+
+    if ($cs.Manufacturer -match 'LENOVO') {
+        Write-Info 'Comparando con el catalogo oficial de Lenovo para este modelo...'
+        $lc = Get-LenovoCatalogUpdates
+        if ($lc.Error) { Write-Warn2 "$($lc.Error). Usar Lenovo Vantage." }
+        else {
+            Write-Info "Catalogo: $($lc.Catalog) ($($lc.Checked) paquetes aplicables comprobados)"
+            if ($lc.Pending.Count -eq 0) { Write-Ok 'BIOS y drivers de Lenovo al dia.' }
+            foreach ($u in $lc.Pending) {
+                Write-Warn2 ("{0} pendiente: {1} | instalado {2} -> {3} ({4})" -f $u.Type, $u.Name, $u.Installed, $u.Available, $u.Date)
+            }
+            if ($lc.Pending.Count -gt 0) {
+                Write-Info "Instalar: Lenovo Commercial Vantage / System Update, o https://pcsupport.lenovo.com/products/$(([string]$bi.SerialNumber).Trim())/downloads"
+                if ($lc.Pending | Where-Object Type -eq 'BIOS') { Write-Info 'BIOS: con el cargador conectado y sin suspender BitLocker a mano (el instalador de Lenovo lo hace).' }
+            }
+        }
+    }
+
+    Write-Info 'Buscando drivers y firmware pendientes en Windows Update (hasta 5 min)...'
+    try {
+        $wu = @(Get-WuDriverUpdates)
+        if ($wu.Count -eq 0) { Write-Ok 'Windows Update: sin drivers ni firmware pendientes.' }
+        foreach ($u in $wu) {
+            $d = if ($u.Date) { ([datetime]$u.Date).ToString('yyyy-MM-dd') } else { '' }
+            Write-Warn2 "Windows Update: $($u.Title) [$($u.Class)] $d"
+        }
+        if ($wu.Count -gt 0) {
+            if ($InstallDrivers -and $DryRun) { Write-Plan "Se instalarian $($wu.Count) actualizaciones de drivers/firmware de Windows Update." }
+            elseif ($InstallDrivers) {
+                Write-Info "Instalando $($wu.Count) actualizaciones de Windows Update..."
+                $ir = Install-WuDriverUpdates @($wu | ForEach-Object { $_.Id })
+                foreach ($x in $ir.Results) {
+                    if ($x.Code -eq 2) { Write-Ok "Instalado: $($x.Title)" }
+                    elseif ($x.Code -eq 3) { Write-Warn2 "Instalado con avisos: $($x.Title)" }
+                    else { Write-Err2 "No instalado (codigo $($x.Code)): $($x.Title)" }
+                }
+                if ($ir.Reboot) { Write-Warn2 'Windows Update pide reiniciar.' }
+            } else { Write-Info 'Para instalarlas: el mismo comando con -InstallDrivers' }
+        }
+    } catch { Write-Warn2 "Windows Update no disponible: $($_.Exception.Message)" }
+}
+
 # ---------------------------------------------------------------- FABRICANTE
 Write-Section 'Fabricante'
 switch -Regex ($cs.Manufacturer) {
     'LENOVO'    { Write-Info 'Lenovo: en Lenovo Vantage > Dispositivo > Energia, "Smart Performance/Intelligent Cooling" en Rendimiento maximo (o Fn+Q en IdeaPad/Legion hasta el modo rendimiento).' }
-    'SAMSUNG'   { Write-Info 'Samsung: Samsung Settings > Modo de rendimiento > Alto rendimiento. No tiene API: hay que hacerlo en la app.' }
-    'Microsoft' { Write-Info 'Surface: lo controla el modo de energia de Windows (ya en Maximo rendimiento). Usar el cargador original: con uno de menos vatios la CPU se limita.' }
-    '^LG'       { Write-Info 'LG gram: LG Control Center (o LG Smart Assistant) > modo de rendimiento/ventilador en Rendimiento. No tiene API: hay que hacerlo en la app.' }
-    default     { Write-Info 'Si el fabricante tiene app de energia propia (Dell Optimizer, HP, MyASUS...), ponerla en rendimiento.' }
+    'SAMSUNG'   { Write-Info 'Samsung: Samsung Settings > Modo de rendimiento > Alto rendimiento. No tiene API: hay que hacerlo en la app. BIOS y drivers: app Samsung Update.' }
+    'Microsoft' { Write-Info 'Surface: lo controla el modo de energia de Windows (ya en Maximo rendimiento). Usar el cargador original: con uno de menos vatios la CPU se limita. BIOS y drivers llegan por Windows Update.' }
+    '^LG'       { Write-Info 'LG gram: LG Control Center (o LG Smart Assistant) > modo de rendimiento/ventilador en Rendimiento. No tiene API: hay que hacerlo en la app. BIOS y drivers: LG Update.' }
+    default     { Write-Info 'Si el fabricante tiene app de energia propia (Dell Optimizer, HP, MyASUS...), ponerla en rendimiento. BIOS y drivers: Dell Command Update, HP Image Assistant, MyASUS.' }
 }
 
 Write-Section 'Resumen'
