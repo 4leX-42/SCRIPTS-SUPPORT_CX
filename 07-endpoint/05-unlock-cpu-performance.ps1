@@ -223,11 +223,17 @@ function Get-Overlay {
     return @{ Ac = $p.ActiveOverlayAcPowerScheme; Dc = $p.ActiveOverlayDcPowerScheme }
 }
 
-# Ejecuta reg.exe como SYSTEM con una tarea programada de un solo uso y la borra despues.
-function Invoke-RegAsSystem([string]$regArgs) {
-    $name = 'SCRIPTS-SUPPORT_CX-reg-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
+# Ejecuta lineas de cmd como SYSTEM con una tarea programada de un solo uso; borra la tarea
+# y el .cmd despues. La clave PowerSchemes y sus valores solo los escribe SYSTEM.
+function Invoke-AsSystem([string[]]$cmdLines) {
+    $id = [guid]::NewGuid().ToString('N').Substring(0, 8)
+    $name = "SCRIPTS-SUPPORT_CX-$id"
+    $dir = Join-Path $env:ProgramData 'SCRIPTS-SUPPORT_CX'
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    $cmd = Join-Path $dir "sys-$id.cmd"
+    [IO.File]::WriteAllText($cmd, "@echo off`r`n" + ($cmdLines -join "`r`n") + "`r`n", [Text.Encoding]::ASCII)
     try {
-        $a = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\reg.exe" -Argument $regArgs
+        $a = New-ScheduledTaskAction -Execute "$env:SystemRoot\System32\cmd.exe" -Argument "/c `"$cmd`""
         $p = New-ScheduledTaskPrincipal -UserId 'S-1-5-18' -LogonType ServiceAccount -RunLevel Highest
         Register-ScheduledTask -TaskName $name -Action $a -Principal $p -Force -ErrorAction Stop | Out-Null
         Start-ScheduledTask -TaskName $name -ErrorAction Stop
@@ -237,7 +243,34 @@ function Invoke-RegAsSystem([string]$regArgs) {
         Start-Sleep -Milliseconds 300
     } finally {
         Unregister-ScheduledTask -TaskName $name -Confirm:$false -ErrorAction SilentlyContinue
+        Remove-Item $cmd -Force -ErrorAction SilentlyContinue
     }
+}
+
+function Invoke-RegAsSystem([string]$regArgs) { Invoke-AsSystem @("reg $regArgs") }
+
+function Test-PowerMatch($cur, [int]$ac, [int]$dc, [bool]$doDc) {
+    if ($null -eq $cur) { return $false }
+    return ($cur.Ac -eq $ac) -and ((-not $doDc) -or $cur.Dc -eq $dc)
+}
+
+# powercfg devuelve 0 pero NO cambia los ajustes que el fabricante dejo preconfigurados
+# (User\Default\PowerSchemes; visto en un LG gram con EPP y nucleos aparcados). Si tras
+# powercfg el valor no es el pedido, se escribe el registro como SYSTEM y se recarga el plan.
+# Devuelve 'ok', 'reinicio' (escrito, Windows lo aplicara al reiniciar) o 'fallo'.
+function Set-PowerValueForced([string]$scheme, [string]$sub, [string]$setting, [int]$ac, [int]$dc, [bool]$doDc) {
+    [void](Set-PowerValue $scheme $sub $setting $ac $dc $doDc)
+    if (Test-PowerMatch (Get-PowerValue $scheme $sub $setting) $ac $dc $doDc) { return 'ok' }
+    $key = "HKLM\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$scheme\$sub\$setting"
+    $lines = @("reg add $key /v ACSettingIndex /t REG_DWORD /d $ac /f")
+    if ($doDc) { $lines += "reg add $key /v DCSettingIndex /t REG_DWORD /d $dc /f" }
+    Invoke-AsSystem $lines
+    & powercfg /setactive SCHEME_CURRENT 2>&1 | Out-Null
+    if (Test-PowerMatch (Get-PowerValue $scheme $sub $setting) $ac $dc $doDc) { return 'ok' }
+    $p = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$scheme\$sub\$setting"
+    $r = Get-ItemProperty -Path $p -ErrorAction SilentlyContinue
+    if ($r -and $r.ACSettingIndex -eq $ac -and ((-not $doDc) -or $r.DCSettingIndex -eq $dc)) { return 'reinicio' }
+    return 'fallo'
 }
 
 function Set-Overlay([string]$ac, [string]$dc) {
@@ -447,7 +480,9 @@ if ($Restore) {
     Write-Info "Copia: $BackupFile ($($b.Date))"
     foreach ($s in $b.Settings) {
         if ($DryRun) { Write-Plan "$($s.N): CA $($s.Ac) / CC $($s.Dc)"; continue }
-        if (Set-PowerValue $b.Scheme $s.S $s.G $s.Ac $s.Dc $true) { Write-Ok "$($s.N): CA $($s.Ac) / CC $($s.Dc)" }
+        $r = Set-PowerValueForced $b.Scheme $s.S $s.G $s.Ac $s.Dc $true
+        if ($r -eq 'ok') { Write-Ok "$($s.N): CA $($s.Ac) / CC $($s.Dc)" }
+        elseif ($r -eq 'reinicio') { Write-Ok "$($s.N): CA $($s.Ac) / CC $($s.Dc) (al reiniciar)" }
         else { Write-Warn2 "$($s.N): no se pudo restaurar" }
     }
     if ($DryRun) {
@@ -460,8 +495,7 @@ if ($Restore) {
         $base = @($b.Settings) | Where-Object { $_.G -eq $s.G } | Select-Object -First 1
         $ac = if ($null -ne $s.Ac) { $s.Ac } elseif ($base) { $base.Ac } else { $null }
         $dc = if ($null -ne $s.Dc) { $s.Dc } elseif ($base) { $base.Dc } else { $null }
-        if ($null -ne $ac) { & powercfg /setacvalueindex $OverlayBest $s.S $s.G $ac 2>&1 | Out-Null }
-        if ($null -ne $dc) { & powercfg /setdcvalueindex $OverlayBest $s.S $s.G $dc 2>&1 | Out-Null }
+        if ($null -ne $ac -and $null -ne $dc) { [void](Set-PowerValueForced $OverlayBest $s.S $s.G $ac $dc $true) }
     }
     Set-Overlay $b.OverlayAc $b.OverlayDc
     if ($null -eq $b.PowerThrottlingOff) { Remove-ItemProperty -Path $ThrottleKey -Name 'PowerThrottlingOff' -ErrorAction SilentlyContinue }
@@ -616,14 +650,18 @@ if ($DryRun) {
         if ((Get-ActiveScheme) -eq $target) { Write-Ok "Plan activo: $target" } else { Write-Err2 "No se pudo activar $target" }
     }
 
+    $needReboot = @{}
     foreach ($t in $changes) {
-        if (-not (Set-PowerValue $target $t.S $t.G $t.Ac $t.Dc $doDc)) { Write-Warn2 "$($t.N): Windows no acepta el valor" }
+        $r = Set-PowerValueForced $target $t.S $t.G $t.Ac $t.Dc $doDc
+        if ($r -eq 'reinicio') { $needReboot[$t.G] = $true; Write-Info "$($t.N): impuesto por el fabricante; escrito en el registro, se aplica al reiniciar" }
+        elseif ($r -eq 'fallo') { Write-Warn2 "$($t.N): Windows no acepta el valor" }
     }
     & powercfg /setactive $target 2>&1 | Out-Null
 
     foreach ($t in $Targets) {
         if ($null -eq (Get-PowerValue $target $t.S $t.G)) { continue }
-        [void](Set-PowerValue $OverlayBest $t.S $t.G $t.Ac $t.Dc $doDc)
+        $r = Set-PowerValueForced $OverlayBest $t.S $t.G $t.Ac $t.Dc $doDc
+        if ($r -eq 'reinicio') { $needReboot[$t.G] = $true }
     }
     Set-Overlay $OverlayBest $ovDc
     & powercfg /setactive $target 2>&1 | Out-Null
@@ -644,7 +682,9 @@ if ($DryRun) {
         $cur = Get-PowerValue $target $t.S $t.G
         if ($null -eq $cur) { continue }
         $ok = ($cur.Ac -eq $t.Ac) -and ((-not $doDc) -or $cur.Dc -eq $t.Dc)
-        if ($ok) { Write-Ok "$($t.N): CA $($cur.Ac) / CC $($cur.Dc)" } else { Write-Err2 "$($t.N): CA $($cur.Ac) / CC $($cur.Dc)"; $fail++ }
+        if ($ok) { Write-Ok "$($t.N): CA $($cur.Ac) / CC $($cur.Dc)" }
+        elseif ($needReboot[$t.G]) { Write-Warn2 "$($t.N): ahora CA $($cur.Ac) / CC $($cur.Dc); queda $($t.Ac) al reiniciar (valor de fabrica del OEM)" }
+        else { Write-Err2 "$($t.N): CA $($cur.Ac) / CC $($cur.Dc)"; $fail++ }
     }
     $ov2 = Get-Overlay
     if ($ov2.Ac -eq $OverlayBest -and (-not $doDc -or $ov2.Dc -eq $OverlayBest)) { Write-Ok 'Modo de energia: Maximo rendimiento' }
@@ -652,7 +692,9 @@ if ($DryRun) {
     if ((Get-ItemProperty -Path $ThrottleKey -ErrorAction SilentlyContinue).PowerThrottlingOff -eq 1) { Write-Ok 'Power Throttling desactivado' }
     else { Write-Err2 'Power Throttling sigue activo'; $fail++ }
     if ($target -ne $GuidBalanced) { Write-Info 'El modo de energia de Windows 11 solo actua con el plan Equilibrado; con este plan mandan los valores de arriba.' }
-    if ($fail -eq 0) { Write-Ok 'Todo aplicado.' } else { Write-Err2 "$fail ajustes no quedaron como debian." }
+    if ($fail -eq 0 -and $needReboot.Count -eq 0) { Write-Ok 'Todo aplicado.' }
+    elseif ($fail -eq 0) { Write-Ok "Todo aplicado; $($needReboot.Count) ajustes del fabricante entran al reiniciar (volver a lanzar despues para comprobarlo)." }
+    else { Write-Err2 "$fail ajustes no quedaron como debian." }
 }
 
 # ---------------------------------------------------------------- ACTUALIZACIONES
