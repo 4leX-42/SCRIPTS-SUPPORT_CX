@@ -125,6 +125,7 @@ $titulos = @{
     '02-bitlocker-recovery-key.ps1'               = @('Clave de recuperacion de BitLocker', 'BitLocker recovery key')
     '03-fix-random-shutdowns.ps1'                 = @('Apagados o reinicios inesperados', 'Unexpected shutdowns or restarts')
     '04-repair-time-sync.ps1'                     = @('Hora mal: no deja firmar en sedes electronicas', 'Wrong clock: e-signature portals fail')
+    '05-unlock-cpu-performance.ps1'               = @('Portatil lento: CPU limitada (GHz bajos)', 'Slow laptop: CPU capped (low GHz)')
     '01-optimize-wifi-adapter.ps1'                = @('Wi-Fi lenta o que se corta', 'Slow or dropping Wi-Fi')
     '02-docunlock'                                = @('DocUnlock', 'DocUnlock')
     '06-rescate-admin-local'                  = @('Equipo sin administrador (rescate WinRE)', 'PC with no administrator (WinRE rescue)')
