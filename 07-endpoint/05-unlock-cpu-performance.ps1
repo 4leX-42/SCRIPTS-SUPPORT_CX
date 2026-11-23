@@ -8,86 +8,74 @@
 .DESCRIPTION
     [ES]
     Para el caso "el portatil va lento" con la CPU clavada por debajo de su frecuencia base o
-    sin llegar nunca al turbo. Quita los topes (frecuencia maxima, EPP de ahorro impuesto por el
-    fabricante, turbo desactivado) pero deja que la CPU baje de vueltas en reposo: sube al turbo
-    con carga y se enfria al soltarla. No toca pantalla, brillo, suspension ni hibernacion.
+    sin llegar nunca al turbo. Corrige solo lo que limita la CPU por debajo de lo normal y
+    respeta lo que el fabricante puso para controlar la temperatura. No toca pantalla, brillo,
+    suspension ni hibernacion.
 
-    Perfil por defecto (rendimiento sin calentar):
-      - CPU: minimo 5 % (baja en reposo), maximo 100 %, sin tope de frecuencia, turbo
-        "eficiente agresivo", EPP 33 con cargador y 50 en bateria, refrigeracion activa
-        (ventilador antes que bajar la frecuencia).
-      - Modo de energia de Windows 11 en Equilibrado. "Maximo rendimiento" sube los limites de
-        potencia del firmware (PL1/PL2) y con carga lleva la CPU a 90-100 grados tambien con el
-        cargador, asi que solo se pone con -Max. Lo mismo la BIOS de Lenovo (MaximizePerformance).
-      - No toca aparcado de nucleos, Power Throttling, PCIe ASPM ni ahorro de NVMe: dejarlos
-        apagados calienta el portatil sin dar rendimiento apreciable.
-      - Si una ejecucion anterior (version que lo forzaba todo al 100 %) los dejo cambiados, los
-        devuelve a su valor original con la copia de seguridad.
-    -Cool: ademas, sin turbo (maximo 99 %). Para el que siga pasando de 90 grados.
-    -Max mantiene el comportamiento antiguo (todo al maximo, tambien en bateria): solo para
-    sobremesa o pruebas puntuales. En un portatil fino lleva la CPU a 90-100 grados.
+    Por que asi: la temperatura con carga la deciden los limites de potencia del firmware
+    (PL1/PL2) y el modo termico del fabricante, no Windows. Lo que si calienta desde Windows es
+    (1) no dejar bajar la CPU en reposo (estado minimo alto), (2) el modo "Maximo rendimiento"
+    de Windows 11, que el fabricante enlaza a limites de potencia mas altos y que ademas apaga el
+    Power Throttling de todas las apps, y (3) los ultimos escalones del turbo, que gastan mucho
+    mas por cada MHz. Con Intel Speed Shift (HWP) el modo turbo de Windows apenas cuenta: lo que
+    decide cuanto sube la CPU es el EPP.
 
-    Lo de abajo describe -Max (los ajustes del perfil por defecto son los de arriba):
+    Perfil por defecto, sobre el plan activo (o el de -Plan):
+      - CPU: minimo 5 % (baja en reposo), maximo 100 %, refrigeracion activa (ventilador antes
+        que bajar la frecuencia).
+      - EPP: como techo 33 con cargador y 50 en bateria. Solo se baja si el fabricante lo tiene
+        mas alto (CPU perezosa); si ya esta mas bajo, se respeta.
+      - Turbo: solo se activa si el fabricante lo desactivo.
+      - Tope de frecuencia: solo se quita si esta por debajo de la base; uno por encima lo puso
+        el fabricante para la temperatura y se respeta. -MaxMHz pone uno a mano.
+      - Modo de energia de Windows 11: si esta en "Maximo rendimiento" pasa a Equilibrado.
+      - No toca aparcado de nucleos, Power Throttling, PCIe ASPM, ahorro de disco/NVMe, USB ni
+        ahorro de bateria. Si una ejecucion anterior (version que lo forzaba todo al 100 %, o
+        -Max) los cambio, los devuelve al valor original de la copia de seguridad.
+    Si aun asi se calienta demasiado:
+      - -MaxMHz <n>: tope de frecuencia (p. ej. 3500 en un portatil cuyo turbo llega a 4,5-5
+        GHz). Recorta los escalones mas calientes del turbo con poca perdida en uso de oficina.
+      - -Cool: sin turbo (maximo 99 %). Lo mas fresco, pero en un procesador U/P se nota lento.
+      - En la app del fabricante, modo equilibrado/optimo (el script dice donde).
+    -Max: comportamiento antiguo, todo al maximo tambien en bateria (CPU fija al 100 %, EPP 0,
+    sin aparcar nucleos, sin Power Throttling ni ahorro de PCIe/NVMe, "Maximo rendimiento" y
+    BIOS Lenovo MaximizePerformance). Solo sobremesa o pruebas: un portatil fino llega a 90-100
+    grados.
 
     Diagnostica primero: CPU, frecuencia base y actual, % de rendimiento (por encima de 100 =
-    turbo), plan de energia, modo de energia de Windows 11, si hay politica (GPO/Intune) que
-    fije el plan y los eventos 37 de Kernel-Processor-Power de los ultimos 7 dias (el firmware
-    esta limitando la CPU: temperatura, cargador flojo o bateria).
-
-    Cambios, sobre el plan activo (o el de -Plan):
-      - Modo de energia de Windows 11 en "Maximo rendimiento" (corriente y bateria). Es lo que
-        leen Surface y el control termico de Lenovo, Samsung y LG.
-      - CPU: estado minimo y maximo al 100 % (nucleos P y E), sin tope de frecuencia (MHz=0),
-        turbo agresivo, preferencia de energia (EPP) a rendimiento, sin aparcar nucleos y
-        refrigeracion activa (ventilador antes que bajar la frecuencia).
-      - Power Throttling de Windows desactivado (no frena procesos en segundo plano).
-      - Ahorro de energia de Windows: no se activa solo con bateria baja.
-      - Disco: no se apaga nunca, AHCI y NVMe sin estados de ahorro (APST).
-      - PCIe ASPM y suspension selectiva USB desactivados.
-      - Lenovo ThinkPad: BIOS "Adaptive Thermal Management" a MaximizePerformance (CA y
-        bateria) si la BIOS no tiene contrasena de supervisor. Necesita reinicio.
+    turbo), temperatura, plan y modo de energia, si hay politica (GPO/Intune) que fije el plan y
+    los eventos 37 de Kernel-Processor-Power de los ultimos 7 dias (el firmware esta limitando la
+    CPU: temperatura, cargador flojo o bateria).
     Actualizaciones (solo lectura): fecha de la BIOS, y en Lenovo compara BIOS y drivers con el
     catalogo oficial del modelo (el de System Update). En cualquier marca busca drivers y firmware
     pendientes en Windows Update; con -InstallDrivers los instala.
-    Samsung Settings y LG Control Center tienen su propio modo de rendimiento sin API: el
-    script lo detecta y dice donde cambiarlo.
 
-    Antes de escribir guarda los valores actuales en un .json. -Restore los devuelve.
-    Con -DryRun solo diagnostica y ensena lo que cambiaria.
+    Antes de escribir guarda los valores originales en un .json (solo la primera vez, para que
+    -Restore vuelva siempre al estado de fabrica). Con -DryRun solo diagnostica y ensena lo que
+    cambiaria.
 
     Si tras esto la CPU sigue limitada y salen eventos 37, no es software: cargador de menos
     vatios que el original, temperatura (polvo, pasta termica) o bateria degradada.
 
     [EN]
     For "the laptop is slow" with the CPU stuck below its base clock or never reaching turbo.
-    Default profile removes the caps (frequency cap, OEM power-saving EPP, disabled boost) but
-    lets the CPU idle down: min state 5 %, max 100 %, efficient aggressive boost, EPP 33 on AC /
-    50 on battery, active cooling. Windows 11 power mode stays Balanced and the Lenovo BIOS is
-    not set to MaximizePerformance: both raise firmware power limits and push the CPU to 90-100
-    degrees under load even on AC, so they are -Max only. -Cool also disables turbo (max state
-    99 %) for laptops still above 90 degrees. Core parking, Power Throttling, PCIe ASPM and NVMe power saving are left alone
-    (turning them off heats the laptop for no real gain); if an older run turned them off they
-    are put back from the backup. -Max keeps the old everything-at-100 % behaviour (desktops or
-    short tests only). The text below describes -Max. Display, brightness, sleep and hibernate
-    are left as they are.
-
-    Diagnoses first: CPU, base and current clock, % processor performance (above 100 = turbo),
-    power plan, Windows 11 power mode, any GPO/Intune policy pinning the plan and Kernel-
-    Processor-Power event 37 over the last 7 days (firmware is limiting the CPU: heat, weak
-    charger or battery).
-
-    Changes on the active plan (or the one in -Plan): Windows 11 power mode "Best performance",
-    CPU min/max state 100 % (P and E cores), no frequency cap, aggressive boost, EPP to
-    performance, no core parking, active cooling, Windows Power Throttling off, energy saver
-    never turns on by itself, disk never idles, AHCI/NVMe power saving off, PCIe ASPM and USB
-    selective suspend off, and on Lenovo ThinkPads the BIOS Adaptive Thermal Management set to
-    MaximizePerformance when no supervisor password is set (needs a reboot). Update check (read
-    only): BIOS age, on Lenovo BIOS and drivers against the model's official catalog, and on any
-    brand pending drivers and firmware in Windows Update (-InstallDrivers installs them). Samsung Settings
-    and LG Control Center have their own performance mode with no API: the script points to it.
-
-    Current values are saved to a .json before writing; -Restore puts them back. -DryRun only
-    diagnoses and shows what would change.
+    Fixes only what holds the CPU below normal and respects what the OEM set for thermals.
+    Load temperature is set by firmware power limits (PL1/PL2) and the OEM thermal mode; from
+    Windows, heat comes from a high minimum state, the Windows 11 "Best performance" mode (tied
+    by OEMs to higher power limits, and it turns Power Throttling off) and the top turbo bins.
+    With Intel Speed Shift (HWP) the Windows boost mode barely matters; EPP decides.
+    Default profile: min state 5 %, max 100 %, active cooling; EPP capped at 33 on AC / 50 on
+    battery (only lowered when the OEM set it higher); boost only enabled if the OEM disabled it;
+    frequency cap only removed when below base clock; "Best performance" mode goes back to
+    Balanced. Core parking, Power Throttling, PCIe ASPM, disk/NVMe, USB and battery saver are left
+    alone, and values an older run (or -Max) changed are restored from the backup. Still too hot:
+    -MaxMHz <n> caps the clock (trims the hottest turbo bins), -Cool disables turbo (max state
+    99 %), and the OEM app should be on its balanced mode. -Max keeps the old everything-at-100 %
+    behaviour (desktops or tests only). Diagnosis shows clocks, temperature, power plan and mode,
+    GPO/Intune pinning and event 37. Update check (read only) for BIOS and drivers (Lenovo catalog
+    and Windows Update; -InstallDrivers installs). Original values are saved once to a .json;
+    -Restore puts them back. -DryRun only diagnoses. Display, brightness, sleep and hibernate are
+    left as they are.
 
 .PARAMETER DryRun
     [ES] Solo diagnostico y plan de cambios. No escribe nada.
@@ -106,8 +94,12 @@
     [EN] Everything at maximum on AC and battery (CPU pinned at 100 %, EPP 0, no core parking, no Power Throttling, no PCIe/NVMe power saving, Lenovo BIOS on battery). Runs hot: desktops or tests only.
 
 .PARAMETER Cool
-    [ES] Ademas del perfil por defecto, CPU maxima al 99 % (sin turbo): se queda en su frecuencia base y baja 15-25 grados con carga. Para portatiles que siguen pasando de 90 grados.
-    [EN] On top of the default profile, CPU max state 99 % (no turbo): stays at base clock and runs 15-25 degrees cooler under load. For laptops still going above 90 degrees.
+    [ES] Ademas del perfil por defecto, sin turbo (maximo 99 %): la CPU se queda en su frecuencia base. Lo mas fresco; en un procesador U/P se nota lento. Probar antes -MaxMHz.
+    [EN] On top of the default profile, no turbo (max state 99 %): the CPU stays at base clock. Coolest option; feels slow on U/P chips. Try -MaxMHz first.
+
+.PARAMETER MaxMHz
+    [ES] Tope de frecuencia en MHz (nucleos P y E), p. ej. 3500. Recorta los escalones del turbo que mas calientan. Sin el, se respeta el tope del fabricante.
+    [EN] Clock cap in MHz (P and E cores), e.g. 3500. Trims the hottest turbo bins. Without it the OEM cap is kept.
 
 .PARAMETER AcOnly
     [ES] Aplica solo con el cargador conectado; en bateria deja los valores de Windows.
@@ -140,6 +132,12 @@
     .\05-unlock-cpu-performance.ps1
 
 .EXAMPLE
+    .\05-unlock-cpu-performance.ps1 -MaxMHz 3500
+
+.EXAMPLE
+    .\05-unlock-cpu-performance.ps1 -Cool
+
+.EXAMPLE
     .\05-unlock-cpu-performance.ps1 -Restore
 
 .EXAMPLE
@@ -158,6 +156,8 @@ param(
     [string]$Plan = 'Auto',
     [switch]$Max,
     [switch]$Cool,
+    [ValidateRange(800, 6500)]
+    [int]$MaxMHz,
     [switch]$AcOnly,
     [switch]$SkipBios,
     [switch]$SkipUpdateCheck,
@@ -193,37 +193,67 @@ $SubSave = 'de830923-a562-41af-a086-e3a2c6bad2da'
 
 # Ajuste, valor en corriente (Ac) y en bateria (Dc) del perfil por defecto, y XAc/XDc con -Max.
 # Ac = $null: el perfil por defecto no lo toca (solo -Max). Los que no existan se saltan.
-# Turbo: 2 = agresivo, 4 = eficiente agresivo. EPP: 0 = todo rendimiento, 100 = todo ahorro.
+# K dice como se aplica en el perfil por defecto (con -Max siempre se fija el valor):
+#   (vacio) se fija el valor.
+#   ceil    techo: solo se baja si el fabricante lo tiene mas alto (EPP: 0 = rendimiento,
+#           100 = ahorro; con Intel Speed Shift/HWP es lo que decide cuanto sube la CPU).
+#   turbo   solo se activa si esta desactivado (0). Con HWP 2 y 4 se comportan igual
+#           (Microsoft: options-for-perf-state-engine-perfboostmode); 4 es "eficiente" en
+#           CPUs antiguas sin HWP.
+#   freqcap tope en MHz: solo se quita si esta por debajo de la base (la CPU no llegaria ni a
+#           su frecuencia nominal); un tope por encima de la base lo puso el fabricante para
+#           controlar la temperatura y se respeta. -MaxMHz lo fija.
 $Targets = @(
     @{ N = 'CPU estado minimo';               S = $SubProc; G = '893dee8e-2bef-41e0-89c6-b55d0929964c'; Ac = 5;     Dc = 5;     XAc = 100; XDc = 100 }
     @{ N = 'CPU estado minimo (nucleos E)';   S = $SubProc; G = '893dee8e-2bef-41e0-89c6-b55d0929964d'; Ac = 5;     Dc = 5;     XAc = 100; XDc = 100 }
     @{ N = 'CPU estado maximo';               S = $SubProc; G = 'bc5038f7-23e0-4960-96da-33abaf5935ec'; Ac = 100;   Dc = 100 }
     @{ N = 'CPU estado maximo (nucleos E)';   S = $SubProc; G = 'bc5038f7-23e0-4960-96da-33abaf5935ed'; Ac = 100;   Dc = 100 }
-    @{ N = 'CPU tope de frecuencia (0=sin)';  S = $SubProc; G = '75b0ae3f-bce0-45a7-8c89-c9611c25e100'; Ac = 0;     Dc = 0 }
-    @{ N = 'CPU tope de frecuencia (E)';      S = $SubProc; G = '75b0ae3f-bce0-45a7-8c89-c9611c25e101'; Ac = 0;     Dc = 0 }
-    @{ N = 'CPU turbo';                       S = $SubProc; G = 'be337238-0d82-4146-a960-4f3749d470c7'; Ac = 4;     Dc = 4;     XAc = 2;   XDc = 2 }
+    @{ N = 'CPU tope de frecuencia (0=sin)';  S = $SubProc; G = '75b0ae3f-bce0-45a7-8c89-c9611c25e100'; Ac = 0;     Dc = 0;     K = 'freqcap' }
+    @{ N = 'CPU tope de frecuencia (E)';      S = $SubProc; G = '75b0ae3f-bce0-45a7-8c89-c9611c25e101'; Ac = 0;     Dc = 0;     K = 'freqcap' }
+    @{ N = 'CPU turbo';                       S = $SubProc; G = 'be337238-0d82-4146-a960-4f3749d470c7'; Ac = 4;     Dc = 4;     XAc = 2;   XDc = 2;   K = 'turbo' }
     @{ N = 'CPU politica de turbo';           S = $SubProc; G = '45bcc044-d885-43e2-8605-ee0ec6e96b59'; Ac = $null; Dc = $null; XAc = 100; XDc = 100 }
-    @{ N = 'CPU EPP';                         S = $SubProc; G = '36687f9e-e3a5-4dbf-b1dc-15eb381c6863'; Ac = 33;    Dc = 50;    XAc = 0;   XDc = 0 }
-    @{ N = 'CPU EPP (nucleos E)';             S = $SubProc; G = '36687f9e-e3a5-4dbf-b1dc-15eb381c6864'; Ac = 33;    Dc = 50;    XAc = 0;   XDc = 0 }
+    @{ N = 'CPU EPP';                         S = $SubProc; G = '36687f9e-e3a5-4dbf-b1dc-15eb381c6863'; Ac = 33;    Dc = 50;    XAc = 0;   XDc = 0;   K = 'ceil' }
+    @{ N = 'CPU EPP (nucleos E)';             S = $SubProc; G = '36687f9e-e3a5-4dbf-b1dc-15eb381c6864'; Ac = 33;    Dc = 50;    XAc = 0;   XDc = 0;   K = 'ceil' }
     @{ N = 'CPU nucleos sin aparcar (%)';     S = $SubProc; G = '0cc5b647-c1df-4637-891a-dec35c318583'; Ac = $null; Dc = $null; XAc = 100; XDc = 100 }
     @{ N = 'CPU nucleos sin aparcar E (%)';   S = $SubProc; G = '0cc5b647-c1df-4637-891a-dec35c318584'; Ac = $null; Dc = $null; XAc = 100; XDc = 100 }
     @{ N = 'Refrigeracion (1=activa)';        S = $SubProc; G = '94d3a615-a899-4ac5-ae2b-e4d8f634367f'; Ac = 1;     Dc = 1 }
-    @{ N = 'Disco: apagar tras (0=nunca)';    S = $SubDisk; G = '6738e2c4-e8a5-4a42-b16a-e040e769756e'; Ac = 0;     Dc = 0 }
+    @{ N = 'Disco: apagar tras (0=nunca)';    S = $SubDisk; G = '6738e2c4-e8a5-4a42-b16a-e040e769756e'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
     @{ N = 'AHCI ahorro de enlace (0=no)';    S = $SubDisk; G = '0b2d69d7-a2a1-449c-9680-f91c70521c60'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
     @{ N = 'AHCI ahorro adaptativo (0=no)';   S = $SubDisk; G = 'dab60367-53fe-4fbc-825e-521d069d2456'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
     @{ N = 'NVMe NOPPME (0=no)';              S = $SubDisk; G = 'fc7372b6-ab2d-43ee-8797-15e9841f2cca'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
     @{ N = 'NVMe APST primario (0=no)';       S = $SubDisk; G = 'd639518a-e56d-4345-8af2-b9f32fb26109'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
     @{ N = 'NVMe APST secundario (0=no)';     S = $SubDisk; G = 'd3d55efd-c1ff-424e-9dc3-441be7833010'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
     @{ N = 'PCIe ASPM (0=no)';                S = $SubPci;  G = 'ee12f906-d277-404b-b6da-e5fa1a576df5'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
-    @{ N = 'USB suspension selectiva (0=no)'; S = $SubUsb;  G = '48e6b7a6-50f5-4782-a5d4-53bb8f07e226'; Ac = 0;     Dc = 0 }
-    @{ N = 'Ahorro de energia auto (0=nunca)';S = $SubSave; G = 'e69653ca-cf7f-4f05-aa73-cb833fa90ad4'; Ac = 0;     Dc = 0 }
+    @{ N = 'USB suspension selectiva (0=no)'; S = $SubUsb;  G = '48e6b7a6-50f5-4782-a5d4-53bb8f07e226'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
+    @{ N = 'Ahorro de energia auto (0=nunca)';S = $SubSave; G = 'e69653ca-cf7f-4f05-aa73-cb833fa90ad4'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
 )
-if ($Max -and $Cool) { Write-Host '[ERROR] -Max y -Cool son opuestos: elegir uno.' -ForegroundColor Red; exit 1 }
+if ($Max -and ($Cool -or $MaxMHz)) { Write-Host '[ERROR] -Max no se combina con -Cool ni -MaxMHz: elegir uno.' -ForegroundColor Red; exit 1 }
 if ($Max) { foreach ($t in $Targets) { if ($t.ContainsKey('XAc')) { $t.Ac = $t.XAc; $t.Dc = $t.XDc } } }
-# -Cool: maximo al 99 % = sin turbo. La CPU se queda en su frecuencia base y baja 15-25 grados
-# con carga; para portatiles que aun asi pasan de 90 grados.
+# -Cool: maximo al 99 % = sin turbo. La CPU se queda en su frecuencia base; lo mas fresco, pero
+# en un procesador U/P (base 1,3-2,5 GHz) se nota lento. Probar antes -MaxMHz.
 if ($Cool) { foreach ($t in $Targets) { if ($t.N -like 'CPU estado maximo*') { $t.Ac = 99; $t.Dc = 99 } } }
 $Targets = @($Targets | Where-Object { $null -ne $_.Ac })
+
+# Valor final de un ajuste segun su tipo (K) y el valor actual. Ver la tabla de arriba.
+function Get-Desired($t, $cur) {
+    $r = @{ Ac = $t.Ac; Dc = $t.Dc }
+    if ($t.K -eq 'freqcap' -and $MaxMHz) { return @{ Ac = $MaxMHz; Dc = $MaxMHz } }
+    if ($Max -or -not $t.K) { return $r }
+    # Se parte del valor ORIGINAL (copia de una ejecucion anterior) si lo hay: asi un -Max o un
+    # -MaxMHz de antes no se queda puesto al volver al perfil normal.
+    $orig = $null
+    if ($prev) { $orig = @($prev.Settings) | Where-Object { $_ -and $_.G -eq $t.G } | Select-Object -First 1 }
+    foreach ($side in 'Ac', 'Dc') {
+        $c = if ($orig -and $null -ne $orig.$side) { $orig.$side } else { $cur.$side }
+        if ($null -eq $c) { continue }
+        switch ($t.K) {
+            'ceil'    { if ($c -lt $r[$side]) { $r[$side] = $c } }
+            'turbo'   { if ($c -ne 0) { $r[$side] = $c } }
+            'freqcap' { if ($c -eq 0 -or -not $baseMHz -or $c -ge $baseMHz) { $r[$side] = [int]$c } }
+        }
+    }
+    return $r
+}
 
 function Get-ActiveScheme {
     $o = (& powercfg /getactivescheme) -join ' '
@@ -571,8 +601,10 @@ Write-Section 'Equipo y CPU'
 $cs  = Get-CimInstance Win32_ComputerSystem
 $oem = "$($cs.Manufacturer) $($cs.Model)".Trim()
 Write-Info "Equipo: $oem"
+$baseMHz = $null
 foreach ($cpu in Get-CimInstance Win32_Processor) {
     Write-Info "CPU: $($cpu.Name.Trim()) | base $($cpu.MaxClockSpeed) MHz | ahora $($cpu.CurrentClockSpeed) MHz"
+    if (-not $baseMHz) { $baseMHz = [int]$cpu.MaxClockSpeed }
 }
 try {
     $pi = Get-CimInstance Win32_PerfFormattedData_Counters_ProcessorInformation -Filter "Name='_Total'" -ErrorAction Stop
@@ -629,13 +661,18 @@ if ($DryRun -and $needCreate) {
 
 $doDc = -not $AcOnly
 $readScheme = if ($needCreate) { $active } else { $target }
+$bkFile = Join-Path $LogPath 'backup.json'
+$prev = $null
+if (Test-Path $bkFile) { try { $prev = Get-Content $bkFile -Raw | ConvertFrom-Json } catch {} }
 $backup = @()
 $changes = @()
 foreach ($t in $Targets) {
     $cur = Get-PowerValue $readScheme $t.S $t.G
     if ($null -eq $cur) { Write-Info "$($t.N): no existe en este equipo, se salta"; continue }
     $backup += [pscustomobject]@{ N = $t.N; S = $t.S; G = $t.G; Ac = $cur.Ac; Dc = $cur.Dc }
-    $same = ($cur.Ac -eq $t.Ac) -and ((-not $doDc) -or $cur.Dc -eq $t.Dc)
+    $d = Get-Desired $t $cur
+    $t.Ac = $d.Ac; $t.Dc = $d.Dc
+    $same =($cur.Ac -eq $t.Ac) -and ((-not $doDc) -or $cur.Dc -eq $t.Dc)
     $line = "{0}: CA {1}->{2}{3}" -f $t.N, $cur.Ac, $t.Ac, $(if ($doDc) { " / CC $($cur.Dc)->$($t.Dc)" } else { '' })
     if ($same) { Write-Ok "$($t.N): ya esta (CA $($cur.Ac) / CC $($cur.Dc))"; continue }
     $changes += $t
@@ -644,9 +681,6 @@ foreach ($t in $Targets) {
 # Una ejecucion anterior (version que lo forzaba todo al 100 %) pudo dejar apagados el aparcado
 # de nucleos, ASPM, APST o Power Throttling, y eso calienta. Si hay copia del estado original y
 # este perfil ya no los toca, vuelven a su valor original.
-$bkFile = Join-Path $LogPath 'backup.json'
-$prev = $null
-if (Test-Path $bkFile) { try { $prev = Get-Content $bkFile -Raw | ConvertFrom-Json } catch {} }
 $heal = @()
 $healOv = @()
 if ($prev) {
@@ -900,6 +934,7 @@ if (-not $DryRun) {
     Write-Host "Log y copia: $LogPath" -ForegroundColor Cyan
     Write-Host 'Deshacer: el mismo comando con -Restore' -ForegroundColor Cyan
     Write-Host 'Reiniciar recomendado (obligatorio si se cambio la BIOS de Lenovo).' -ForegroundColor Yellow
+    if (-not $Max -and -not $Cool -and -not $MaxMHz) { Write-Host 'Si con carga sigue pasando de 90 grados: el mismo comando con -MaxMHz 3500 (o -Cool para quitar el turbo), y la app del fabricante en modo equilibrado.' -ForegroundColor Yellow }
     if ($Max) { Write-Host 'Perfil -Max: la CPU no baja de vueltas y se calienta. Volver al normal: el mismo comando sin -Max.' -ForegroundColor Yellow }
 }
 Write-Host 'Si tras reiniciar la CPU sigue limitada y hay eventos 37: cargador original de los vatios correctos, temperatura (polvo, pasta termica) o bateria.' -ForegroundColor Yellow
