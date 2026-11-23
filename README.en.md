@@ -452,7 +452,7 @@ Laptop with a capped CPU (low GHz): removes CPU power caps without overheating i
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\05-unlock-cpu-performance.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/05-unlock-cpu-performance.ps1 -OutFile $f; & $f
 ```
-<sub>Parameters: `-DryRun` `-Restore` `-Plan` `-Max` `-AcOnly` `-SkipBios` `-SkipUpdateCheck` `-InstallDrivers` `-BackupFile` `-LogPath`</sub>
+<sub>Parameters: `-DryRun` `-Restore` `-Plan` `-Max` `-Cool` `-AcOnly` `-SkipBios` `-SkipUpdateCheck` `-InstallDrivers` `-BackupFile` `-LogPath`</sub>
 
 </details>
 
