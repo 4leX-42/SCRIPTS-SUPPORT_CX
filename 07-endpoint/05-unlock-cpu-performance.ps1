@@ -2,14 +2,29 @@
 
 <#
 .SYNOPSIS
-    [ES] Portatil con la CPU limitada (GHz bajos): quita los limites de energia de CPU y disco (Lenovo, Samsung, Surface, LG y cualquier otro).
-    [EN] Laptop with a capped CPU (low GHz): removes CPU and disk power limits (Lenovo, Samsung, Surface, LG and any other brand).
+    [ES] Portatil con la CPU limitada (GHz bajos): quita los topes de energia de la CPU sin sobrecalentarla (Lenovo, Samsung, Surface, LG y cualquier otro).
+    [EN] Laptop with a capped CPU (low GHz): removes CPU power caps without overheating it (Lenovo, Samsung, Surface, LG and any other brand).
 
 .DESCRIPTION
     [ES]
     Para el caso "el portatil va lento" con la CPU clavada por debajo de su frecuencia base o
-    sin llegar nunca al turbo. Deja CPU y disco a rendimiento maximo en corriente y en bateria
-    y no toca pantalla, brillo, suspension ni hibernacion: eso se queda como estaba.
+    sin llegar nunca al turbo. Quita los topes (frecuencia maxima, EPP de ahorro impuesto por el
+    fabricante, turbo desactivado) pero deja que la CPU baje de vueltas en reposo: sube al turbo
+    con carga y se enfria al soltarla. No toca pantalla, brillo, suspension ni hibernacion.
+
+    Perfil por defecto (rendimiento sin calentar):
+      - CPU: minimo 5 % (baja en reposo), maximo 100 %, sin tope de frecuencia, turbo agresivo
+        con cargador y eficiente en bateria, EPP 25 con cargador y 50 en bateria, refrigeracion
+        activa (ventilador antes que bajar la frecuencia).
+      - Modo de energia de Windows 11 "Maximo rendimiento" solo con cargador.
+      - No toca aparcado de nucleos, Power Throttling, PCIe ASPM ni ahorro de NVMe: dejarlos
+        apagados calienta el portatil sin dar rendimiento apreciable.
+      - Si una ejecucion anterior (version que lo forzaba todo al 100 %) los dejo apagados, los
+        devuelve a su valor original con la copia de seguridad.
+    -Max mantiene el comportamiento antiguo (todo al maximo, tambien en bateria): solo para
+    sobremesa o pruebas puntuales. En un portatil fino lleva la CPU a 90-100 grados.
+
+    Lo de abajo describe -Max (los ajustes del perfil por defecto son los de arriba):
 
     Diagnostica primero: CPU, frecuencia base y actual, % de rendimiento (por encima de 100 =
     turbo), plan de energia, modo de energia de Windows 11, si hay politica (GPO/Intune) que
@@ -42,8 +57,14 @@
 
     [EN]
     For "the laptop is slow" with the CPU stuck below its base clock or never reaching turbo.
-    Puts CPU and disk at maximum performance on AC and battery. Display, brightness, sleep and
-    hibernate are left as they are.
+    Default profile removes the caps (frequency cap, OEM power-saving EPP, disabled boost) but
+    lets the CPU idle down: min state 5 %, max 100 %, aggressive boost on AC and efficient on
+    battery, EPP 25 on AC / 50 on battery, active cooling, Windows 11 "Best performance" mode on
+    AC only. Core parking, Power Throttling, PCIe ASPM and NVMe power saving are left alone
+    (turning them off heats the laptop for no real gain); if an older run turned them off they
+    are put back from the backup. -Max keeps the old everything-at-100 % behaviour (desktops or
+    short tests only). The text below describes -Max. Display, brightness, sleep and hibernate
+    are left as they are.
 
     Diagnoses first: CPU, base and current clock, % processor performance (above 100 = turbo),
     power plan, Windows 11 power mode, any GPO/Intune policy pinning the plan and Kernel-
@@ -74,6 +95,10 @@
 .PARAMETER Plan
     [ES] Plan de energia: Auto (el activo; si es Economizador pasa a Equilibrado), Balanced, High o Ultimate. El modo de Windows 11 solo actua sobre Equilibrado.
     [EN] Power plan: Auto (the active one; Power saver becomes Balanced), Balanced, High or Ultimate. The Windows 11 power mode only works on Balanced.
+
+.PARAMETER Max
+    [ES] Todo al maximo en corriente y bateria (CPU fija al 100 %, EPP 0, sin aparcar nucleos, sin Power Throttling, sin ahorro de PCIe/NVMe, BIOS Lenovo en bateria). Calienta mucho: solo sobremesa o pruebas.
+    [EN] Everything at maximum on AC and battery (CPU pinned at 100 %, EPP 0, no core parking, no Power Throttling, no PCIe/NVMe power saving, Lenovo BIOS on battery). Runs hot: desktops or tests only.
 
 .PARAMETER AcOnly
     [ES] Aplica solo con el cargador conectado; en bateria deja los valores de Windows.
@@ -122,6 +147,7 @@ param(
     [switch]$Restore,
     [ValidateSet('Auto', 'Balanced', 'High', 'Ultimate')]
     [string]$Plan = 'Auto',
+    [switch]$Max,
     [switch]$AcOnly,
     [switch]$SkipBios,
     [switch]$SkipUpdateCheck,
@@ -155,31 +181,35 @@ $SubPci  = '501a4d13-42af-4429-9fd1-a8218c268e20'
 $SubUsb  = '2a737441-1930-4402-8d77-b2bebba308a3'
 $SubSave = 'de830923-a562-41af-a086-e3a2c6bad2da'
 
-# Ajuste, valor en corriente, valor en bateria. Los que no existan en un equipo se saltan.
+# Ajuste, valor en corriente (Ac) y en bateria (Dc) del perfil por defecto, y XAc/XDc con -Max.
+# Ac = $null: el perfil por defecto no lo toca (solo -Max). Los que no existan se saltan.
+# Turbo: 2 = agresivo, 4 = eficiente agresivo. EPP: 0 = todo rendimiento, 100 = todo ahorro.
 $Targets = @(
-    @{ N = 'CPU estado minimo';               S = $SubProc; G = '893dee8e-2bef-41e0-89c6-b55d0929964c'; Ac = 100; Dc = 100 }
-    @{ N = 'CPU estado minimo (nucleos E)';   S = $SubProc; G = '893dee8e-2bef-41e0-89c6-b55d0929964d'; Ac = 100; Dc = 100 }
-    @{ N = 'CPU estado maximo';               S = $SubProc; G = 'bc5038f7-23e0-4960-96da-33abaf5935ec'; Ac = 100; Dc = 100 }
-    @{ N = 'CPU estado maximo (nucleos E)';   S = $SubProc; G = 'bc5038f7-23e0-4960-96da-33abaf5935ed'; Ac = 100; Dc = 100 }
-    @{ N = 'CPU tope de frecuencia (0=sin)';  S = $SubProc; G = '75b0ae3f-bce0-45a7-8c89-c9611c25e100'; Ac = 0;   Dc = 0 }
-    @{ N = 'CPU tope de frecuencia (E)';      S = $SubProc; G = '75b0ae3f-bce0-45a7-8c89-c9611c25e101'; Ac = 0;   Dc = 0 }
-    @{ N = 'CPU turbo (2=agresivo)';          S = $SubProc; G = 'be337238-0d82-4146-a960-4f3749d470c7'; Ac = 2;   Dc = 2 }
-    @{ N = 'CPU politica de turbo';           S = $SubProc; G = '45bcc044-d885-43e2-8605-ee0ec6e96b59'; Ac = 100; Dc = 100 }
-    @{ N = 'CPU EPP (0=rendimiento)';         S = $SubProc; G = '36687f9e-e3a5-4dbf-b1dc-15eb381c6863'; Ac = 0;   Dc = 0 }
-    @{ N = 'CPU EPP (nucleos E)';             S = $SubProc; G = '36687f9e-e3a5-4dbf-b1dc-15eb381c6864'; Ac = 0;   Dc = 0 }
-    @{ N = 'CPU nucleos sin aparcar (%)';     S = $SubProc; G = '0cc5b647-c1df-4637-891a-dec35c318583'; Ac = 100; Dc = 100 }
-    @{ N = 'CPU nucleos sin aparcar E (%)';   S = $SubProc; G = '0cc5b647-c1df-4637-891a-dec35c318584'; Ac = 100; Dc = 100 }
-    @{ N = 'Refrigeracion (1=activa)';        S = $SubProc; G = '94d3a615-a899-4ac5-ae2b-e4d8f634367f'; Ac = 1;   Dc = 1 }
-    @{ N = 'Disco: apagar tras (0=nunca)';    S = $SubDisk; G = '6738e2c4-e8a5-4a42-b16a-e040e769756e'; Ac = 0;   Dc = 0 }
-    @{ N = 'AHCI ahorro de enlace (0=no)';    S = $SubDisk; G = '0b2d69d7-a2a1-449c-9680-f91c70521c60'; Ac = 0;   Dc = 0 }
-    @{ N = 'AHCI ahorro adaptativo (0=no)';   S = $SubDisk; G = 'dab60367-53fe-4fbc-825e-521d069d2456'; Ac = 0;   Dc = 0 }
-    @{ N = 'NVMe NOPPME (0=no)';              S = $SubDisk; G = 'fc7372b6-ab2d-43ee-8797-15e9841f2cca'; Ac = 0;   Dc = 0 }
-    @{ N = 'NVMe APST primario (0=no)';       S = $SubDisk; G = 'd639518a-e56d-4345-8af2-b9f32fb26109'; Ac = 0;   Dc = 0 }
-    @{ N = 'NVMe APST secundario (0=no)';     S = $SubDisk; G = 'd3d55efd-c1ff-424e-9dc3-441be7833010'; Ac = 0;   Dc = 0 }
-    @{ N = 'PCIe ASPM (0=no)';                S = $SubPci;  G = 'ee12f906-d277-404b-b6da-e5fa1a576df5'; Ac = 0;   Dc = 0 }
-    @{ N = 'USB suspension selectiva (0=no)'; S = $SubUsb;  G = '48e6b7a6-50f5-4782-a5d4-53bb8f07e226'; Ac = 0;   Dc = 0 }
-    @{ N = 'Ahorro de energia auto (0=nunca)';S = $SubSave; G = 'e69653ca-cf7f-4f05-aa73-cb833fa90ad4'; Ac = 0;   Dc = 0 }
+    @{ N = 'CPU estado minimo';               S = $SubProc; G = '893dee8e-2bef-41e0-89c6-b55d0929964c'; Ac = 5;     Dc = 5;     XAc = 100; XDc = 100 }
+    @{ N = 'CPU estado minimo (nucleos E)';   S = $SubProc; G = '893dee8e-2bef-41e0-89c6-b55d0929964d'; Ac = 5;     Dc = 5;     XAc = 100; XDc = 100 }
+    @{ N = 'CPU estado maximo';               S = $SubProc; G = 'bc5038f7-23e0-4960-96da-33abaf5935ec'; Ac = 100;   Dc = 100 }
+    @{ N = 'CPU estado maximo (nucleos E)';   S = $SubProc; G = 'bc5038f7-23e0-4960-96da-33abaf5935ed'; Ac = 100;   Dc = 100 }
+    @{ N = 'CPU tope de frecuencia (0=sin)';  S = $SubProc; G = '75b0ae3f-bce0-45a7-8c89-c9611c25e100'; Ac = 0;     Dc = 0 }
+    @{ N = 'CPU tope de frecuencia (E)';      S = $SubProc; G = '75b0ae3f-bce0-45a7-8c89-c9611c25e101'; Ac = 0;     Dc = 0 }
+    @{ N = 'CPU turbo';                       S = $SubProc; G = 'be337238-0d82-4146-a960-4f3749d470c7'; Ac = 2;     Dc = 4;     XAc = 2;   XDc = 2 }
+    @{ N = 'CPU politica de turbo';           S = $SubProc; G = '45bcc044-d885-43e2-8605-ee0ec6e96b59'; Ac = $null; Dc = $null; XAc = 100; XDc = 100 }
+    @{ N = 'CPU EPP';                         S = $SubProc; G = '36687f9e-e3a5-4dbf-b1dc-15eb381c6863'; Ac = 25;    Dc = 50;    XAc = 0;   XDc = 0 }
+    @{ N = 'CPU EPP (nucleos E)';             S = $SubProc; G = '36687f9e-e3a5-4dbf-b1dc-15eb381c6864'; Ac = 25;    Dc = 50;    XAc = 0;   XDc = 0 }
+    @{ N = 'CPU nucleos sin aparcar (%)';     S = $SubProc; G = '0cc5b647-c1df-4637-891a-dec35c318583'; Ac = $null; Dc = $null; XAc = 100; XDc = 100 }
+    @{ N = 'CPU nucleos sin aparcar E (%)';   S = $SubProc; G = '0cc5b647-c1df-4637-891a-dec35c318584'; Ac = $null; Dc = $null; XAc = 100; XDc = 100 }
+    @{ N = 'Refrigeracion (1=activa)';        S = $SubProc; G = '94d3a615-a899-4ac5-ae2b-e4d8f634367f'; Ac = 1;     Dc = 1 }
+    @{ N = 'Disco: apagar tras (0=nunca)';    S = $SubDisk; G = '6738e2c4-e8a5-4a42-b16a-e040e769756e'; Ac = 0;     Dc = 0 }
+    @{ N = 'AHCI ahorro de enlace (0=no)';    S = $SubDisk; G = '0b2d69d7-a2a1-449c-9680-f91c70521c60'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
+    @{ N = 'AHCI ahorro adaptativo (0=no)';   S = $SubDisk; G = 'dab60367-53fe-4fbc-825e-521d069d2456'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
+    @{ N = 'NVMe NOPPME (0=no)';              S = $SubDisk; G = 'fc7372b6-ab2d-43ee-8797-15e9841f2cca'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
+    @{ N = 'NVMe APST primario (0=no)';       S = $SubDisk; G = 'd639518a-e56d-4345-8af2-b9f32fb26109'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
+    @{ N = 'NVMe APST secundario (0=no)';     S = $SubDisk; G = 'd3d55efd-c1ff-424e-9dc3-441be7833010'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
+    @{ N = 'PCIe ASPM (0=no)';                S = $SubPci;  G = 'ee12f906-d277-404b-b6da-e5fa1a576df5'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
+    @{ N = 'USB suspension selectiva (0=no)'; S = $SubUsb;  G = '48e6b7a6-50f5-4782-a5d4-53bb8f07e226'; Ac = 0;     Dc = 0 }
+    @{ N = 'Ahorro de energia auto (0=nunca)';S = $SubSave; G = 'e69653ca-cf7f-4f05-aa73-cb833fa90ad4'; Ac = 0;     Dc = 0 }
 )
+if ($Max) { foreach ($t in $Targets) { if ($t.ContainsKey('XAc')) { $t.Ac = $t.XAc; $t.Dc = $t.XDc } } }
+$Targets = @($Targets | Where-Object { $null -ne $_.Ac })
 
 function Get-ActiveScheme {
     $o = (& powercfg /getactivescheme) -join ' '
@@ -582,19 +612,68 @@ foreach ($t in $Targets) {
     $changes += $t
     if ($DryRun) { Write-Plan $line } else { Write-Info $line }
 }
-$ovDc = if ($doDc) { $OverlayBest } else { $ov.Dc }
+# Una ejecucion anterior (version que lo forzaba todo al 100 %) pudo dejar apagados el aparcado
+# de nucleos, ASPM, APST o Power Throttling, y eso calienta. Si hay copia del estado original y
+# este perfil ya no los toca, vuelven a su valor original.
+$bkFile = Join-Path $LogPath 'backup.json'
+$prev = $null
+if (Test-Path $bkFile) { try { $prev = Get-Content $bkFile -Raw | ConvertFrom-Json } catch {} }
+$heal = @()
+$healOv = @()
+if ($prev) {
+    $tg = @($Targets | ForEach-Object { $_.G })
+    foreach ($s in @($prev.Settings)) {
+        if (-not $s -or $tg -contains $s.G -or $null -eq $s.Ac -or $null -eq $s.Dc) { continue }
+        $cur = Get-PowerValue $readScheme $s.S $s.G
+        if ($null -eq $cur -or ($cur.Ac -eq $s.Ac -and $cur.Dc -eq $s.Dc)) { continue }
+        $heal += $s
+        $m = "$($s.N): CA $($cur.Ac)->$($s.Ac) / CC $($cur.Dc)->$($s.Dc) (vuelve al valor original)"
+        if ($DryRun) { Write-Plan $m } else { Write-Info $m }
+    }
+    foreach ($s in @($prev.OverlaySettings)) {
+        if (-not $s -or $tg -contains $s.G) { continue }
+        $base = @($prev.Settings) | Where-Object { $_.G -eq $s.G } | Select-Object -First 1
+        $ac = if ($null -ne $s.Ac) { $s.Ac } elseif ($base) { $base.Ac } else { $null }
+        $dc = if ($null -ne $s.Dc) { $s.Dc } elseif ($base) { $base.Dc } else { $null }
+        if ($null -ne $ac -and $null -ne $dc) { $healOv += [pscustomobject]@{ S = $s.S; G = $s.G; Ac = $ac; Dc = $dc } }
+    }
+}
+
+# Modo de energia: Maximo rendimiento con cargador. En bateria solo con -Max; si una ejecucion
+# anterior lo dejo en Maximo rendimiento, vuelve al original.
+$ovDc = $ov.Dc
+if ($doDc -and $Max) { $ovDc = $OverlayBest }
+elseif ($doDc -and $prev -and $ov.Dc -eq $OverlayBest) { $ovDc = $prev.OverlayDc }
+
+# Power Throttling: apagado solo con -Max; si no, el valor original.
+$thrTarget = $thr
+if ($Max) { $thrTarget = 1 } elseif ($prev) { $thrTarget = $prev.PowerThrottlingOff }
+
 if ($DryRun) {
-    Write-Plan "Modo de energia -> Maximo rendimiento ($OverlayBest) en CA$(if ($doDc) { ' y CC' })"
+    Write-Plan "Modo de energia -> Maximo rendimiento ($OverlayBest) con cargador; bateria: $(if ($ovDc) { $ovDc } else { 'el de Windows' })"
     Write-Plan 'Los mismos valores dentro del modo Maximo rendimiento (si no, sus EPP y nucleos mandan sobre el plan)'
-    Write-Plan 'PowerThrottlingOff -> 1'
+    if ("$thrTarget" -ne "$thr") { Write-Plan "PowerThrottlingOff: $thr -> $(if ($null -eq $thrTarget) { 'sin definir' } else { $thrTarget })" }
 }
 
 # Lenovo ThinkPad: control termico en BIOS.
 $lenovo = @()
+$lenovoHeal = @()
 $lenovoLocked = $false
 if (-not $SkipBios -and $cs.Manufacturer -match 'LENOVO') {
-    $lenovo = @(Get-LenovoThermal | Where-Object { $_.Value -ne 'MaximizePerformance' -and ($doDc -or $_.Name -eq 'AdaptiveThermalManagementAC') })
-    if ($lenovo.Count -gt 0) {
+    $lt = @(Get-LenovoThermal)
+    # Bateria a MaximizePerformance solo con -Max; si una ejecucion anterior lo puso, vuelve.
+    $lenovo = @($lt | Where-Object { $_.Value -ne 'MaximizePerformance' -and ($_.Name -eq 'AdaptiveThermalManagementAC' -or ($Max -and $doDc)) })
+    if (-not $Max -and $prev) {
+        $curB = $lt | Where-Object { $_.Name -eq 'AdaptiveThermalManagementBattery' } | Select-Object -First 1
+        foreach ($l in @($prev.LenovoBios)) {
+            if ($l -and $l.Name -eq 'AdaptiveThermalManagementBattery' -and $l.Value -ne 'MaximizePerformance' -and $curB -and $curB.Value -eq 'MaximizePerformance') {
+                $lenovoHeal += $l
+                $m = "BIOS $($l.Name): MaximizePerformance -> $($l.Value) (vuelve al valor original)"
+                if ($DryRun) { Write-Plan $m } else { Write-Info $m }
+            }
+        }
+    }
+    if ($lenovo.Count -gt 0 -or $lenovoHeal.Count -gt 0) {
         $lenovoLocked = Get-LenovoPasswordSet
         foreach ($l in $lenovo) {
             $m = "BIOS $($l.Name): $($l.Value) -> MaximizePerformance"
@@ -663,17 +742,35 @@ if ($DryRun) {
         $r = Set-PowerValueForced $OverlayBest $t.S $t.G $t.Ac $t.Dc $doDc
         if ($r -eq 'reinicio') { $needReboot[$t.G] = $true }
     }
+    # Lo que dejo apagado una ejecucion anterior y este perfil ya no toca: al valor original.
+    $healFail = 0
+    foreach ($s in $heal) {
+        $r = Set-PowerValueForced $target $s.S $s.G $s.Ac $s.Dc $true
+        if ($r -eq 'ok') { Write-Ok "$($s.N): vuelve a CA $($s.Ac) / CC $($s.Dc)" }
+        elseif ($r -eq 'reinicio') { Write-Ok "$($s.N): vuelve a CA $($s.Ac) / CC $($s.Dc) (al reiniciar)" }
+        else { Write-Warn2 "$($s.N): no se pudo devolver al valor original"; $healFail++ }
+    }
+    foreach ($s in $healOv) { [void](Set-PowerValueForced $OverlayBest $s.S $s.G $s.Ac $s.Dc $true) }
     Set-Overlay $OverlayBest $ovDc
     & powercfg /setactive $target 2>&1 | Out-Null
-    if (-not (Test-Path $ThrottleKey)) { New-Item -Path $ThrottleKey -Force | Out-Null }
-    Set-ItemProperty -Path $ThrottleKey -Name 'PowerThrottlingOff' -Value 1 -Type DWord -Force
+    if ("$thrTarget" -ne "$thr") {
+        if ($null -eq $thrTarget) { Remove-ItemProperty -Path $ThrottleKey -Name 'PowerThrottlingOff' -ErrorAction SilentlyContinue }
+        else {
+            if (-not (Test-Path $ThrottleKey)) { New-Item -Path $ThrottleKey -Force | Out-Null }
+            Set-ItemProperty -Path $ThrottleKey -Name 'PowerThrottlingOff' -Value ([int]$thrTarget) -Type DWord -Force
+        }
+    }
 
     if (-not $lenovoLocked) {
         foreach ($l in $lenovo) {
             $r = Set-LenovoBios $l.Name 'MaximizePerformance'
             if ($r -eq 'Success') { Write-Ok "BIOS $($l.Name) -> MaximizePerformance (al reiniciar)" } else { Write-Warn2 "BIOS $($l.Name): $r" }
         }
-    }
+        foreach ($l in $lenovoHeal) {
+            $r = Set-LenovoBios $l.Name $l.Value
+            if ($r -eq 'Success') { Write-Ok "BIOS $($l.Name) -> $($l.Value) (al reiniciar)" } else { Write-Warn2 "BIOS $($l.Name): $r" }
+        }
+    } elseif ($lenovoHeal.Count -gt 0) { Write-Warn2 'BIOS con contrasena de supervisor: Adaptive Thermal Management en bateria hay que devolverlo a mano en F1.' }
 
     # ------------------------------------------------------------ VERIFICACION
     Write-Section 'Verificacion (releyendo el estado real)'
@@ -687,10 +784,12 @@ if ($DryRun) {
         else { Write-Err2 "$($t.N): CA $($cur.Ac) / CC $($cur.Dc)"; $fail++ }
     }
     $ov2 = Get-Overlay
-    if ($ov2.Ac -eq $OverlayBest -and (-not $doDc -or $ov2.Dc -eq $OverlayBest)) { Write-Ok 'Modo de energia: Maximo rendimiento' }
+    if ($ov2.Ac -eq $OverlayBest -and "$($ov2.Dc)" -eq "$ovDc") { Write-Ok "Modo de energia: Maximo rendimiento con cargador; bateria: $(if ($ov2.Dc) { $ov2.Dc } else { 'el de Windows' })" }
     else { Write-Err2 "Modo de energia: $($ov2.Ac) / $($ov2.Dc)"; $fail++ }
-    if ((Get-ItemProperty -Path $ThrottleKey -ErrorAction SilentlyContinue).PowerThrottlingOff -eq 1) { Write-Ok 'Power Throttling desactivado' }
-    else { Write-Err2 'Power Throttling sigue activo'; $fail++ }
+    $thr2 = (Get-ItemProperty -Path $ThrottleKey -ErrorAction SilentlyContinue).PowerThrottlingOff
+    if ("$thr2" -eq "$thrTarget") { Write-Ok "Power Throttling: $(if ($thr2 -eq 1) { 'desactivado' } else { 'el de Windows (activo)' })" }
+    else { Write-Err2 "PowerThrottlingOff = $thr2 (se esperaba $thrTarget)"; $fail++ }
+    $fail += $healFail
     if ($target -ne $GuidBalanced) { Write-Info 'El modo de energia de Windows 11 solo actua con el plan Equilibrado; con este plan mandan los valores de arriba.' }
     if ($fail -eq 0 -and $needReboot.Count -eq 0) { Write-Ok 'Todo aplicado.' }
     elseif ($fail -eq 0) { Write-Ok "Todo aplicado; $($needReboot.Count) ajustes del fabricante entran al reiniciar (volver a lanzar despues para comprobarlo)." }
@@ -763,6 +862,7 @@ if (-not $DryRun) {
     Write-Host "Log y copia: $LogPath" -ForegroundColor Cyan
     Write-Host 'Deshacer: el mismo comando con -Restore' -ForegroundColor Cyan
     Write-Host 'Reiniciar recomendado (obligatorio si se cambio la BIOS de Lenovo).' -ForegroundColor Yellow
+    if ($Max) { Write-Host 'Perfil -Max: la CPU no baja de vueltas y se calienta. Volver al normal: el mismo comando sin -Max.' -ForegroundColor Yellow }
 }
 Write-Host 'Si tras reiniciar la CPU sigue limitada y hay eventos 37: cargador original de los vatios correctos, temperatura (polvo, pasta termica) o bateria.' -ForegroundColor Yellow
 
