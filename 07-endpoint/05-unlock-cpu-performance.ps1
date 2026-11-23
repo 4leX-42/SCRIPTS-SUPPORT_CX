@@ -337,22 +337,43 @@ function Test-PowerMatch($cur, [int]$ac, [int]$dc, [bool]$doDc) {
 }
 
 # powercfg devuelve 0 pero NO cambia los ajustes que el fabricante dejo preconfigurados
-# (User\Default\PowerSchemes; visto en un LG gram con EPP y nucleos aparcados). Si tras
-# powercfg el valor no es el pedido, se escribe el registro como SYSTEM y se recarga el plan.
-# Devuelve 'ok', 'reinicio' (escrito, Windows lo aplicara al reiniciar) o 'fallo'.
-function Set-PowerValueForced([string]$scheme, [string]$sub, [string]$setting, [int]$ac, [int]$dc, [bool]$doDc) {
-    [void](Set-PowerValue $scheme $sub $setting $ac $dc $doDc)
-    if (Test-PowerMatch (Get-PowerValue $scheme $sub $setting) $ac $dc $doDc) { return 'ok' }
-    $key = "HKLM\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$scheme\$sub\$setting"
-    $lines = @("reg add $key /v ACSettingIndex /t REG_DWORD /d $ac /f")
-    if ($doDc) { $lines += "reg add $key /v DCSettingIndex /t REG_DWORD /d $dc /f" }
+# (User\Default\PowerSchemes; visto en un LG gram con EPP y nucleos aparcados). Lo que tras
+# powercfg no queda como se pidio se escribe en el registro como SYSTEM, todo en UNA tarea
+# programada (antes una por ajuste: varios segundos cada una), y se recarga el plan.
+# Lo que ya tiene el valor pedido no se escribe.
+# Devuelve hashtable "plan|ajuste" -> 'ok', 'reinicio' (escrito, Windows lo aplicara al
+# reiniciar) o 'fallo'.
+function New-PowerItem([string]$scheme, [string]$sub, [string]$setting, $ac, $dc, [bool]$doDc) {
+    return [pscustomobject]@{ Scheme = $scheme; S = $sub; G = $setting; Ac = [int]$ac; Dc = [int]$dc; DoDc = $doDc }
+}
+
+function Set-PowerValuesForced($items) {
+    $res = @{}
+    $pending = @()
+    foreach ($i in @($items)) {
+        if (-not $i) { continue }
+        $k = "$($i.Scheme)|$($i.G)"
+        if (Test-PowerMatch (Get-PowerValue $i.Scheme $i.S $i.G) $i.Ac $i.Dc $i.DoDc) { $res[$k] = 'ok'; continue }
+        [void](Set-PowerValue $i.Scheme $i.S $i.G $i.Ac $i.Dc $i.DoDc)
+        if (Test-PowerMatch (Get-PowerValue $i.Scheme $i.S $i.G) $i.Ac $i.Dc $i.DoDc) { $res[$k] = 'ok' } else { $pending += $i }
+    }
+    if ($pending.Count -eq 0) { return $res }
+    $lines = @()
+    foreach ($i in $pending) {
+        $key = "HKLM\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$($i.Scheme)\$($i.S)\$($i.G)"
+        $lines += "reg add $key /v ACSettingIndex /t REG_DWORD /d $($i.Ac) /f"
+        if ($i.DoDc) { $lines += "reg add $key /v DCSettingIndex /t REG_DWORD /d $($i.Dc) /f" }
+    }
     Invoke-AsSystem $lines
     & powercfg /setactive SCHEME_CURRENT 2>&1 | Out-Null
-    if (Test-PowerMatch (Get-PowerValue $scheme $sub $setting) $ac $dc $doDc) { return 'ok' }
-    $p = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$scheme\$sub\$setting"
-    $r = Get-ItemProperty -Path $p -ErrorAction SilentlyContinue
-    if ($r -and $r.ACSettingIndex -eq $ac -and ((-not $doDc) -or $r.DCSettingIndex -eq $dc)) { return 'reinicio' }
-    return 'fallo'
+    foreach ($i in $pending) {
+        $k = "$($i.Scheme)|$($i.G)"
+        if (Test-PowerMatch (Get-PowerValue $i.Scheme $i.S $i.G) $i.Ac $i.Dc $i.DoDc) { $res[$k] = 'ok'; continue }
+        $p = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$($i.Scheme)\$($i.S)\$($i.G)"
+        $r = Get-ItemProperty -Path $p -ErrorAction SilentlyContinue
+        $res[$k] = if ($r -and $r.ACSettingIndex -eq $i.Ac -and ((-not $i.DoDc) -or $r.DCSettingIndex -eq $i.Dc)) { 'reinicio' } else { 'fallo' }
+    }
+    return $res
 }
 
 function Set-Overlay([string]$ac, [string]$dc) {
@@ -426,6 +447,35 @@ function Test-AnyLike([string]$value, $patterns) {
     return $false
 }
 
+# Descarga varias URL a la vez (8 hilos). Devuelve hashtable url -> texto; la que falla no sale.
+# Los XML de un catalogo de Lenovo son 50-150: de uno en uno tardaba minutos.
+function Get-TextBatch([string[]]$urls, [int]$threads = 8) {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor 3072
+    if ([Net.ServicePointManager]::DefaultConnectionLimit -lt $threads) { [Net.ServicePointManager]::DefaultConnectionLimit = $threads }
+    $pool = [runspacefactory]::CreateRunspacePool(1, $threads)
+    $pool.Open()
+    $jobs = foreach ($u in @($urls | Where-Object { $_ } | Select-Object -Unique)) {
+        $ps = [powershell]::Create()
+        $ps.RunspacePool = $pool
+        [void]$ps.AddScript({
+            param($url)
+            $wc = New-Object Net.WebClient
+            try { [Text.Encoding]::UTF8.GetString($wc.DownloadData($url)).TrimStart([char]0xFEFF) } catch { $null } finally { $wc.Dispose() }
+        }).AddArgument($u)
+        [pscustomobject]@{ Url = $u; Ps = $ps; H = $ps.BeginInvoke() }
+    }
+    $out = @{}
+    foreach ($j in @($jobs)) {
+        if ($j.H.AsyncWaitHandle.WaitOne(60000)) {
+            $r = @($j.Ps.EndInvoke($j.H))
+            if ($r.Count -and $r[0]) { $out[$j.Url] = [string]$r[0] }
+            $j.Ps.Dispose()
+        } else { [void]$j.Ps.BeginStop($null, $null) }
+    }
+    $pool.Close()
+    return $out
+}
+
 # -1 = lo instalado es mas viejo; 0 = igual o mas nuevo; $null = no se puede comparar.
 function Compare-DriverVersion([string]$installed, [string]$available) {
     $a = ($installed -replace '[^\d\.]', '').Trim('.')
@@ -445,14 +495,17 @@ function Get-LenovoCatalogUpdates {
 
     $biosVer = ([string](Get-CimInstance Win32_BIOS).SMBIOSBIOSVersion).Trim()
     $signed = @{}
-    foreach ($d in Get-CimInstance Win32_PnPSignedDriver) { if ($d.DeviceID) { $signed[$d.DeviceID.ToUpper()] = $d } }
+    foreach ($d in Get-CimInstance Win32_PnPSignedDriver -Property DeviceID, DriverVersion, DriverDate) { if ($d.DeviceID) { $signed[$d.DeviceID.ToUpper()] = $d } }
     $hw = New-Object System.Collections.ArrayList
-    foreach ($e in Get-CimInstance Win32_PnPEntity) {
+    foreach ($e in Get-CimInstance Win32_PnPEntity -Property DeviceID, HardwareID) {
         foreach ($h in @($e.HardwareID)) { if ($h) { [void]$hw.Add(@($h.ToUpper(), $e.DeviceID.ToUpper())) } }
     }
 
+    $pkgXml = Get-TextBatch @($cat.packages.package | ForEach-Object { [string]$_.location })
     foreach ($p in @($cat.packages.package)) {
-        try { $x = Get-XmlFromUrl $p.location } catch { $res.Skipped++; continue }
+        $txt = $pkgXml[[string]$p.location]
+        if (-not $txt) { $res.Skipped++; continue }
+        try { $x = [xml]$txt } catch { $res.Skipped++; continue }
         $titleNode = $x.SelectSingleNode('/Package/Title/Desc')
         $title = if ($titleNode) { $titleNode.InnerText.Trim() } else { $x.Package.name }
         $date = [string]$x.Package.ReleaseDate
@@ -496,9 +549,10 @@ function Get-LenovoCatalogUpdates {
     return $res
 }
 
-# Drivers y firmware pendientes en Windows Update. Va en un runspace con plazo: si el
-# servicio se cuelga, el script sigue en vez de esperar sin fin.
-function Get-WuDriverUpdates([int]$TimeoutSec = 300) {
+# Drivers y firmware pendientes en Windows Update. La busqueda tarda de uno a varios minutos:
+# arranca en segundo plano al empezar y se recoge al final, mientras se cambia la energia. Con
+# plazo: si el servicio se cuelga, el script sigue en vez de esperar sin fin.
+function Start-WuDriverSearch {
     $ps = [powershell]::Create()
     [void]$ps.AddScript({
         $s = New-Object -ComObject Microsoft.Update.Session
@@ -509,14 +563,19 @@ function Get-WuDriverUpdates([int]$TimeoutSec = 300) {
             [pscustomobject]@{ Title = $u.Title; Class = $u.DriverClass; Date = $u.DriverVerDate; Id = $u.Identity.UpdateID }
         }
     })
-    $h = $ps.BeginInvoke()
-    if (-not $h.AsyncWaitHandle.WaitOne($TimeoutSec * 1000)) {
-        [void]$ps.BeginStop($null, $null)
-        throw "Windows Update no respondio en $TimeoutSec s"
+    return [pscustomobject]@{ Ps = $ps; H = $ps.BeginInvoke(); Sw = [Diagnostics.Stopwatch]::StartNew() }
+}
+
+function Receive-WuDriverSearch($job, [int]$TimeoutSec = 180) {
+    $left = [math]::Max(1, $TimeoutSec - [int]$job.Sw.Elapsed.TotalSeconds)
+    if (-not $job.H.IsCompleted) { Write-Info "Esperando a Windows Update (como mucho $left s mas; -SkipUpdateCheck lo salta)..." }
+    if (-not $job.H.AsyncWaitHandle.WaitOne($left * 1000)) {
+        [void]$job.Ps.BeginStop($null, $null)
+        throw "no respondio en $TimeoutSec s; mirar en Configuracion > Windows Update"
     }
-    $out = @($ps.EndInvoke($h))
-    $err = if ($ps.Streams.Error.Count) { $ps.Streams.Error[0].Exception.Message } else { $null }
-    $ps.Dispose()
+    $out = @($job.Ps.EndInvoke($job.H))
+    $err = if ($job.Ps.Streams.Error.Count) { $job.Ps.Streams.Error[0].Exception.Message } else { $null }
+    $job.Ps.Dispose()
     if ($err -and $out.Count -eq 0) { throw $err }
     return $out
 }
@@ -560,24 +619,26 @@ if ($Restore) {
     }
     $b = Get-Content $BackupFile -Raw | ConvertFrom-Json
     Write-Info "Copia: $BackupFile ($($b.Date))"
-    foreach ($s in $b.Settings) {
-        if ($DryRun) { Write-Plan "$($s.N): CA $($s.Ac) / CC $($s.Dc)"; continue }
-        $r = Set-PowerValueForced $b.Scheme $s.S $s.G $s.Ac $s.Dc $true
-        if ($r -eq 'ok') { Write-Ok "$($s.N): CA $($s.Ac) / CC $($s.Dc)" }
-        elseif ($r -eq 'reinicio') { Write-Ok "$($s.N): CA $($s.Ac) / CC $($s.Dc) (al reiniciar)" }
-        else { Write-Warn2 "$($s.N): no se pudo restaurar" }
-    }
     if ($DryRun) {
+        foreach ($s in $b.Settings) { Write-Plan "$($s.N): CA $($s.Ac) / CC $($s.Dc)" }
         Write-Plan "Plan $($b.PreviousScheme), modo $($b.OverlayAc)/$($b.OverlayDc), PowerThrottlingOff $($b.PowerThrottlingOff)"
         foreach ($l in $b.LenovoBios) { Write-Plan "BIOS $($l.Name) -> $($l.Value)" }
         exit 0
     }
+    $items = @(foreach ($s in $b.Settings) { New-PowerItem $b.Scheme $s.S $s.G $s.Ac $s.Dc $true })
     foreach ($s in @($b.OverlaySettings)) {
         if (-not $s) { continue }
         $base = @($b.Settings) | Where-Object { $_.G -eq $s.G } | Select-Object -First 1
         $ac = if ($null -ne $s.Ac) { $s.Ac } elseif ($base) { $base.Ac } else { $null }
         $dc = if ($null -ne $s.Dc) { $s.Dc } elseif ($base) { $base.Dc } else { $null }
-        if ($null -ne $ac -and $null -ne $dc) { [void](Set-PowerValueForced $OverlayBest $s.S $s.G $ac $dc $true) }
+        if ($null -ne $ac -and $null -ne $dc) { $items += New-PowerItem $OverlayBest $s.S $s.G $ac $dc $true }
+    }
+    $res = Set-PowerValuesForced $items
+    foreach ($s in $b.Settings) {
+        $r = $res["$($b.Scheme)|$($s.G)"]
+        if ($r -eq 'ok') { Write-Ok "$($s.N): CA $($s.Ac) / CC $($s.Dc)" }
+        elseif ($r -eq 'reinicio') { Write-Ok "$($s.N): CA $($s.Ac) / CC $($s.Dc) (al reiniciar)" }
+        else { Write-Warn2 "$($s.N): no se pudo restaurar" }
     }
     Set-Overlay $b.OverlayAc $b.OverlayDc
     if ($null -eq $b.PowerThrottlingOff) { Remove-ItemProperty -Path $ThrottleKey -Name 'PowerThrottlingOff' -ErrorAction SilentlyContinue }
@@ -597,6 +658,8 @@ if ($Restore) {
 }
 
 # ---------------------------------------------------------------- DIAGNOSTICO
+$wuJob = $null
+if (-not $SkipUpdateCheck) { try { $wuJob = Start-WuDriverSearch } catch {} }
 Write-Section 'Equipo y CPU'
 $cs  = Get-CimInstance Win32_ComputerSystem
 $oem = "$($cs.Manufacturer) $($cs.Model)".Trim()
@@ -607,7 +670,7 @@ foreach ($cpu in Get-CimInstance Win32_Processor) {
     if (-not $baseMHz) { $baseMHz = [int]$cpu.MaxClockSpeed }
 }
 try {
-    $pi = Get-CimInstance Win32_PerfFormattedData_Counters_ProcessorInformation -Filter "Name='_Total'" -ErrorAction Stop
+    $pi = Get-CimInstance Win32_PerfFormattedData_Counters_ProcessorInformation -Filter "Name='_Total'" -OperationTimeoutSec 10 -ErrorAction Stop
     $perf = [int]$pi.PercentProcessorPerformance
     Write-Info "Rendimiento CPU ahora: $perf % de la base (con carga, por debajo de 100 = limitada; por encima = turbo)"
 } catch { Write-Info 'Contador de rendimiento de CPU no disponible.' }
@@ -623,7 +686,7 @@ try {
 
 # Temperatura de la zona termica ACPI (decimas de Kelvin). No todos los portatiles la exponen.
 try {
-    $tz = @(Get-CimInstance -Namespace 'root/wmi' -ClassName 'MSAcpi_ThermalZoneTemperature' -ErrorAction Stop)
+    $tz = @(Get-CimInstance -Namespace 'root/wmi' -ClassName 'MSAcpi_ThermalZoneTemperature' -OperationTimeoutSec 10 -ErrorAction Stop)
     $c = ($tz | ForEach-Object { [math]::Round($_.CurrentTemperature / 10 - 273.15) } | Measure-Object -Maximum).Maximum
     if ($c -ge 85) { Write-Warn2 "Temperatura ahora: $c C (alta)" } elseif ($c -gt 0) { Write-Info "Temperatura ahora: $c C" }
 } catch {}
@@ -758,9 +821,12 @@ if (-not $SkipBios -and $cs.Manufacturer -match 'LENOVO') {
 if ($DryRun) {
     Write-Section 'DryRun: no se ha cambiado nada'
 } else {
+    $bkFile = Join-Path $LogPath 'backup.json'
+    $keepBackup = Test-Path $bkFile
     # Valores propios del modo "Maximo rendimiento": mandan sobre el plan (EPP, nucleos...).
+    # Solo hacen falta para la copia, que solo se escribe la primera vez.
     $ovBackup = @()
-    foreach ($t in $Targets) {
+    foreach ($t in @($Targets | Where-Object { -not $keepBackup })) {
         $cur = Get-PowerValue $OverlayBest $t.S $t.G
         if ($null -eq $cur) { continue }
         $ovBackup += [pscustomobject]@{ N = $t.N; S = $t.S; G = $t.G; Ac = $cur.Ac; Dc = $cur.Dc }
@@ -780,8 +846,6 @@ if ($DryRun) {
     }
     # Solo se guarda el estado ORIGINAL: si ya hay copia pendiente (el script se lanzo antes y
     # no se restauro), se conserva, para que -Restore vuelva a como estaba el equipo al principio.
-    $bkFile = Join-Path $LogPath 'backup.json'
-    $keepBackup = Test-Path $bkFile
     if ($keepBackup) { Write-Info "Ya hay copia del estado original ($bkFile): se conserva." }
     else {
         $bk | ConvertTo-Json -Depth 5 | Set-Content -Path $bkFile -Encoding UTF8
@@ -801,28 +865,32 @@ if ($DryRun) {
         if ((Get-ActiveScheme) -eq $target) { Write-Ok "Plan activo: $target" } else { Write-Err2 "No se pudo activar $target" }
     }
 
+    # Todo en una pasada: como mucho un arranque como SYSTEM para lo que el fabricante bloquea.
+    # Mismos valores dentro del modo "Maximo rendimiento" (si alguien lo activa, sus EPP y
+    # nucleos no mandan sobre el plan); lo que dejo una ejecucion anterior, al valor original.
+    $exist = @($backup | ForEach-Object { $_.G })
+    $items = @()
+    foreach ($t in $changes) { $items += New-PowerItem $target $t.S $t.G $t.Ac $t.Dc $doDc }
+    foreach ($t in $Targets) { if ($exist -contains $t.G) { $items += New-PowerItem $OverlayBest $t.S $t.G $t.Ac $t.Dc $doDc } }
+    foreach ($s in $heal) { $items += New-PowerItem $target $s.S $s.G $s.Ac $s.Dc $true }
+    foreach ($s in $healOv) { $items += New-PowerItem $OverlayBest $s.S $s.G $s.Ac $s.Dc $true }
+    $res = Set-PowerValuesForced $items
+    & powercfg /setactive $target 2>&1 | Out-Null
+
     $needReboot = @{}
     foreach ($t in $changes) {
-        $r = Set-PowerValueForced $target $t.S $t.G $t.Ac $t.Dc $doDc
+        $r = $res["$target|$($t.G)"]
         if ($r -eq 'reinicio') { $needReboot[$t.G] = $true; Write-Info "$($t.N): impuesto por el fabricante; escrito en el registro, se aplica al reiniciar" }
         elseif ($r -eq 'fallo') { Write-Warn2 "$($t.N): Windows no acepta el valor" }
     }
-    & powercfg /setactive $target 2>&1 | Out-Null
-
-    foreach ($t in $Targets) {
-        if ($null -eq (Get-PowerValue $target $t.S $t.G)) { continue }
-        $r = Set-PowerValueForced $OverlayBest $t.S $t.G $t.Ac $t.Dc $doDc
-        if ($r -eq 'reinicio') { $needReboot[$t.G] = $true }
-    }
-    # Lo que dejo apagado una ejecucion anterior y este perfil ya no toca: al valor original.
+    foreach ($t in $Targets) { if ($res["$OverlayBest|$($t.G)"] -eq 'reinicio') { $needReboot[$t.G] = $true } }
     $healFail = 0
     foreach ($s in $heal) {
-        $r = Set-PowerValueForced $target $s.S $s.G $s.Ac $s.Dc $true
+        $r = $res["$target|$($s.G)"]
         if ($r -eq 'ok') { Write-Ok "$($s.N): vuelve a CA $($s.Ac) / CC $($s.Dc)" }
         elseif ($r -eq 'reinicio') { Write-Ok "$($s.N): vuelve a CA $($s.Ac) / CC $($s.Dc) (al reiniciar)" }
         else { Write-Warn2 "$($s.N): no se pudo devolver al valor original"; $healFail++ }
     }
-    foreach ($s in $healOv) { [void](Set-PowerValueForced $OverlayBest $s.S $s.G $s.Ac $s.Dc $true) }
     Set-Overlay $ovAc $ovDc
     & powercfg /setactive $target 2>&1 | Out-Null
     if ("$thrTarget" -ne "$thr") {
@@ -895,9 +963,9 @@ if (-not $SkipUpdateCheck) {
         }
     }
 
-    Write-Info 'Buscando drivers y firmware pendientes en Windows Update (hasta 5 min)...'
     try {
-        $wu = @(Get-WuDriverUpdates)
+        if (-not $wuJob) { throw 'no se pudo lanzar la busqueda' }
+        $wu = @(Receive-WuDriverSearch $wuJob)
         if ($wu.Count -eq 0) { Write-Ok 'Windows Update: sin drivers ni firmware pendientes.' }
         foreach ($u in $wu) {
             $d = if ($u.Date) { ([datetime]$u.Date).ToString('yyyy-MM-dd') } else { '' }
