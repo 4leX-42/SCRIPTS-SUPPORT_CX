@@ -1,4 +1,4 @@
-﻿# SCRIPTS-SUPPORT_CX
+# SCRIPTS-SUPPORT_CX
 
 🇬🇧 [English](README.en.md)
 
@@ -594,7 +594,13 @@ Regenera el índice de README.md y README.en.md leyendo el .SYNOPSIS de cada scr
 
 <!-- INDICE-FIN -->
 
+
 ---
+
+## Guía de uso
+
+<details>
+<summary><b>Parámetros y ejecución</b></summary>
 
 ## Parámetros y ejecución
 
@@ -634,6 +640,11 @@ Get-Help .\script.ps1 -Full                               # parámetros y ejempl
 Los de modo `pegar` no llevan parámetros: se pegan y ya. La lista completa de parámetros de
 cada script está en su ficha del índice, leída del `param()` real.
 
+</details>
+
+<details>
+<summary><b>Contexto de ejecución</b></summary>
+
 ## Contexto de ejecución
 
 La etiqueta de color de cada script en el índice dice con qué consola se lanza:
@@ -651,6 +662,11 @@ La etiqueta de color de cada script en el índice dice con qué consola se lanza
 
 Elevar con otra cuenta redirige `HKCU` y `%LOCALAPPDATA%` a ese perfil. Los scripts de
 `01-identity-cache` lo detectan contra el propietario de `explorer.exe` y abortan.
+
+</details>
+
+<details>
+<summary><b>Retirados</b></summary>
 
 ## Retirados
 
@@ -671,6 +687,11 @@ En [`_archive/`](_archive/), solo consulta.
 
 Los cuatro primeros se retiraron al pasar a modo `pegar`: eran diagnósticos de solo lectura,
 y para eso no hace falta descargar nada.
+
+</details>
+
+<details>
+<summary><b>Estándar</b></summary>
 
 ## Estándar
 
@@ -694,3 +715,5 @@ Antes de cada commit:
   descripción va en [`00-copy-paste/index.psd1`](00-copy-paste/index.psd1).
 
 El índice de este README se genera solo. Cambias un script, ejecutas el generador, un commit.
+
+</details>
