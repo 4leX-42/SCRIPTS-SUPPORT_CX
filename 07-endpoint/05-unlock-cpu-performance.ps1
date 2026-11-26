@@ -37,6 +37,12 @@
         GHz). Recorta los escalones mas calientes del turbo con poca perdida en uso de oficina.
       - -Cool: sin turbo (maximo 99 %). Lo mas fresco, pero en un procesador U/P se nota lento.
       - En la app del fabricante, modo equilibrado/optimo (el script dice donde).
+    Un poco mas de rendimiento sin subir el techo de calor (la CPU ya no esta limitada y se
+    quiere que responda mas): -Epp 15 -MaxMHz <unos 400 MHz menos que el turbo maximo>. El EPP
+    bajo hace que suba antes y mas en cargas cortas; el tope quita los escalones del turbo que
+    mas calientan. El limite de potencia del firmware (PL1/PL2) no se toca, asi que el maximo
+    de potencia y de temperatura es el mismo; con carga media puede gastar algo mas y el
+    ventilador entrar antes. Es un ajuste para probar: mirar la temperatura con carga.
     -Max: comportamiento antiguo, todo al maximo tambien en bateria (CPU fija al 100 %, EPP 0,
     sin aparcar nucleos, sin Power Throttling ni ahorro de PCIe/NVMe, "Maximo rendimiento" y
     BIOS Lenovo MaximizePerformance). Solo sobremesa o pruebas: un portatil fino llega a 90-100
@@ -70,7 +76,10 @@
     Balanced. Core parking, Power Throttling, PCIe ASPM, disk/NVMe, USB and battery saver are left
     alone, and values an older run (or -Max) changed are restored from the backup. Still too hot:
     -MaxMHz <n> caps the clock (trims the hottest turbo bins), -Cool disables turbo (max state
-    99 %), and the OEM app should be on its balanced mode. -Max keeps the old everything-at-100 %
+    99 %), and the OEM app should be on its balanced mode. A bit more performance without a
+    higher heat ceiling: -Epp 15 -MaxMHz <about 400 MHz below max turbo> (faster ramp-up,
+    hottest turbo bins trimmed, firmware power limits untouched; medium loads may draw a bit
+    more, so test and watch the temperature). -Max keeps the old everything-at-100 %
     behaviour (desktops or tests only). Diagnosis shows clocks, temperature, power plan and mode,
     GPO/Intune pinning and event 37. Update check (read only) for BIOS and drivers (Lenovo catalog
     and Windows Update; -InstallDrivers installs). Original values are saved once to a .json;
@@ -100,6 +109,10 @@
 .PARAMETER MaxMHz
     [ES] Tope de frecuencia en MHz (nucleos P y E), p. ej. 3500. Recorta los escalones del turbo que mas calientan. Sin el, se respeta el tope del fabricante.
     [EN] Clock cap in MHz (P and E cores), e.g. 3500. Trims the hottest turbo bins. Without it the OEM cap is kept.
+
+.PARAMETER Epp
+    [ES] EPP con cargador (0 = rendimiento, 100 = ahorro), p. ej. 15: la CPU sube antes y mas en cargas cortas (abrir apps, navegar, Excel). En bateria sigue el perfil (50 como techo). El limite de potencia del firmware no cambia, asi que el maximo de temperatura tampoco; con carga media puede gastar algo mas y el ventilador entrar antes. Junto con -MaxMHz para recortar los picos, y probar mirando la temperatura.
+    [EN] EPP on AC (0 = performance, 100 = power saving), e.g. 15: the CPU ramps up sooner and higher on short loads. Battery keeps the profile (50 as a ceiling). Firmware power limits do not change, so the temperature ceiling does not either; medium loads may draw a bit more and spin the fan sooner. Combine with -MaxMHz to trim peaks, and test while watching the temperature.
 
 .PARAMETER AcOnly
     [ES] Aplica solo con el cargador conectado; en bateria deja los valores de Windows.
@@ -135,6 +148,9 @@
     .\05-unlock-cpu-performance.ps1 -MaxMHz 3500
 
 .EXAMPLE
+    .\05-unlock-cpu-performance.ps1 -Epp 15 -MaxMHz 3800
+
+.EXAMPLE
     .\05-unlock-cpu-performance.ps1 -Cool
 
 .EXAMPLE
@@ -158,6 +174,8 @@ param(
     [switch]$Cool,
     [ValidateRange(800, 6500)]
     [int]$MaxMHz,
+    [ValidateRange(0, 100)]
+    [int]$Epp,
     [switch]$AcOnly,
     [switch]$SkipBios,
     [switch]$SkipUpdateCheck,
@@ -227,7 +245,8 @@ $Targets = @(
     @{ N = 'USB suspension selectiva (0=no)'; S = $SubUsb;  G = '48e6b7a6-50f5-4782-a5d4-53bb8f07e226'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
     @{ N = 'Ahorro de energia auto (0=nunca)';S = $SubSave; G = 'e69653ca-cf7f-4f05-aa73-cb833fa90ad4'; Ac = $null; Dc = $null; XAc = 0;   XDc = 0 }
 )
-if ($Max -and ($Cool -or $MaxMHz)) { Write-Host '[ERROR] -Max no se combina con -Cool ni -MaxMHz: elegir uno.' -ForegroundColor Red; exit 1 }
+$EppSet = $PSBoundParameters.ContainsKey('Epp')
+if ($Max -and ($Cool -or $MaxMHz -or $EppSet)) { Write-Host '[ERROR] -Max no se combina con -Cool, -MaxMHz ni -Epp: elegir uno.' -ForegroundColor Red; exit 1 }
 if ($Max) { foreach ($t in $Targets) { if ($t.ContainsKey('XAc')) { $t.Ac = $t.XAc; $t.Dc = $t.XDc } } }
 # -Cool: maximo al 99 % = sin turbo. La CPU se queda en su frecuencia base; lo mas fresco, pero
 # en un procesador U/P (base 1,3-2,5 GHz) se nota lento. Probar antes -MaxMHz.
@@ -252,6 +271,8 @@ function Get-Desired($t, $cur) {
             'freqcap' { if ($c -eq 0 -or -not $baseMHz -or $c -ge $baseMHz) { $r[$side] = [int]$c } }
         }
     }
+    # -Epp: valor exacto con cargador (lo pide el tecnico, no es techo). La bateria sigue igual.
+    if ($t.K -eq 'ceil' -and $EppSet) { $r.Ac = $Epp }
     return $r
 }
 
@@ -336,6 +357,27 @@ function Test-PowerMatch($cur, [int]$ac, [int]$dc, [bool]$doDc) {
     return ($cur.Ac -eq $ac) -and ((-not $doDc) -or $cur.Dc -eq $dc)
 }
 
+# powercfg /qh devuelve el valor EFECTIVO, que puede no ser el guardado: en un LG gram se leyo
+# EPP 25 y, al recargar el plan, paso a 33 (el valor que habia escrito en el registro una
+# ejecucion anterior). Si el registro tiene un valor propio para el ajuste, tiene que coincidir
+# tambien; si no hay valor propio, vale lo efectivo.
+function Test-StoredMatch([string]$scheme, [string]$sub, [string]$setting, [int]$ac, [int]$dc, [bool]$doDc) {
+    $p = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$scheme\$sub\$setting"
+    $r = Get-ItemProperty -Path $p -ErrorAction SilentlyContinue
+    if (-not $r) { return $true }
+    if ($null -ne $r.ACSettingIndex -and [int]$r.ACSettingIndex -ne $ac) { return $false }
+    if ($doDc -and $null -ne $r.DCSettingIndex -and [int]$r.DCSettingIndex -ne $dc) { return $false }
+    return $true
+}
+
+# Modo de energia de Windows 11: vacio, $null y el GUID de ceros son lo mismo (Equilibrado).
+# Al aplicarlo con la API, Windows escribe el GUID de ceros donde antes no habia nada.
+function ConvertTo-OverlayKey($g) {
+    $s = "$g".Trim().ToLower()
+    if (-not $s -or $s -eq '00000000-0000-0000-0000-000000000000') { return '' }
+    return $s
+}
+
 # powercfg devuelve 0 pero NO cambia los ajustes que el fabricante dejo preconfigurados
 # (User\Default\PowerSchemes; visto en un LG gram con EPP y nucleos aparcados). Lo que tras
 # powercfg no queda como se pidio se escribe en el registro como SYSTEM, todo en UNA tarea
@@ -353,9 +395,11 @@ function Set-PowerValuesForced($items) {
     foreach ($i in @($items)) {
         if (-not $i) { continue }
         $k = "$($i.Scheme)|$($i.G)"
-        if (Test-PowerMatch (Get-PowerValue $i.Scheme $i.S $i.G) $i.Ac $i.Dc $i.DoDc) { $res[$k] = 'ok'; continue }
+        $stored = Test-StoredMatch $i.Scheme $i.S $i.G $i.Ac $i.Dc $i.DoDc
+        if ($stored -and (Test-PowerMatch (Get-PowerValue $i.Scheme $i.S $i.G) $i.Ac $i.Dc $i.DoDc)) { $res[$k] = 'ok'; continue }
         [void](Set-PowerValue $i.Scheme $i.S $i.G $i.Ac $i.Dc $i.DoDc)
-        if (Test-PowerMatch (Get-PowerValue $i.Scheme $i.S $i.G) $i.Ac $i.Dc $i.DoDc) { $res[$k] = 'ok' } else { $pending += $i }
+        $stored = Test-StoredMatch $i.Scheme $i.S $i.G $i.Ac $i.Dc $i.DoDc
+        if ($stored -and (Test-PowerMatch (Get-PowerValue $i.Scheme $i.S $i.G) $i.Ac $i.Dc $i.DoDc)) { $res[$k] = 'ok' } else { $pending += $i }
     }
     if ($pending.Count -eq 0) { return $res }
     $lines = @()
@@ -368,10 +412,11 @@ function Set-PowerValuesForced($items) {
     & powercfg /setactive SCHEME_CURRENT 2>&1 | Out-Null
     foreach ($i in $pending) {
         $k = "$($i.Scheme)|$($i.G)"
-        if (Test-PowerMatch (Get-PowerValue $i.Scheme $i.S $i.G) $i.Ac $i.Dc $i.DoDc) { $res[$k] = 'ok'; continue }
         $p = "HKLM:\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes\$($i.Scheme)\$($i.S)\$($i.G)"
         $r = Get-ItemProperty -Path $p -ErrorAction SilentlyContinue
-        $res[$k] = if ($r -and $r.ACSettingIndex -eq $i.Ac -and ((-not $i.DoDc) -or $r.DCSettingIndex -eq $i.Dc)) { 'reinicio' } else { 'fallo' }
+        $saved = $r -and $r.ACSettingIndex -eq $i.Ac -and ((-not $i.DoDc) -or $r.DCSettingIndex -eq $i.Dc)
+        $now = Test-PowerMatch (Get-PowerValue $i.Scheme $i.S $i.G) $i.Ac $i.Dc $i.DoDc
+        $res[$k] = if ($saved -and $now) { 'ok' } elseif ($saved) { 'reinicio' } else { 'fallo' }
     }
     return $res
 }
@@ -379,9 +424,11 @@ function Set-PowerValuesForced($items) {
 function Set-Overlay([string]$ac, [string]$dc) {
     $isSystem = ([Security.Principal.WindowsIdentity]::GetCurrent().User.Value -eq 'S-1-5-18')
     $regKey = 'HKLM\SYSTEM\CurrentControlSet\Control\Power\User\PowerSchemes'
+    $changed = $false
     foreach ($p in @(@('ActiveOverlayAcPowerScheme', $ac), @('ActiveOverlayDcPowerScheme', $dc))) {
         $cur = (Get-ItemProperty -Path $OverlayKey -ErrorAction SilentlyContinue).($p[0])
-        if ("$cur" -eq "$($p[1])") { continue }
+        if ((ConvertTo-OverlayKey $cur) -eq (ConvertTo-OverlayKey $p[1])) { continue }
+        $changed = $true
         if ($isSystem) {
             if ($p[1]) { Set-ItemProperty -Path $OverlayKey -Name $p[0] -Value $p[1] -Type String -Force }
             else { Remove-ItemProperty -Path $OverlayKey -Name $p[0] -ErrorAction SilentlyContinue }
@@ -390,7 +437,10 @@ function Set-Overlay([string]$ac, [string]$dc) {
     }
     # El registro guarda los dos; la API de Windows (la que usa Configuracion) lo aplica ya
     # para la fuente de energia actual. powercfg no tiene opcion para esto.
-    $now = if ($bat -and $bat.BatteryStatus -eq 1) { $dc } else { $ac }
+    # Solo si algo cambio: llamarla sin cambios recarga el modo y en un LG gram devolvio el EPP
+    # efectivo de 25 a 33 (la CPU quedaba algo mas lenta que antes de lanzar el script).
+    if (-not $changed) { return }
+    $now =if ($bat -and $bat.BatteryStatus -eq 1) { $dc } else { $ac }
     if (-not $now) { $now = '00000000-0000-0000-0000-000000000000' }
     try {
         if (-not ('PowrProf.Overlay' -as [type])) {
@@ -735,8 +785,10 @@ foreach ($t in $Targets) {
     $backup += [pscustomobject]@{ N = $t.N; S = $t.S; G = $t.G; Ac = $cur.Ac; Dc = $cur.Dc }
     $d = Get-Desired $t $cur
     $t.Ac = $d.Ac; $t.Dc = $d.Dc
-    $same =($cur.Ac -eq $t.Ac) -and ((-not $doDc) -or $cur.Dc -eq $t.Dc)
+    $same = ($cur.Ac -eq $t.Ac) -and ((-not $doDc) -or $cur.Dc -eq $t.Dc)
+    $storedOk = Test-StoredMatch $readScheme $t.S $t.G $t.Ac $t.Dc $doDc
     $line = "{0}: CA {1}->{2}{3}" -f $t.N, $cur.Ac, $t.Ac, $(if ($doDc) { " / CC $($cur.Dc)->$($t.Dc)" } else { '' })
+    if ($same -and -not $storedOk) { $same = $false; $line += ' (el valor guardado no coincide con el efectivo: se corrige)' }
     if ($same) { Write-Ok "$($t.N): ya esta (CA $($cur.Ac) / CC $($cur.Dc))"; continue }
     $changes += $t
     if ($DryRun) { Write-Plan $line } else { Write-Info $line }
@@ -783,7 +835,7 @@ $thrTarget = $thr
 if ($Max) { $thrTarget = 1 } elseif ($prev) { $thrTarget = $prev.PowerThrottlingOff }
 
 if ($DryRun) {
-    if ("$ovAc|$ovDc" -ne "$($ov.Ac)|$($ov.Dc)") { Write-Plan "Modo de energia (CA/CC): $(Get-OverlayName $ov.Ac) / $(Get-OverlayName $ov.Dc) -> $(Get-OverlayName $ovAc) / $(Get-OverlayName $ovDc)" }
+    if ((ConvertTo-OverlayKey $ovAc) -ne (ConvertTo-OverlayKey $ov.Ac) -or (ConvertTo-OverlayKey $ovDc) -ne (ConvertTo-OverlayKey $ov.Dc)) { Write-Plan "Modo de energia (CA/CC): $(Get-OverlayName $ov.Ac) / $(Get-OverlayName $ov.Dc) -> $(Get-OverlayName $ovAc) / $(Get-OverlayName $ovDc)" }
     else { Write-Ok "Modo de energia: $(Get-OverlayName $ovAc) / $(Get-OverlayName $ovDc), no se toca" }
     Write-Plan 'Los mismos valores dentro del modo Maximo rendimiento (si alguien lo activa, sus EPP y nucleos no mandan sobre el plan)'
     if ("$thrTarget" -ne "$thr") { Write-Plan "PowerThrottlingOff: $thr -> $(if ($null -eq $thrTarget) { 'sin definir' } else { $thrTarget })" }
@@ -883,7 +935,8 @@ if ($DryRun) {
         if ($r -eq 'reinicio') { $needReboot[$t.G] = $true; Write-Info "$($t.N): impuesto por el fabricante; escrito en el registro, se aplica al reiniciar" }
         elseif ($r -eq 'fallo') { Write-Warn2 "$($t.N): Windows no acepta el valor" }
     }
-    foreach ($t in $Targets) { if ($res["$OverlayBest|$($t.G)"] -eq 'reinicio') { $needReboot[$t.G] = $true } }
+    # Los del modo "Maximo rendimiento" no cuentan aqui: ese modo no esta activo y mezclarlos por
+    # ajuste podia tapar un fallo del plan con un "se aplica al reiniciar".
     $healFail = 0
     foreach ($s in $heal) {
         $r = $res["$target|$($s.G)"]
@@ -919,12 +972,13 @@ if ($DryRun) {
         $cur = Get-PowerValue $target $t.S $t.G
         if ($null -eq $cur) { continue }
         $ok = ($cur.Ac -eq $t.Ac) -and ((-not $doDc) -or $cur.Dc -eq $t.Dc)
-        if ($ok) { Write-Ok "$($t.N): CA $($cur.Ac) / CC $($cur.Dc)" }
+        if ($ok -and -not (Test-StoredMatch $target $t.S $t.G $t.Ac $t.Dc $doDc)) { Write-Err2 "$($t.N): CA $($cur.Ac) / CC $($cur.Dc) ahora, pero el registro guarda otro valor (volveria al reiniciar)"; $fail++ }
+        elseif ($ok) { Write-Ok "$($t.N): CA $($cur.Ac) / CC $($cur.Dc)" }
         elseif ($needReboot[$t.G]) { Write-Warn2 "$($t.N): ahora CA $($cur.Ac) / CC $($cur.Dc); queda $($t.Ac) al reiniciar (valor de fabrica del OEM)" }
         else { Write-Err2 "$($t.N): CA $($cur.Ac) / CC $($cur.Dc)"; $fail++ }
     }
     $ov2 = Get-Overlay
-    if ("$($ov2.Ac)" -eq "$ovAc" -and "$($ov2.Dc)" -eq "$ovDc") { Write-Ok "Modo de energia (CA/CC): $(Get-OverlayName $ov2.Ac) / $(Get-OverlayName $ov2.Dc)" }
+    if ((ConvertTo-OverlayKey $ov2.Ac) -eq (ConvertTo-OverlayKey $ovAc) -and (ConvertTo-OverlayKey $ov2.Dc) -eq (ConvertTo-OverlayKey $ovDc)) { Write-Ok "Modo de energia (CA/CC): $(Get-OverlayName $ov2.Ac) / $(Get-OverlayName $ov2.Dc)" }
     else { Write-Err2 "Modo de energia: $($ov2.Ac) / $($ov2.Dc)"; $fail++ }
     $thr2 = (Get-ItemProperty -Path $ThrottleKey -ErrorAction SilentlyContinue).PowerThrottlingOff
     if ("$thr2" -eq "$thrTarget") { Write-Ok "Power Throttling: $(if ($thr2 -eq 1) { 'desactivado' } else { 'el de Windows (activo)' })" }
@@ -1003,6 +1057,7 @@ if (-not $DryRun) {
     Write-Host 'Deshacer: el mismo comando con -Restore' -ForegroundColor Cyan
     Write-Host 'Reiniciar recomendado (obligatorio si se cambio la BIOS de Lenovo).' -ForegroundColor Yellow
     if (-not $Max -and -not $Cool -and -not $MaxMHz) { Write-Host 'Si con carga sigue pasando de 90 grados: el mismo comando con -MaxMHz 3500 (o -Cool para quitar el turbo), y la app del fabricante en modo equilibrado.' -ForegroundColor Yellow }
+    if (-not $Max -and -not $EppSet) { Write-Host 'Para que responda algo mas sin subir el techo de calor: el mismo comando con -Epp 15 -MaxMHz <turbo maximo menos 400> (p. ej. 3800 en una CPU de 4,2 GHz) y mirar la temperatura con carga.' -ForegroundColor Yellow }
     if ($Max) { Write-Host 'Perfil -Max: la CPU no baja de vueltas y se calienta. Volver al normal: el mismo comando sin -Max.' -ForegroundColor Yellow }
 }
 Write-Host 'Si tras reiniciar la CPU sigue limitada y hay eventos 37: cargador original de los vatios correctos, temperatura (polvo, pasta termica) o bateria.' -ForegroundColor Yellow
