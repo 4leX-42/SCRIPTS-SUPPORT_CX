@@ -23,8 +23,11 @@
     Perfil por defecto, sobre el plan activo (o el de -Plan):
       - CPU: minimo 5 % (baja en reposo), maximo 100 %, refrigeracion activa (ventilador antes
         que bajar la frecuencia).
-      - EPP: como techo 33 con cargador y 50 en bateria. Solo se baja si el fabricante lo tiene
-        mas alto (CPU perezosa); si ya esta mas bajo, se respeta.
+      - EPP: como techo 15 con cargador y 50 en bateria. Solo se baja si el fabricante lo tiene
+        mas alto (CPU perezosa); si ya esta mas bajo, se respeta. 15 hace que la CPU suba antes
+        y llegue al turbo completo en los picos de segundos (abrir una app), que no calientan el
+        equipo: la masa del disipador los absorbe. Con carga larga y pesada manda el limite de
+        potencia del firmware (PL1/PL2), que no se toca, asi que no se queda fija a 90 grados.
       - Turbo: solo se activa si el fabricante lo desactivo.
       - Tope de frecuencia: solo se quita si esta por debajo de la base; uno por encima lo puso
         el fabricante para la temperatura y se respeta. -MaxMHz pone uno a mano.
@@ -37,14 +40,10 @@
         GHz). Recorta los escalones mas calientes del turbo con poca perdida en uso de oficina.
       - -Cool: sin turbo (maximo 99 %). Lo mas fresco, pero en un procesador U/P se nota lento.
       - En la app del fabricante, modo equilibrado/optimo (el script dice donde).
-    Un poco mas de rendimiento sin subir el techo de calor (la CPU ya no esta limitada y se
-    quiere que responda mas): -Epp 15, sin tope. La CPU sube antes y llega al turbo completo en
-    los picos de segundos (abrir una app), que no calientan el equipo: la masa del disipador los
-    absorbe. Con carga larga y pesada manda el limite de potencia del firmware (PL1/PL2), que
-    no se toca y ya baja la frecuencia por debajo del turbo. Lo unico que puede calentar algo
-    mas es la carga ligera y continua (Teams, una web pesada): uno o dos nucleos al maximo
-    durante minutos. Solo si ahi se nota calor o ventilador, anadir -MaxMHz <unos 200 MHz menos
-    que el turbo maximo>; un tope recorta tambien los picos cortos.
+    Lo unico que el EPP 15 puede calentar algo mas es la carga ligera y continua (Teams, una web
+    pesada): uno o dos nucleos al maximo durante minutos. Si ahi se nota calor o ventilador:
+    -Epp 33 (el Equilibrado de Windows) o -MaxMHz <unos 200 MHz menos que el turbo maximo>; un
+    tope recorta tambien los picos cortos.
     -Max: comportamiento antiguo, todo al maximo tambien en bateria (CPU fija al 100 %, EPP 0,
     sin aparcar nucleos, sin Power Throttling ni ahorro de PCIe/NVMe, "Maximo rendimiento" y
     BIOS Lenovo MaximizePerformance). Solo sobremesa o pruebas: un portatil fino llega a 90-100
@@ -72,17 +71,17 @@
     Windows, heat comes from a high minimum state, the Windows 11 "Best performance" mode (tied
     by OEMs to higher power limits, and it turns Power Throttling off) and the top turbo bins.
     With Intel Speed Shift (HWP) the Windows boost mode barely matters; EPP decides.
-    Default profile: min state 5 %, max 100 %, active cooling; EPP capped at 33 on AC / 50 on
-    battery (only lowered when the OEM set it higher); boost only enabled if the OEM disabled it;
+    Default profile: min state 5 %, max 100 %, active cooling; EPP capped at 15 on AC / 50 on
+    battery (only lowered when the OEM set it higher: faster ramp-up and full turbo on
+    second-long bursts, which the heatsink absorbs, while long heavy loads stay under the
+    untouched firmware power limits); boost only enabled if the OEM disabled it;
     frequency cap only removed when below base clock; "Best performance" mode goes back to
     Balanced. Core parking, Power Throttling, PCIe ASPM, disk/NVMe, USB and battery saver are left
     alone, and values an older run (or -Max) changed are restored from the backup. Still too hot:
     -MaxMHz <n> caps the clock (trims the hottest turbo bins), -Cool disables turbo (max state
-    99 %), and the OEM app should be on its balanced mode. A bit more performance without a
-    higher heat ceiling: -Epp 15 with no cap (faster ramp-up and full turbo on second-long
-    bursts, which the heatsink absorbs; long heavy loads stay under the untouched firmware power
-    limits). Only if long light loads (Teams, heavy web pages) run hot, add -MaxMHz <about
-    200 MHz below max turbo>; a cap also trims short bursts. -Max keeps the old everything-at-100 %
+    99 %), and the OEM app should be on its balanced mode. If long light loads (Teams, heavy web
+    pages) run hot with EPP 15: -Epp 33 (Windows Balanced) or -MaxMHz <about 200 MHz below max
+    turbo>; a cap also trims short bursts. -Max keeps the old everything-at-100 %
     behaviour (desktops or tests only). Diagnosis shows clocks, temperature, power plan and mode,
     GPO/Intune pinning and event 37. Update check (read only) for BIOS and drivers (Lenovo catalog
     and Windows Update; -InstallDrivers installs). Original values are saved once to a .json;
@@ -114,8 +113,8 @@
     [EN] Clock cap in MHz (P and E cores), e.g. 3500. Trims the hottest turbo bins. Without it the OEM cap is kept.
 
 .PARAMETER Epp
-    [ES] EPP con cargador (0 = rendimiento, 100 = ahorro), p. ej. 15: la CPU sube antes y mas en cargas cortas (abrir apps, navegar, Excel). En bateria sigue el perfil (50 como techo). El limite de potencia del firmware no cambia, asi que el maximo de temperatura tampoco; con carga ligera y continua puede gastar algo mas y el ventilador entrar antes. Sin tope los picos cortos van al turbo completo; -MaxMHz solo si esa carga continua calienta.
-    [EN] EPP on AC (0 = performance, 100 = power saving), e.g. 15: the CPU ramps up sooner and higher on short loads. Battery keeps the profile (50 as a ceiling). Firmware power limits do not change, so the temperature ceiling does not either; long light loads may draw a bit more and spin the fan sooner. Without a cap short bursts get full turbo; add -MaxMHz only if that continuous load runs hot.
+    [ES] EPP exacto con cargador (0 = rendimiento, 100 = ahorro). Sin el, el perfil usa 15 como techo. -Epp 33 (el Equilibrado de Windows) si con carga ligera y continua el ventilador entra demasiado; -Epp 0 para lo mas rapido. En bateria sigue el perfil (50 como techo). El limite de potencia del firmware no cambia con ningun valor.
+    [EN] Exact EPP on AC (0 = performance, 100 = power saving). Without it the profile uses 15 as a ceiling. -Epp 33 (Windows Balanced) if long light loads spin the fan too much; -Epp 0 for the fastest. Battery keeps the profile (50 as a ceiling). Firmware power limits do not change with any value.
 
 .PARAMETER AcOnly
     [ES] Aplica solo con el cargador conectado; en bateria deja los valores de Windows.
@@ -151,7 +150,7 @@
     .\05-unlock-cpu-performance.ps1 -MaxMHz 3500
 
 .EXAMPLE
-    .\05-unlock-cpu-performance.ps1 -Epp 15
+    .\05-unlock-cpu-performance.ps1 -Epp 33
 
 .EXAMPLE
     .\05-unlock-cpu-performance.ps1 -Cool
@@ -233,8 +232,8 @@ $Targets = @(
     @{ N = 'CPU tope de frecuencia (E)';      S = $SubProc; G = '75b0ae3f-bce0-45a7-8c89-c9611c25e101'; Ac = 0;     Dc = 0;     K = 'freqcap' }
     @{ N = 'CPU turbo';                       S = $SubProc; G = 'be337238-0d82-4146-a960-4f3749d470c7'; Ac = 4;     Dc = 4;     XAc = 2;   XDc = 2;   K = 'turbo' }
     @{ N = 'CPU politica de turbo';           S = $SubProc; G = '45bcc044-d885-43e2-8605-ee0ec6e96b59'; Ac = $null; Dc = $null; XAc = 100; XDc = 100 }
-    @{ N = 'CPU EPP';                         S = $SubProc; G = '36687f9e-e3a5-4dbf-b1dc-15eb381c6863'; Ac = 33;    Dc = 50;    XAc = 0;   XDc = 0;   K = 'ceil' }
-    @{ N = 'CPU EPP (nucleos E)';             S = $SubProc; G = '36687f9e-e3a5-4dbf-b1dc-15eb381c6864'; Ac = 33;    Dc = 50;    XAc = 0;   XDc = 0;   K = 'ceil' }
+    @{ N = 'CPU EPP';                         S = $SubProc; G = '36687f9e-e3a5-4dbf-b1dc-15eb381c6863'; Ac = 15;    Dc = 50;    XAc = 0;   XDc = 0;   K = 'ceil' }
+    @{ N = 'CPU EPP (nucleos E)';             S = $SubProc; G = '36687f9e-e3a5-4dbf-b1dc-15eb381c6864'; Ac = 15;    Dc = 50;    XAc = 0;   XDc = 0;   K = 'ceil' }
     @{ N = 'CPU nucleos sin aparcar (%)';     S = $SubProc; G = '0cc5b647-c1df-4637-891a-dec35c318583'; Ac = $null; Dc = $null; XAc = 100; XDc = 100 }
     @{ N = 'CPU nucleos sin aparcar E (%)';   S = $SubProc; G = '0cc5b647-c1df-4637-891a-dec35c318584'; Ac = $null; Dc = $null; XAc = 100; XDc = 100 }
     @{ N = 'Refrigeracion (1=activa)';        S = $SubProc; G = '94d3a615-a899-4ac5-ae2b-e4d8f634367f'; Ac = 1;     Dc = 1 }
@@ -1060,7 +1059,7 @@ if (-not $DryRun) {
     Write-Host 'Deshacer: el mismo comando con -Restore' -ForegroundColor Cyan
     Write-Host 'Reiniciar recomendado (obligatorio si se cambio la BIOS de Lenovo).' -ForegroundColor Yellow
     if (-not $Max -and -not $Cool -and -not $MaxMHz) { Write-Host 'Si con carga sigue pasando de 90 grados: el mismo comando con -MaxMHz 3500 (o -Cool para quitar el turbo), y la app del fabricante en modo equilibrado.' -ForegroundColor Yellow }
-    if (-not $Max -and -not $EppSet) { Write-Host 'Para que responda algo mas sin subir el techo de calor: el mismo comando con -Epp 15 (sin tope: los picos cortos van al turbo completo). Si con carga ligera larga (Teams) calienta, anadir -MaxMHz con unos 200 MHz menos que el turbo.' -ForegroundColor Yellow }
+    if (-not $Max -and -not $EppSet) { Write-Host 'Si con carga ligera larga (Teams) el ventilador entra demasiado: el mismo comando con -Epp 33 (Equilibrado de Windows).' -ForegroundColor Yellow }
     if ($Max) { Write-Host 'Perfil -Max: la CPU no baja de vueltas y se calienta. Volver al normal: el mismo comando sin -Max.' -ForegroundColor Yellow }
 }
 Write-Host 'Si tras reiniciar la CPU sigue limitada y hay eventos 37: cargador original de los vatios correctos, temperatura (polvo, pasta termica) o bateria.' -ForegroundColor Yellow
