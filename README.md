@@ -450,7 +450,7 @@ Portátil con la CPU limitada (GHz bajos): quita los topes de energía de la CPU
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass -Force; [Net.ServicePointManager]::SecurityProtocol=3072; $f="$env:TEMP\05-unlock-cpu-performance.ps1"; irm https://raw.githubusercontent.com/4leX-42/SCRIPTS-SUPPORT_CX/main/07-endpoint/05-unlock-cpu-performance.ps1 -OutFile $f; & $f
 ```
-<sub>Parámetros: `-DryRun` `-Restore` `-Plan` `-Max` `-Cool` `-MaxMHz` `-AcOnly` `-SkipBios` `-SkipUpdateCheck` `-InstallDrivers` `-BackupFile` `-LogPath`</sub>
+<sub>Parámetros: `-DryRun` `-Restore` `-Plan` `-Max` `-Cool` `-MaxMHz` `-Epp` `-AcOnly` `-SkipBios` `-SkipUpdateCheck` `-InstallDrivers` `-BackupFile` `-LogPath`</sub>
 
 </details>
 
