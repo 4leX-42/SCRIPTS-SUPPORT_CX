@@ -38,11 +38,13 @@
       - -Cool: sin turbo (maximo 99 %). Lo mas fresco, pero en un procesador U/P se nota lento.
       - En la app del fabricante, modo equilibrado/optimo (el script dice donde).
     Un poco mas de rendimiento sin subir el techo de calor (la CPU ya no esta limitada y se
-    quiere que responda mas): -Epp 15 -MaxMHz <unos 400 MHz menos que el turbo maximo>. El EPP
-    bajo hace que suba antes y mas en cargas cortas; el tope quita los escalones del turbo que
-    mas calientan. El limite de potencia del firmware (PL1/PL2) no se toca, asi que el maximo
-    de potencia y de temperatura es el mismo; con carga media puede gastar algo mas y el
-    ventilador entrar antes. Es un ajuste para probar: mirar la temperatura con carga.
+    quiere que responda mas): -Epp 15, sin tope. La CPU sube antes y llega al turbo completo en
+    los picos de segundos (abrir una app), que no calientan el equipo: la masa del disipador los
+    absorbe. Con carga larga y pesada manda el limite de potencia del firmware (PL1/PL2), que
+    no se toca y ya baja la frecuencia por debajo del turbo. Lo unico que puede calentar algo
+    mas es la carga ligera y continua (Teams, una web pesada): uno o dos nucleos al maximo
+    durante minutos. Solo si ahi se nota calor o ventilador, anadir -MaxMHz <unos 200 MHz menos
+    que el turbo maximo>; un tope recorta tambien los picos cortos.
     -Max: comportamiento antiguo, todo al maximo tambien en bateria (CPU fija al 100 %, EPP 0,
     sin aparcar nucleos, sin Power Throttling ni ahorro de PCIe/NVMe, "Maximo rendimiento" y
     BIOS Lenovo MaximizePerformance). Solo sobremesa o pruebas: un portatil fino llega a 90-100
@@ -77,9 +79,10 @@
     alone, and values an older run (or -Max) changed are restored from the backup. Still too hot:
     -MaxMHz <n> caps the clock (trims the hottest turbo bins), -Cool disables turbo (max state
     99 %), and the OEM app should be on its balanced mode. A bit more performance without a
-    higher heat ceiling: -Epp 15 -MaxMHz <about 400 MHz below max turbo> (faster ramp-up,
-    hottest turbo bins trimmed, firmware power limits untouched; medium loads may draw a bit
-    more, so test and watch the temperature). -Max keeps the old everything-at-100 %
+    higher heat ceiling: -Epp 15 with no cap (faster ramp-up and full turbo on second-long
+    bursts, which the heatsink absorbs; long heavy loads stay under the untouched firmware power
+    limits). Only if long light loads (Teams, heavy web pages) run hot, add -MaxMHz <about
+    200 MHz below max turbo>; a cap also trims short bursts. -Max keeps the old everything-at-100 %
     behaviour (desktops or tests only). Diagnosis shows clocks, temperature, power plan and mode,
     GPO/Intune pinning and event 37. Update check (read only) for BIOS and drivers (Lenovo catalog
     and Windows Update; -InstallDrivers installs). Original values are saved once to a .json;
@@ -111,8 +114,8 @@
     [EN] Clock cap in MHz (P and E cores), e.g. 3500. Trims the hottest turbo bins. Without it the OEM cap is kept.
 
 .PARAMETER Epp
-    [ES] EPP con cargador (0 = rendimiento, 100 = ahorro), p. ej. 15: la CPU sube antes y mas en cargas cortas (abrir apps, navegar, Excel). En bateria sigue el perfil (50 como techo). El limite de potencia del firmware no cambia, asi que el maximo de temperatura tampoco; con carga media puede gastar algo mas y el ventilador entrar antes. Junto con -MaxMHz para recortar los picos, y probar mirando la temperatura.
-    [EN] EPP on AC (0 = performance, 100 = power saving), e.g. 15: the CPU ramps up sooner and higher on short loads. Battery keeps the profile (50 as a ceiling). Firmware power limits do not change, so the temperature ceiling does not either; medium loads may draw a bit more and spin the fan sooner. Combine with -MaxMHz to trim peaks, and test while watching the temperature.
+    [ES] EPP con cargador (0 = rendimiento, 100 = ahorro), p. ej. 15: la CPU sube antes y mas en cargas cortas (abrir apps, navegar, Excel). En bateria sigue el perfil (50 como techo). El limite de potencia del firmware no cambia, asi que el maximo de temperatura tampoco; con carga ligera y continua puede gastar algo mas y el ventilador entrar antes. Sin tope los picos cortos van al turbo completo; -MaxMHz solo si esa carga continua calienta.
+    [EN] EPP on AC (0 = performance, 100 = power saving), e.g. 15: the CPU ramps up sooner and higher on short loads. Battery keeps the profile (50 as a ceiling). Firmware power limits do not change, so the temperature ceiling does not either; long light loads may draw a bit more and spin the fan sooner. Without a cap short bursts get full turbo; add -MaxMHz only if that continuous load runs hot.
 
 .PARAMETER AcOnly
     [ES] Aplica solo con el cargador conectado; en bateria deja los valores de Windows.
@@ -148,7 +151,7 @@
     .\05-unlock-cpu-performance.ps1 -MaxMHz 3500
 
 .EXAMPLE
-    .\05-unlock-cpu-performance.ps1 -Epp 15 -MaxMHz 3800
+    .\05-unlock-cpu-performance.ps1 -Epp 15
 
 .EXAMPLE
     .\05-unlock-cpu-performance.ps1 -Cool
@@ -1057,7 +1060,7 @@ if (-not $DryRun) {
     Write-Host 'Deshacer: el mismo comando con -Restore' -ForegroundColor Cyan
     Write-Host 'Reiniciar recomendado (obligatorio si se cambio la BIOS de Lenovo).' -ForegroundColor Yellow
     if (-not $Max -and -not $Cool -and -not $MaxMHz) { Write-Host 'Si con carga sigue pasando de 90 grados: el mismo comando con -MaxMHz 3500 (o -Cool para quitar el turbo), y la app del fabricante en modo equilibrado.' -ForegroundColor Yellow }
-    if (-not $Max -and -not $EppSet) { Write-Host 'Para que responda algo mas sin subir el techo de calor: el mismo comando con -Epp 15 -MaxMHz <turbo maximo menos 400> (p. ej. 3800 en una CPU de 4,2 GHz) y mirar la temperatura con carga.' -ForegroundColor Yellow }
+    if (-not $Max -and -not $EppSet) { Write-Host 'Para que responda algo mas sin subir el techo de calor: el mismo comando con -Epp 15 (sin tope: los picos cortos van al turbo completo). Si con carga ligera larga (Teams) calienta, anadir -MaxMHz con unos 200 MHz menos que el turbo.' -ForegroundColor Yellow }
     if ($Max) { Write-Host 'Perfil -Max: la CPU no baja de vueltas y se calienta. Volver al normal: el mismo comando sin -Max.' -ForegroundColor Yellow }
 }
 Write-Host 'Si tras reiniciar la CPU sigue limitada y hay eventos 37: cargador original de los vatios correctos, temperatura (polvo, pasta termica) o bateria.' -ForegroundColor Yellow
